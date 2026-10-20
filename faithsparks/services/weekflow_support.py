@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import logging
+import threading
 import os
 import re
 import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Protocol
-from uuid import uuid4
 
 from firebase_admin import firestore
 from itsdangerous import BadData, URLSafeTimedSerializer
@@ -19,6 +21,8 @@ from faithsparks.services.weekflow_integrations import (
     NotificationProvider,
     notification_provider,
 )
+
+log = logging.getLogger(__name__)
 
 RESPONSE_TOKEN_SALT = "weekflow-support-response-v1"
 RESPONSE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
@@ -34,6 +38,8 @@ class WeekFlowSupportTokenError(ValueError):
 
 class SupportRequestRepository(Protocol):
     def create(self, request_id: str, payload: dict[str, object]) -> None: ...
+
+    def create_once(self, request_id: str, payload: dict[str, object]) -> bool: ...
 
     def get(self, request_id: str) -> dict[str, object] | None: ...
 
@@ -57,6 +63,20 @@ class FirestoreSupportRequestRepository:
 
     def create(self, request_id: str, payload: dict[str, object]) -> None:
         self._document(request_id).create(payload)
+
+    def create_once(self, request_id: str, payload: dict[str, object]) -> bool:
+        document = self._document(request_id)
+
+        @firestore.transactional
+        def claim(txn):
+            snapshot = document.get(transaction=txn)
+            existing = snapshot.to_dict() or {}
+            if snapshot.exists and existing.get("expiresAt", payload["expiresAt"]) > payload["createdAt"]:
+                return False
+            txn.set(document, payload)
+            return True
+
+        return bool(claim(self.client.transaction()))
 
     def get(self, request_id: str) -> dict[str, object] | None:
         snapshot = self._document(request_id).get()
@@ -91,11 +111,20 @@ class MemorySupportRequestRepository:
 
     def __init__(self):
         self.requests: dict[str, dict[str, object]] = {}
+        self._lock = threading.Lock()
 
     def create(self, request_id: str, payload: dict[str, object]) -> None:
         if request_id in self.requests:
             raise ValueError("support request already exists")
         self.requests[request_id] = dict(payload)
+
+    def create_once(self, request_id: str, payload: dict[str, object]) -> bool:
+        with self._lock:
+            existing = self.requests.get(request_id)
+            if existing and existing["expiresAt"] > payload["createdAt"]:
+                return False
+            self.requests[request_id] = dict(payload)
+            return True
 
     def get(self, request_id: str) -> dict[str, object] | None:
         payload = self.requests.get(request_id)
@@ -199,7 +228,14 @@ def create_and_send_support_request(
     responsibility_kind = payload.get("responsibility_kind", "throughout")
     if responsibility_kind not in {"dropoff", "pickup", "throughout"}:
         raise ValueError("responsibility_kind is invalid")
-    request_id = uuid4().hex
+    idempotency_key = payload.get("idempotency_key", "")
+    if not isinstance(idempotency_key, str) or len(idempotency_key) > 128:
+        raise ValueError("idempotency_key must be at most 128 characters")
+    # Identical legacy requests share a claim for the response-link lifetime.
+    # An explicit new key lets a caller intentionally send a separate reminder.
+    identity = [normalized_owner, channel, destination, event_id, event_title,
+                adult_name, request_kind, responsibility_kind, idempotency_key]
+    request_id = hashlib.sha256(json.dumps(identity, separators=(",", ":")).encode()).hexdigest()
     nonce = secrets.token_urlsafe(24)
     token = _serializer(secret_key).dumps(
         {"request_id": request_id, "nonce": nonce}
@@ -219,7 +255,7 @@ def create_and_send_support_request(
         "responsibilityKind": responsibility_kind,
         "kind": request_kind,
         "status": "pending",
-        "notificationStatus": "queued",
+        "notificationStatus": "sending",
         "notificationChannel": channel,
         "provider": None,
         "providerMessageId": None,
@@ -231,13 +267,26 @@ def create_and_send_support_request(
         "respondedAt": None,
     }
     store = repository or FirestoreSupportRequestRepository()
+    sender = provider or notification_provider(channel)
     try:
-        store.create(request_id, record)
+        claimed = store.create_once(request_id, record)
+        if not claimed:
+            existing = store.get(request_id)
+            if not existing:
+                raise WeekFlowSupportUnavailable("The support request could not be loaded.")
+            return {
+                "id": request_id, "status": existing["status"],
+                "notification_status": ("unknown" if existing["notificationStatus"] == "sending"
+                                        else existing["notificationStatus"]),
+                "channel": existing["notificationChannel"],
+                "destination_hint": existing["destinationHint"],
+                "expires_at": existing["expiresAt"].isoformat(),
+                "already_requested": True,
+            }
     except Exception as exc:
         raise WeekFlowSupportUnavailable(
             "The support request could not be saved."
         ) from exc
-    sender = provider or notification_provider(channel)
     try:
         result = sender.send(
             destination=destination,
@@ -245,21 +294,22 @@ def create_and_send_support_request(
             body=message,
         )
     except Exception:
-        store.update(request_id, {"notificationStatus": "failed"})
+        try:
+            store.update(request_id, {"notificationStatus": "failed"})
+        except Exception:
+            log.exception("Could not record support notification failure")
         raise
-    store.update(
-        request_id,
-        {
-            "notificationStatus": result.status,
-            "provider": result.provider,
+    try:
+        store.update(request_id, {
+            "notificationStatus": result.status, "provider": result.provider,
             "providerMessageId": result.message_id,
-        },
-    )
+        })
+    except Exception:
+        # Delivery succeeded. Keep the durable claim so a retry never sends twice.
+        log.exception("Support notification sent but delivery status could not be saved")
     return {
-        "id": request_id,
-        "status": "pending",
-        "notification_status": result.status,
-        "channel": channel,
+        "id": request_id, "status": "pending",
+        "notification_status": result.status, "channel": channel,
         "destination_hint": destination[-4:],
         "expires_at": record["expiresAt"].isoformat(),
     }

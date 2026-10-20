@@ -495,20 +495,29 @@ def _fetch_free_busy(
         )
     events: list[dict[str, object]] = []
     for calendar in calendars:
-        calendar_payload = returned.get(calendar["id"], {})
-        if not isinstance(calendar_payload, dict):
-            continue
+        calendar_payload = returned.get(calendar["id"])
+        if not isinstance(calendar_payload, dict) or not isinstance(calendar_payload.get("busy"), list):
+            raise WeekFlowCalendarProviderError(
+                f"Google Calendar returned incomplete availability for {calendar['name']}"
+            )
         if calendar_payload.get("errors"):
             raise WeekFlowCalendarProviderError(
                 f"Google Calendar could not read {calendar['name']}"
             )
-        for index, busy in enumerate(calendar_payload.get("busy", [])):
+        for index, busy in enumerate(calendar_payload["busy"]):
             if not isinstance(busy, dict):
-                continue
+                raise WeekFlowCalendarProviderError("Google Calendar returned invalid availability")
             start = busy.get("start")
             end = busy.get("end")
             if not isinstance(start, str) or not isinstance(end, str):
-                continue
+                raise WeekFlowCalendarProviderError("Google Calendar returned invalid availability")
+            try:
+                begin = datetime.fromisoformat(start.replace("Z", "+00:00"))
+                finish = datetime.fromisoformat(end.replace("Z", "+00:00"))
+                if begin.tzinfo is None or finish.tzinfo is None or finish <= begin:
+                    raise ValueError("Invalid interval")
+            except ValueError as exc:
+                raise WeekFlowCalendarProviderError("Google Calendar returned invalid availability") from exc
             events.append(
                 {
                     "provider": "google",

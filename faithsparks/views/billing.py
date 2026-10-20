@@ -1127,7 +1127,9 @@ def buy_pack(slug):
             flash("You already own this pack. Download away! 🎉", "success")
             return redirect(url_for("browse_detail", slug=slug))
     except Exception:
-        pass
+        current_app.logger.exception("Pack ownership verification failed; refusing checkout")
+        flash("We couldn't verify your purchases. Please try again shortly.", "error")
+        return redirect(url_for("browse_detail", slug=slug))
     price_id = (meta.get("priceId") or os.getenv("STRIPE_DEFAULT_PACK_PRICE", "")).strip()
     if not price_id:
         flash("This pack is not available for one-time purchase.", "warning")

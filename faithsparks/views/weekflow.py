@@ -1150,13 +1150,14 @@ def logistics_support_send():
         return jsonify({"error": str(exc)}), 502
     except WeekFlowSupportUnavailable as exc:
         return jsonify({"error": str(exc)}), 503
-    record_weekflow_event(
-        email,
-        {
-            "event": "support_request_sent",
-            "dimensions": {"channel": result["channel"]},
-        },
-    )
+    if not result.get("already_requested"):
+        record_weekflow_event(
+            email,
+            {
+                "event": "support_request_sent",
+                "dimensions": {"channel": result["channel"]},
+            },
+        )
     return jsonify(result), 201
 
 
