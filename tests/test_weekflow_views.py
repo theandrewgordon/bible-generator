@@ -1640,7 +1640,7 @@ def test_signed_in_beta_can_use_week_history_templates_and_rollover(monkeypatch)
     monkeypatch.setattr(
         weekflow_view,
         "save_week_template",
-        lambda email, body: {"id": "new", **body},
+        lambda email, body, **kwargs: {"id": "new", **body},
     )
     monkeypatch.setattr(
         weekflow_view,

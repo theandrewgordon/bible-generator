@@ -145,6 +145,8 @@ def _reserve_usage(email: str, requested: int, plan: str, *, reservation_id: str
             if journal is not None:
                 txn.set(journal, {
                     "reserved": allowed, "month": month, "status": "pending", "consumed": 0,
+                    "lifetimeEpoch": usage.get("lifetimeEpoch", 0),
+                    "monthEpoch": (usage.get("monthEpochs") or {}).get(month, 0),
                     "expiresAt": datetime.now(timezone.utc) + timedelta(minutes=15),
                 })
         return allowed
@@ -184,10 +186,12 @@ def _settle_usage(email: str, reservation_id: str) -> None:
         delivered = int(record.get("consumed") or 0)
         unused = max(0, int(record["reserved"]) - delivered)
         if unused:
-            # Admin resets may have happened while a request was in flight.
+            # A reset retires older reservations independently for each counter.
+            lifetime_refund = unused if record.get("lifetimeEpoch", 0) == usage.get("lifetimeEpoch", 0) else 0
+            month_refund = unused if record.get("monthEpoch", 0) == (usage.get("monthEpochs") or {}).get(month, 0) else 0
             txn.set(user, {"usage": {
-                "lifetime": max(0, int(usage.get("lifetime") or 0) - unused),
-                "months": {month: max(0, int((usage.get("months") or {}).get(month) or 0) - unused)},
+                "lifetime": max(0, int(usage.get("lifetime") or 0) - lifetime_refund),
+                "months": {month: max(0, int((usage.get("months") or {}).get(month) or 0) - month_refund)},
             }}, merge=True)
         txn.set(journal, {"status": "settled", "consumed": delivered,
                           "settledAt": firestore.SERVER_TIMESTAMP}, merge=True)

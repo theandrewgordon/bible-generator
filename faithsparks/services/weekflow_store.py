@@ -967,22 +967,26 @@ def list_week_templates(email: str) -> list[dict[str, object]]:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable") from exc
 
 
-def save_week_template(email: str, payload: object) -> dict[str, object]:
+def save_week_template(email: str, payload: object, *, limit: int = MAX_TEMPLATES) -> dict[str, object]:
     template = _normalize_template(payload)
     if not db:
         raise WeekFlowStorageUnavailable("Cloud saving is temporarily unavailable")
     try:
-        existing = list_week_templates(email)
-        if len(existing) >= MAX_TEMPLATES:
-            raise ValueError(f"WeekFlow supports up to {MAX_TEMPLATES} saved templates")
+        collection = _weekflow_collection(email)
         template_id = uuid4().hex
-        _weekflow_collection(email).document(f"template-{template_id}").set(
-            {
-                "kind": "template",
-                **template,
-                "createdAt": firestore.SERVER_TIMESTAMP,
-            }
-        )
+        cap = max(0, min(MAX_TEMPLATES, int(limit)))
+
+        @firestore.transactional
+        def save(txn):
+            existing = [doc for doc in collection.stream(transaction=txn)
+                        if (doc.to_dict() or {}).get("kind") == "template"]
+            if len(existing) >= cap:
+                raise ValueError(f"WeekFlow supports up to {cap} saved templates")
+            txn.set(collection.document(f"template-{template_id}"), {
+                "kind": "template", **template, "createdAt": firestore.SERVER_TIMESTAMP,
+            })
+
+        save(db.transaction())
         return {"id": template_id, **template}
     except (TypeError, ValueError):
         raise

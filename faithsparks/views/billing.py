@@ -1123,8 +1123,8 @@ def buy_pack(slug):
     try:
         user_doc = db.collection("users").document(email).get() if email and db else None
         user_data = user_doc.to_dict() if user_doc and user_doc.exists else {}
-        if (user_data.get("purchases") or {}).get(slug):
-            flash("You already own this pack. Download away! 🎉", "success")
+        if meta.get("isFree") or has_active_plus(user_data) or (user_data.get("purchases") or {}).get(slug):
+            flash("You already have access to this pack. Download away! 🎉", "success")
             return redirect(url_for("browse_detail", slug=slug))
     except Exception:
         current_app.logger.exception("Pack ownership verification failed; refusing checkout")

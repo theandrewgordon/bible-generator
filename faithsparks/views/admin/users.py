@@ -110,17 +110,24 @@ def admin_users_reset_usage(uid):
     if not db:
         return "Firestore not configured", 500
     ref = db.collection("users").document(uid)
-    snap = ref.get()
-    user = snap.to_dict() if snap.exists else {}
-    plan = plan_norm((user or {}).get("plan", "free"))
     mk = _month_key()
-    if plan == "free":
-        new_usage = {"lifetime": 0, "months": {mk: 0}}
-    else:
-        existing = (user or {}).get("usage") or {}
-        lifetime = int((existing.get("lifetime") or 0))
-        new_usage = {"lifetime": lifetime, "months": {mk: 0}}
-    ref.set({"usage": new_usage, "updatedAt": firestore.SERVER_TIMESTAMP}, merge=True)
+
+    @firestore.transactional
+    def reset(txn):
+        snap = ref.get(transaction=txn)
+        user = (snap.to_dict() or {}) if snap.exists else {}
+        plan = plan_norm(user.get("plan", "free"))
+        existing = user.get("usage") or {}
+        new_usage = {
+            "lifetime": 0 if plan == "free" else int(existing.get("lifetime") or 0),
+            "months": {mk: 0},
+            "lifetimeEpoch": int(existing.get("lifetimeEpoch") or 0) + (plan == "free"),
+            "monthEpochs": {mk: int((existing.get("monthEpochs") or {}).get(mk) or 0) + 1},
+        }
+        txn.set(ref, {"usage": new_usage, "updatedAt": firestore.SERVER_TIMESTAMP}, merge=True)
+        return plan
+
+    plan = reset(db.transaction())
     _log_admin_action("reset_usage", uid, {"plan": plan})
     flash(f"Usage reset for {uid} ({plan_label(plan)})", "success")
     return redirect(url_for("admin_users"))

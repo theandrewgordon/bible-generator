@@ -67,7 +67,7 @@ class Query:
     def limit(self, n):
         return Query(self.coll, self.filters, n)
 
-    def stream(self):
+    def stream(self, transaction=None):
         out = []
         for doc_id, data in self.coll.store.get(self.coll.path, {}).items():
             if all(f.op_string == "==" and data.get(f.field_path) == f.value for f in self.filters):
@@ -85,7 +85,7 @@ class Coll:
     def where(self, filter=None):
         return Query(self, [filter])
 
-    def stream(self):
+    def stream(self, transaction=None):
         return Query(self, []).stream()
 
     def limit(self, n):
