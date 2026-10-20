@@ -57,47 +57,41 @@ def _today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
-def _used_today(day: str) -> int:
-    if db:
-        try:
-            snap = db.collection(COLLECTION).document(day).get()
-            return int((snap.to_dict() or {}).get("units") or 0) if snap.exists else 0
-        except Exception:
-            log.warning("ai_budget: read failed", exc_info=True)
-    return _memory.get(day, 0)
-
-
-def _record(day: str, feature: str, units: int) -> None:
-    with _lock:
-        _memory[day] = _memory.get(day, 0) + units
-    if db:
-        try:
-            db.collection(COLLECTION).document(day).set(
-                {
-                    "units": firestore.Increment(units),
-                    "calls": firestore.Increment(1),
-                    "features": {feature: firestore.Increment(units)},
-                    "updatedAt": firestore.SERVER_TIMESTAMP,
-                },
-                merge=True,
-            )
-        except Exception:
-            log.warning("ai_budget: write failed", exc_info=True)
-
-
 def ai_budget_ok(feature: str, units: int = 1) -> bool:
     """Reserve ``units`` for one AI call. False means don't make the call."""
     if ai_disabled():
         return False
     day = _today()
     budget = daily_budget()
-    if _used_today(day) + units > budget:
-        if day not in _alerted:
-            _alerted.add(day)
-            log.error("AI daily budget reached (%s units). Refusing %s until tomorrow (UTC).", budget, feature)
+    if not isinstance(units, int) or units <= 0:
         return False
-    _record(day, feature, units)
-    return True
+    if db:
+        try:
+            ref = db.collection(COLLECTION).document(day)
+
+            @firestore.transactional
+            def reserve(txn):
+                snap = ref.get(transaction=txn)
+                used = int((snap.to_dict() or {}).get("units") or 0)
+                if used + units > budget:
+                    return False
+                txn.set(ref, {
+                    "units": firestore.Increment(units),
+                    "calls": firestore.Increment(1),
+                    "features": {feature: firestore.Increment(units)},
+                    "updatedAt": firestore.SERVER_TIMESTAMP,
+                }, merge=True)
+                return True
+
+            return reserve(db.transaction())
+        except Exception:
+            log.exception("AI budget reservation failed; refusing paid call")
+            return False
+    with _lock:
+        if _memory.get(day, 0) + units > budget:
+            return False
+        _memory[day] = _memory.get(day, 0) + units
+        return True
 
 
 def require_ai_budget(feature: str, units: int = 1) -> None:

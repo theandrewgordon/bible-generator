@@ -30,7 +30,7 @@ PRICES = {
 
 def _sub(sub_id, customer, price, status="active"):
     return {"id": sub_id, "customer": customer, "status": status, "metadata": {},
-            "items": {"data": [{"price": {"id": price}, "current_period_end": int(time.time()) + 86400}]}}
+            "items": {"data": [{"id": "si_" + sub_id, "price": {"id": price}, "current_period_end": int(time.time()) + 86400}]}}
 
 
 class BillingTestCase(unittest.TestCase):
@@ -38,10 +38,19 @@ class BillingTestCase(unittest.TestCase):
         self.db = FakeFirestore()
         self.subs = {}
         self.created = []
+        self.customers = []
+        self.open_checkouts = []
+        def page(data):
+            return SimpleNamespace(auto_paging_iter=lambda: iter(data))
+        def list_subs(customer, **kwargs):
+            return page([sub for sub in self.subs.values() if sub.get("customer") == customer])
         fake_stripe = SimpleNamespace(
             Webhook=SimpleNamespace(construct_event=self._construct),
-            Subscription=SimpleNamespace(retrieve=lambda sid, **k: self.subs[sid], modify=mock.Mock()),
-            checkout=SimpleNamespace(Session=SimpleNamespace(create=self._create, retrieve=mock.Mock())),
+            Customer=SimpleNamespace(list=lambda **k: page(self.customers), create=mock.Mock(side_effect=lambda **k: {"id": "cus_" + k["email"].split("@")[0]})),
+            billing_portal=SimpleNamespace(Session=SimpleNamespace(create=mock.Mock(return_value=SimpleNamespace(url="https://billing.stripe.test/s")))),
+            Subscription=SimpleNamespace(list=list_subs, retrieve=lambda sid, **k: self.subs[sid], modify=mock.Mock()),
+            checkout=SimpleNamespace(Session=SimpleNamespace(create=self._create, retrieve=mock.Mock(),
+                list=lambda **k: page([c for c in self.open_checkouts if c["customer"] == k["customer"]]), expire=mock.Mock())),
             Price=SimpleNamespace(retrieve=mock.Mock(return_value={"unit_amount": 500, "currency": "usd"})),
         )
         self.patches = [
@@ -56,6 +65,10 @@ class BillingTestCase(unittest.TestCase):
             patch.start()
         billing.PRICE_KIND_MAP = billing._price_kind_map()
         billing._PRICE_META_CACHE.clear()
+        transaction_patch = mock.patch.object(billing.firestore, "transactional", lambda fn: fn)
+        transaction_patch.start()
+        self.addCleanup(transaction_patch.stop)
+        self.db.transaction = lambda: SimpleNamespace(set=lambda ref, data: ref.set(data, merge=True))
         self.client = app.app.test_client()
 
     def tearDown(self):
@@ -71,6 +84,8 @@ class BillingTestCase(unittest.TestCase):
 
     def _create(self, **kwargs):
         self.created.append(kwargs)
+        self.open_checkouts.append({"id": "cs_new", "customer": kwargs["customer"],
+            "mode": "subscription", "metadata": kwargs["metadata"], "url": "https://checkout.stripe.test/s"})
         return SimpleNamespace(url="https://checkout.stripe.test/s")
 
     def send(self, event):
@@ -85,6 +100,7 @@ class BillingTestCase(unittest.TestCase):
                                               "subscription": sub_id, "customer": customer, "metadata": {}}}})
 
     def sub_event(self, kind, sub):
+        self.subs[sub["id"]] = sub
         return self.send({"id": f"evt_{kind}_{sub['id']}_{time.time_ns()}", "type": f"customer.subscription.{kind}",
                           "data": {"object": sub}})
 
@@ -138,6 +154,13 @@ class WebhookTests(BillingTestCase):
         self.assertTrue(user["isPro"])
         self.assertEqual(user["subscriptionId"], "sub_y")
 
+    def test_delayed_active_event_cannot_restore_canceled_subscription(self):
+        self.completed("fam@x.com", "sub_delay", "cus_delay", "price_fam_m")
+        self.sub_event("deleted", _sub("sub_delay", "cus_delay", "price_fam_m", "canceled"))
+        self.send({"id": "evt_delayed", "type": "customer.subscription.updated",
+                   "data": {"object": _sub("sub_delay", "cus_delay", "price_fam_m", "active")}})
+        self.assertFalse(self.db.user("fam@x.com")["isPro"])
+
     def test_missing_secret_is_an_error_not_a_silent_200(self):
         with mock.patch.object(billing, "STRIPE_WEBHOOK_SECRET", ""):
             self.assertEqual(self.completed("x@x.com", "sub_4", "cus_4", "price_fam_m").status_code, 500)
@@ -181,7 +204,110 @@ class CheckoutTests(BillingTestCase):
     def test_member_with_subscription_is_sent_to_billing_not_checkout(self):
         self.completed("m@x.com", "sub_1", "cus_1", "price_fam_m")
         response = self.checkout("m@x.com", "price_fam_y")
-        self.assertIn("/billing", response.location)
+        self.assertIn("billing.stripe.test", response.location)
+        self.assertEqual(self.created, [])
+
+    def test_same_plan_does_not_create_checkout_or_update(self):
+        self.completed("m@x.com", "sub_1", "cus_1", "price_fam_m")
+        self.checkout("m@x.com", "price_fam_m")
+        params = billing.stripe.billing_portal.Session.create.call_args.kwargs
+        self.assertNotIn("flow_data", params)
+        self.assertEqual(self.created, [])
+
+    def test_upgrade_confirms_replacement_of_existing_item(self):
+        self.completed("m@x.com", "sub_1", "cus_1", "price_fam_m")
+        self.checkout("m@x.com", "price_cls_m")
+        flow = billing.stripe.billing_portal.Session.create.call_args.kwargs["flow_data"]
+        self.assertEqual(flow["type"], "subscription_update_confirm")
+        self.assertEqual(flow["subscription_update_confirm"], {
+            "subscription": "sub_1",
+            "items": [{"id": "si_sub_1", "price": "price_cls_m", "quantity": 1}],
+        })
+        self.assertEqual(self.created, [])
+
+    def test_stripe_lookup_catches_missing_local_subscription(self):
+        self.customers.append({"id": "cus_old"})
+        self.subs["sub_old"] = _sub("sub_old", "cus_old", "price_fam_m")
+        self.checkout("missing@x.com", "price_cls_m")
+        self.assertEqual(self.created, [])
+        self.assertEqual(self.db.user("missing@x.com")["subscriptionId"], "sub_old")
+
+    def test_repeat_checkout_reuses_customer_and_session(self):
+        self.checkout("new@x.com", "price_fam_m")
+        self.checkout("new@x.com", "price_fam_m")
+        self.assertEqual(len(self.created), 1)
+        self.assertEqual(self.created[0]["customer"], "cus_new")
+        self.assertNotIn("customer_email", self.created[0])
+
+    def test_other_plan_expires_old_checkout(self):
+        self.checkout("new@x.com", "price_fam_m")
+        self.checkout("new@x.com", "price_cls_m")
+        billing.stripe.checkout.Session.expire.assert_called_once_with("cs_new")
+        self.assertEqual(len(self.created), 2)
+
+    def test_expiration_race_does_not_create_second_checkout(self):
+        self.checkout("new@x.com", "price_fam_m")
+        billing.stripe.checkout.Session.expire.side_effect = RuntimeError("Already completed")
+        self.checkout("new@x.com", "price_cls_m")
+        self.assertEqual(len(self.created), 1)
+
+    def test_lookup_failure_does_not_charge(self):
+        billing.stripe.Customer.list = mock.Mock(side_effect=RuntimeError("Stripe unavailable"))
+        self.checkout("new@x.com", "price_fam_m")
+        self.assertEqual(self.created, [])
+
+    def test_existing_duplicates_block_further_checkout(self):
+        self.customers.extend([{"id": "cus_a"}, {"id": "cus_b"}])
+        self.subs["sub_a"] = _sub("sub_a", "cus_a", "price_fam_m")
+        self.subs["sub_b"] = _sub("sub_b", "cus_b", "price_cls_m")
+        self.checkout("dup@x.com", "price_cls_m")
+        self.assertEqual(self.created, [])
+        billing.stripe.billing_portal.Session.create.assert_not_called()
+
+    def test_concurrent_request_is_blocked(self):
+        self.db.collection("billing_locks").document("busy@x.com").set({"expires": time.time() + 60})
+        self.checkout("busy@x.com", "price_fam_m")
+        self.assertEqual(self.created, [])
+
+    def test_storage_failure_does_not_charge(self):
+        self.db.fail_collections.add("users")
+        self.checkout("new@x.com", "price_fam_m")
+        self.assertEqual(self.created, [])
+
+    def test_completion_between_subscription_and_session_lookup_is_blocked(self):
+        calls = []
+        def list_subs(**kwargs):
+            calls.append(kwargs)
+            subs = [] if len(calls) == 1 else [_sub("sub_race", "cus_old", "price_fam_m")]
+            return SimpleNamespace(auto_paging_iter=lambda: iter(subs))
+        self.customers.append({"id": "cus_old"})
+        billing.stripe.Subscription.list = list_subs
+        self.checkout("new@x.com", "price_cls_m")
+        self.assertEqual(self.created, [])
+
+    def test_unpaid_subscription_requires_resolution_not_new_checkout(self):
+        self.completed("m@x.com", "sub_1", "cus_1", "price_fam_m", status="unpaid")
+        self.checkout("m@x.com", "price_cls_m")
+        params = billing.stripe.billing_portal.Session.create.call_args.kwargs
+        self.assertNotIn("flow_data", params)
+        self.assertEqual(self.created, [])
+
+    def test_canceled_subscription_can_start_again(self):
+        self.completed("m@x.com", "sub_1", "cus_1", "price_fam_m", status="canceled")
+        self.checkout("m@x.com", "price_cls_m")
+        self.assertEqual(self.created[0]["customer"], "cus_1")
+
+    def test_portal_failure_never_falls_back_to_new_subscription(self):
+        self.completed("m@x.com", "sub_1", "cus_1", "price_fam_m")
+        billing.stripe.billing_portal.Session.create.side_effect = RuntimeError("Portal unavailable")
+        self.checkout("m@x.com", "price_cls_m")
+        self.assertEqual(self.created, [])
+
+    def test_existing_subscription_expires_old_checkout_tabs(self):
+        self.completed("m@x.com", "sub_1", "cus_1", "price_fam_m")
+        self.open_checkouts.append({"id": "cs_old", "customer": "cus_1", "mode": "subscription"})
+        self.checkout("m@x.com", "price_cls_m")
+        billing.stripe.checkout.Session.expire.assert_called_once_with("cs_old")
         self.assertEqual(self.created, [])
 
     def test_trial_only_for_first_time_members(self):
@@ -224,7 +350,8 @@ class UsageAndGiftTests(BillingTestCase):
 
     def test_one_free_verse_no_longer_makes_a_batch_free(self):
         source = open(app.__file__.replace("app.py", "faithsparks/views/worksheets.py"), encoding="utf-8").read()
-        self.assertIn("_update_usage(user_email, max(0, success_count - free_success_count))", source)
+        self.assertIn("_reserve_usage(user_email", source)
+        self.assertIn("_refund_usage(user_email", source)
         self.assertNotIn("if not free_skip_count and not is_daily_proverb:", source)
 
 

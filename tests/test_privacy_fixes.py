@@ -23,6 +23,7 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.db = FakeFirestore()
         for patch in (
+            mock.patch("stripe.Customer.list", return_value=SimpleNamespace(auto_paging_iter=lambda: iter([]))),
             mock.patch.object(app, "db", self.db),
             mock.patch.object(deletion, "db", self.db),
             mock.patch.object(ws, "db", self.db),

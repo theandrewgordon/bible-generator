@@ -113,3 +113,45 @@ def _get_free_slugs() -> set[str]:
         pass
     return set()
 
+
+
+def _reserve_usage(email: str, requested: int, plan: str) -> tuple[int, str]:
+    """Atomically charge up to the remaining allowance before generation starts."""
+    if not db or not email:
+        raise RuntimeError("Account storage unavailable")
+    from firebase_admin import firestore
+    month = _month_key()
+    ref = db.collection("users").document(email)
+    monthly_limit, lifetime_limit = _quota_for_plan(plan)
+
+    @firestore.transactional
+    def reserve(txn):
+        data = ref.get(transaction=txn).to_dict() or {}
+        usage = data.get("usage") or {}
+        lifetime = int(usage.get("lifetime") or 0)
+        monthly = int((usage.get("months") or {}).get(month) or 0)
+        allowed = requested
+        for limit, used in ((monthly_limit, monthly), (lifetime_limit, lifetime)):
+            if limit is not None:
+                allowed = min(allowed, max(0, limit - used))
+        if allowed:
+            txn.set(ref, {"usage": {
+                "lifetime": firestore.Increment(allowed),
+                "months": {month: firestore.Increment(allowed)},
+            }}, merge=True)
+        return allowed
+
+    allowed = reserve(db.transaction())
+    invalidate_user_doc(email)
+    return allowed, month
+
+
+def _refund_usage(email: str, unused: int, month: str) -> None:
+    """Return unsuccessful reservations to the original billing month."""
+    if unused > 0:
+        from firebase_admin import firestore
+        db.collection("users").document(email).set({"usage": {
+            "lifetime": firestore.Increment(-unused),
+            "months": {month: firestore.Increment(-unused)},
+        }}, merge=True)
+        invalidate_user_doc(email)

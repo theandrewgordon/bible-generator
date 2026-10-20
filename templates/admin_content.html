@@ -25,6 +25,12 @@ block content %}
       />
       Enabled</label
     >
+    <label for="announcement_audience">Show to
+      <select id="announcement_audience" name="announcement_audience">
+        <option value="non_members">Visitors and non-members</option>
+        <option value="everyone" {% if data.announcement_audience == 'everyone' %}selected{% endif %}>Everyone (general announcements)</option>
+      </select>
+    </label>
     <label for="announcement_text"
       >Text
       <input

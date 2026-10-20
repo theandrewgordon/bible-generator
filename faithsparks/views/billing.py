@@ -1,4 +1,7 @@
 import os
+import hashlib
+import time
+import uuid
 import traceback
 from datetime import datetime, timezone
 from typing import Optional, Tuple
@@ -395,6 +398,120 @@ def plus_pricing():
 
 
 def create_checkout_session():
+    """Serialize billing attempts across workers and fail closed on lookup errors."""
+    email = (session.get("user_email") or "").strip().lower()
+    if not email or not db:
+        flash("Please sign in and try again.", "error")
+        return redirect(url_for("plus_pricing"))
+    lock = db.collection("billing_locks").document(email)
+    token = uuid.uuid4().hex
+
+    @firestore.transactional
+    def acquire(txn):
+        data = lock.get(transaction=txn).to_dict() or {}
+        if data.get("expires", 0) > time.time():
+            return False
+        txn.set(lock, {"token": token, "expires": time.time() + 300})
+        return True
+
+    @firestore.transactional
+    def release(txn):
+        if (lock.get(transaction=txn).to_dict() or {}).get("token") == token:
+            txn.set(lock, {"expires": 0})
+
+    acquired = False
+    try:
+        acquired = acquire(db.transaction())
+        if not acquired:
+            flash("Your checkout is already being prepared. Please try again shortly.", "info")
+            return redirect(url_for("plus_pricing"))
+        return _create_checkout_session(email)
+    except Exception:
+        current_app.logger.exception("Could not safely prepare subscription checkout")
+        flash("We couldn't verify your billing yet. Please try again shortly.", "error")
+        return redirect(url_for("plus_pricing"))
+    finally:
+        if acquired:
+            try:
+                release(db.transaction())
+            except Exception:
+                current_app.logger.exception("Could not release billing lock")
+
+
+def _subscription_checkout_target(email, member, price_id):
+    """Check Stripe, including legacy customers created by email-only checkout."""
+    customers = {c["id"] for c in stripe.Customer.list(email=email, limit=100).auto_paging_iter()}
+    if member.get("stripeCustomerId"):
+        customers.add(member["stripeCustomerId"])
+    subscriptions = {}
+    for customer in sorted(customers):
+        for sub in stripe.Subscription.list(customer=customer, status="all", limit=100).auto_paging_iter():
+            if sub.get("status") not in {"canceled", "incomplete_expired"}:
+                subscriptions[sub["id"]] = sub
+    if member.get("subscriptionId") and member["subscriptionId"] not in subscriptions:
+        sub = stripe.Subscription.retrieve(member["subscriptionId"])
+        if sub.get("status") not in {"canceled", "incomplete_expired"}:
+            subscriptions[sub["id"]] = sub
+            customers.add(sub["customer"])
+    if len(subscriptions) > 1:
+        flash("We found multiple subscriptions. Please contact support so we can correct your billing.", "warning")
+        return None, redirect(url_for("plus_pricing"))
+    if subscriptions:
+        # Old checkout tabs must stop working as soon as an existing plan is found.
+        for cid in sorted(customers):
+            for checkout in stripe.checkout.Session.list(customer=cid, status="open", limit=100).auto_paging_iter():
+                if checkout.get("mode") == "subscription":
+                    stripe.checkout.Session.expire(checkout["id"])
+        sub = next(iter(subscriptions.values()))
+        _sync_subscription(sub, email=email)
+        items = (sub.get("items") or {}).get("data") or []
+        params = {"customer": sub["customer"], "return_url": url_for("plus_pricing", _external=True)}
+        if _sub_price_id(sub) == price_id:
+            flash("You already have this plan. You can manage your subscription here.", "info")
+        elif sub.get("status") in {"active", "trialing"} and len(items) == 1:
+            params["flow_data"] = {
+                "type": "subscription_update_confirm",
+                "subscription_update_confirm": {
+                    "subscription": sub["id"],
+                    "items": [{"id": items[0]["id"], "price": price_id,
+                               "quantity": items[0].get("quantity") or 1}],
+                },
+                "after_completion": {"type": "redirect", "redirect": {
+                    "return_url": url_for("plus_pricing", _external=True)}},
+            }
+        else:
+            flash("Please resolve your existing subscription before changing plans.", "info")
+        portal = stripe.billing_portal.Session.create(**params)
+        return None, redirect(portal.url, code=303)
+    customer = member.get("stripeCustomerId") or next(iter(sorted(customers)), None)
+    if not customer:
+        customer = stripe.Customer.create(
+            email=email, idempotency_key="plus-customer-" + hashlib.sha256(email.encode()).hexdigest()
+        )["id"]
+    db.collection("users").document(email).set({"stripeCustomerId": customer}, merge=True)
+    reusable = None
+    for cid in sorted(customers | {customer}):
+        for checkout in stripe.checkout.Session.list(customer=cid, status="open", limit=100).auto_paging_iter():
+            if checkout.get("mode") != "subscription":
+                continue
+            if reusable is None and (checkout.get("metadata") or {}).get("plan_price_id") == price_id:
+                reusable = checkout
+            else:
+                # Completion racing expiration raises; never create another checkout then.
+                stripe.checkout.Session.expire(checkout["id"])
+    if reusable is not None:
+        return None, redirect(reusable["url"], code=303)
+    # A previous checkout may have completed between the subscription lookup
+    # and the open-session lookup. All remaining old sessions are now expired.
+    for cid in sorted(customers | {customer}):
+        for sub in stripe.Subscription.list(customer=cid, status="all", limit=100).auto_paging_iter():
+            if sub.get("status") not in {"canceled", "incomplete_expired"}:
+                flash("Your subscription just changed. Please choose your plan again.", "info")
+                return None, redirect(url_for("plus_pricing"))
+    return customer, None
+
+
+def _create_checkout_session(user_email):
     if not STRIPE_SECRET_KEY or not stripe:
         return "Stripe not configured", 500
     id_or_price = (request.form.get("price_id") or "").strip()
@@ -406,18 +523,11 @@ def create_checkout_session():
         current_app.logger.warning("checkout refused for unknown price %s", price_id)
         flash("That plan isn't available. Please choose one of the plans below.", "warning")
         return redirect(url_for("plus_pricing"))
-    user_email = session.get("user_email")
-    member = {}
-    if db and user_email:
-        try:
-            snap = db.collection("users").document(user_email).get()
-            member = (snap.to_dict() or {}) if snap.exists else {}
-        except Exception:
-            member = {}
-    if _has_paid_subscription(member):
-        # A second checkout would create a second subscription (charged twice).
-        flash("You already have Plus. Switch plans or update billing here.", "info")
-        return redirect(url_for("billing_portal"))
+    snap = db.collection("users").document(user_email).get()
+    member = (snap.to_dict() or {}) if snap.exists else {}
+    customer, response = _subscription_checkout_target(user_email, member, price_id)
+    if response is not None:
+        return response
     trial_info = _trial_days_for(trial_token, price_id)
     if trial_info and (member.get("trialStartedAt") or member.get("subscriptionId") or member.get("stripeCustomerId")):
         flash("Free trials are for first-time members, so this plan starts today.", "info")
@@ -470,7 +580,7 @@ def create_checkout_session():
 
     create_kwargs = {
         "mode": "subscription",
-        "customer_email": user_email,
+        "customer": customer,
         "line_items": [{"price": price_id, "quantity": 1}],
         "success_url": url_for("plus_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
         "cancel_url": url_for("plus_pricing", _external=True),
@@ -905,7 +1015,8 @@ def stripe_webhook():
             elif email:
                 _fulfill_one_time(obj, email, checkout_meta)
         elif et in {"customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"}:
-            _sync_subscription(obj)
+            live_sub = stripe.Subscription.retrieve(obj["id"], expand=["items.data.price"])
+            _sync_subscription(live_sub)
         elif et == "invoice.payment_succeeded":
             _handle_invoice_paid(obj)
     except Exception:
