@@ -72,7 +72,7 @@ class _FakeCollection:
     def document(self, document_id):
         return _FakeReference(self.documents, document_id)
 
-    def stream(self):
+    def stream(self, transaction=None):
         return [
             _FakeSnapshot(document_id, self.document(document_id), data)
             for document_id, data in list(self.documents.items())
@@ -80,6 +80,9 @@ class _FakeCollection:
 
 
 class _FakeTransaction:
+    def delete(self, reference):
+        reference.delete()
+
     def set(self, reference, data):
         reference.set(data)
 

@@ -276,6 +276,8 @@ def _provider_json(response, message: str) -> dict[str, object]:
 
 
 def _provider_request(oauth_session, method: str, path: str, message: str, **kwargs):
+    if kwargs.get("timeout") is None:
+        kwargs["timeout"] = (3.05, 10.0)
     try:
         return getattr(oauth_session, method)(path, **kwargs)
     except WeekFlowCalendarUnavailable:

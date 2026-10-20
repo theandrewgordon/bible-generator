@@ -24,6 +24,7 @@ from typing import Callable
 from firebase_admin import firestore
 
 from faithsparks.services.firestore import db
+from faithsparks.services.account_operations import begin_operation, end_operation, AccountBusyError
 
 log = logging.getLogger(__name__)
 
@@ -87,8 +88,15 @@ def _cancel_stripe(user: dict, email: str = "") -> bool:
 
 
 def delete_user_data(email: str, *, by: str = "self") -> dict[str, int]:
+    email = (email or "").strip().lower()
+    if not db or not email:
+        raise AccountDeletionError("Account storage is unavailable right now.")
+    token = None
     try:
+        token = begin_operation(db, email, "deletion")
         return _delete_user_data(email, by=by)
+    except AccountBusyError as exc:
+        raise AccountDeletionError(str(exc)) from exc
     except AccountDeletionError:
         raise
     except Exception as exc:
@@ -96,6 +104,12 @@ def delete_user_data(email: str, *, by: str = "self") -> dict[str, int]:
         raise AccountDeletionError(
             "Account cleanup is incomplete. Please retry deletion."
         ) from exc
+    finally:
+        if token:
+            try:
+                end_operation(db, email, token)
+            except Exception:
+                log.exception("Could not release account deletion lease")
 
 
 def _delete_user_data(email: str, *, by: str = "self") -> dict[str, int]:
