@@ -4631,6 +4631,30 @@ def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: s
     inferred_key = ""
     worship_initiative_page = any(line.lower() == "the worship initiative" for line in lines)
 
+    ug_heading = next((
+        (index, match) for index, line in enumerate(lines)
+        if (match := re.fullmatch(r"(.+?) Chords by (.+)", line, flags=re.I))
+    ), None)
+    if ug_heading and any("ultimate-guitar.com" in line.lower() for line in lines):
+        heading_index, heading = ug_heading
+        inferred_title = inferred_title or heading.group(1).strip()
+        inferred_artist = inferred_artist or heading.group(2).strip()
+        chart_start = next((
+            index for index in range(heading_index + 1, len(lines))
+            if re.match(r"^\[(?:intro|verse|chorus|bridge)\b", lines[index], flags=re.I)
+        ), -1)
+        if chart_start >= 0:
+            chart_end = next((
+                index for index in range(chart_start, len(lines))
+                if re.match(r"^(?:Last update:|Rating$|Related tabs$|More Versions$)", lines[index], flags=re.I)
+            ), len(lines))
+            # Remove chord rows before fragment repair: these are complete
+            # lyric rows, not words split around inline chord anchors.
+            lines = _prepare_worship_validation_source("\n".join(lines[chart_start:chart_end])).splitlines()
+            if lines and lines[-1] == "X":
+                lines.pop()
+            raw_text = "\n".join(lines)
+
     if worship_initiative_page:
         ccli_index = next(
             (index for index, line in enumerate(lines) if re.match(r"^CCLI\s*:\s*\d+", line, flags=re.I)),
@@ -4795,6 +4819,9 @@ def _extract_worship_section_label(line: str) -> tuple[str, bool]:
     text = str(line or "").strip()
     if not text:
         return "", False
+    annotated = re.match(r"^(\[(?:verse|chorus|bridge|pre[- ]?chorus|intro|outro|tag)(?:\s*\d+)?\])\s+.+$", text, flags=re.I)
+    if annotated:
+        text = annotated.group(1)
     text = re.sub(r"\s*\(\s*\d+\s*x\s*\)\s*$", "", text, flags=re.I).strip()
     unwrapped = re.sub(r"^[\[(]\s*|\s*[\])]$", "", text).strip()
     special = re.match(
@@ -5146,6 +5173,10 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
             flush_current()
             raw_sections.extend((repeat_label, None) for _ in range(repeat_count))
             continue
+        previous_repeat = re.match(r"^\(repeat\s+x?(\d+)x?\b", line, flags=re.I)
+        if previous_repeat and current_label and current_lines:
+            current_repeat_count = min(max(int(previous_repeat.group(1)), 1), 12)
+            continue
         section_label, _has_colon = _extract_worship_section_label(line)
         if section_label:
             flush_current()
@@ -5231,6 +5262,8 @@ def _is_worship_non_lyric_instruction_line(line: str) -> bool:
         text,
         flags=re.I,
     ):
+        return True
+    if re.match(r"^\(?(?:repeat\s+(?:x?\d|until)|slow\s*(?:&|and)\s*quiet|large build after)\b", text, flags=re.I):
         return True
     # Bar-only chord progressions copied from rendered chord charts.
     compact = re.sub(r"\s+", "", text)
