@@ -1983,6 +1983,12 @@ def normalize_worship_song(song: dict) -> dict:
             cleaned_lines = [str(line).strip() for line in raw_lines if str(line).strip()]
         else:
             cleaned_lines = [str(raw_lines).strip()] if str(raw_lines).strip() else []
+        # Chord sheets hyphenate this name to show sung syllables. Keep
+        # ordinary compound words intact and preserve the source's casing.
+        cleaned_lines = [
+            re.sub(r"\b(Je)\s*-\s*(sus)\b", r"\1\2", line, flags=re.I)
+            for line in cleaned_lines
+        ]
         if not cleaned_lines:
             continue
         if part_name in parts:
@@ -3262,6 +3268,10 @@ def _load_recent_setlists() -> list[dict]:
 
 
 _CONTINUATION_STARTS = (
+    "is ",
+    "are ",
+    "was ",
+    "were ",
     "and ",
     "but ",
     "or ",
