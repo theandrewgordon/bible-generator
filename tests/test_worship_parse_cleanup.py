@@ -5,6 +5,118 @@ import app
 
 
 class WorshipParseCleanupTests(unittest.TestCase):
+    def test_ultimate_guitar_medley_parses_locally_without_page_or_stage_text(self):
+        pasted = """Tabs
+Courses
+Your Glory - Nothing But The Blood Chords by All Sons & Daughters
+186,079 views7,218 saves6 comments
+Tuning: E A D G B ECapo: No capo
+[Intro]
+G D A
+[Verse] for Your Glory
+G D A
+My life is Yours
+G D A
+My hope is in You only
+G D A
+My heart You hold
+G D A
+'Cause You made this sinner holy
+Bm A G
+holy,
+Bm A G
+holy
+[Chorus]
+G D A
+Your glory is so beautiful
+G D A
+I fall on to my knees in awe
+Bm A
+And the heartbeat of my life
+G
+Is to worship in Your Light
+[Verse]
+G D A
+My life is Yours
+G D A
+My hope is in You only
+G D A
+My heart You hold
+G D A
+'Cause You made this sinner holy
+Bm A G
+holy,
+Bm A
+holy
+[Bridge]
+D G
+Glory, glory, Hallelujah
+Bm G
+Jesus You are good
+(Repeat x3, after third time go directly into Nothing But the Blood)
+[Verse]
+D G
+What can wash away my sin?
+Bm G
+Nothing but the blood of Je-sus;
+D G
+What can make me whole again?
+Bm G
+Nothing but the blood of Je-sus.
+(Slow & quiet down)
+D G Bm G
+[Bridge]
+D G
+Glory, glory, Hallelujah
+Bm G
+Jesus You are good
+(Repeat until end, original song repeats about 15x
+Large build after 4x then slows and softens after 3x)
+D
+X
+Last update: Mar 30, 2020
+Rating
+Related tabs
+Brokenness Aside
+6 comments
+The Nothing But The Blood section is the same progression as the bridge.
+© 2026
+Ultimate-Guitar.com
+All rights reserved
+"""
+        cleaned = app._clean_lyrics_site_paste(pasted)
+        self.assertEqual(cleaned["title"], "Your Glory - Nothing But The Blood")
+        self.assertEqual(cleaned["artist"], "All Sons & Daughters")
+        parsed = app.normalize_worship_song(app._parse_labeled_worship_lyrics(cleaned["lyrics"]))
+        self.assertEqual(parsed["arrangement"], ["verse", "chorus", "verse", "bridge", "bridge", "bridge", "verse2", "bridge"])
+        self.assertEqual(parsed["parts"]["verse"][0], "My life is Yours")
+        self.assertEqual(len(parsed["parts"]["verse"]), 6)
+        self.assertEqual(parsed["parts"]["bridge"], ["Glory, glory, Hallelujah", "Jesus You are good"])
+        self.assertEqual(len(parsed["parts"]["verse2"]), 4)
+        self.assertNotIn("Related tabs", cleaned["lyrics"])
+        self.assertFalse(app._looks_under_arranged_worship_parse(parsed, cleaned["lyrics"]))
+        self.assertFalse(app._looks_like_chord_fragmented_worship_parse(parsed, cleaned["lyrics"]))
+
+        rate = type("_Rate", (), {"allowed": True, "retry_after": 0})()
+        handler = app.worship_add_parse.__wrapped__.__wrapped__
+        with app.app.test_request_context(
+            "/worship/add/parse", method="POST",
+            data={"raw_lyrics": pasted, "rights_confirmed": "1"},
+        ):
+            app.session["user_email"] = "leader@example.com"
+            with (
+                patch.dict(app.os.environ, {"ANTHROPIC_API_KEY": "test", "OPENAI_API_KEY": "test"}),
+                patch.object(app, "check_rate_limit", return_value=rate),
+                patch.object(app, "_store_pending_worship_song", return_value="A" * 24) as store,
+                patch.object(app, "_parse_worship_lyrics_claude") as claude,
+                patch.object(app, "_parse_worship_lyrics_openai") as openai,
+            ):
+                response = handler()
+        self.assertEqual(response.status_code, 302)
+        claude.assert_not_called()
+        openai.assert_not_called()
+        self.assertEqual(store.call_args.args[0]["arrangement"], parsed["arrangement"])
+
     def test_clean_lyrics_site_paste_strips_page_chrome(self):
         pasted = '''AZLyrics.com
 
