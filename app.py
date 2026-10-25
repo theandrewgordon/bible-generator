@@ -5080,6 +5080,11 @@ def _parse_continuous_worship_lyrics(
 def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str = "", version: str = "", key: str = "") -> dict | None:
     cleaned = _clean_lyrics_site_paste(lyrics_text, title, artist)
     lyric_body = cleaned.get("lyrics") or str(lyrics_text or "").strip()
+    # Flattened web charts may contain entire verses, inline chords and
+    # headings on one row. Labels elsewhere do not make that text safe for
+    # deterministic parsing; let the model recover the missing boundaries.
+    if any(len(line.strip()) > 250 for line in lyric_body.splitlines()):
+        return None
     raw_sections: list[tuple[str, list[str] | None]] = []
     current_label = ""
     current_lines: list[str] = []
@@ -6048,6 +6053,23 @@ def _normalize_lyric_comparison_line(line: str) -> str:
 
 def _looks_under_arranged_worship_parse(parsed: dict, source_lyrics: str) -> bool:
     source_rows = str(source_lyrics or "").splitlines()
+    if isinstance(parsed, dict) and any(len(line.strip()) > 250 for line in source_rows):
+        parts = parsed.get("parts")
+        if not isinstance(parts, dict):
+            return True
+        parsed_rows = [str(line) for lines in parts.values() if isinstance(lines, list) for line in lines]
+        if any(len(line) > 250 for line in parsed_rows):
+            return True
+        # A row count threshold cannot measure completeness when a source
+        # has lost its line breaks. Check vocabulary before the short-song
+        # exemption below so a bridge-only result cannot silently pass.
+        source_words = {
+            word for word in _normalize_lyric_comparison_line(source_lyrics).split()
+            if len(word) > 2
+        }
+        parsed_words = set(_normalize_lyric_comparison_line(" ".join(parsed_rows)).split())
+        if len(source_words & parsed_words) / max(len(source_words), 1) < 0.80:
+            return True
     source_lines = {
         normalized
         for line in source_rows
