@@ -5,6 +5,50 @@ import app
 
 
 class WorshipParseCleanupTests(unittest.TestCase):
+    def test_flattened_chart_cannot_be_accepted_as_bridge_only(self):
+        opening = (
+            "Intro: G D A (Verse for Your Glory) G D A My life is Yours "
+            "G D A My hope is in You only G D A My heart You hold "
+            "G D A 'Cause You made this sinner holy Bm A G holy, holy "
+            "G D A Your glory is so beautiful G D A I fall on to my knees in awe "
+            "Bm A And the heartbeat of my life G Is to worship in Your Light"
+        )
+        source = opening + "\n(Bridge)\nGlory, glory, Hallelujah Jesus You are good"
+        broken = {
+            "parts": {"bridge": ["Glory, glory, Hallelujah Jesus You are good"]},
+            "arrangement": ["bridge", "bridge", "bridge", "bridge"],
+        }
+        self.assertIsNone(app._parse_labeled_worship_lyrics(source))
+        self.assertTrue(app._looks_under_arranged_worship_parse(broken, source))
+        rate = type("_Rate", (), {"allowed": True, "retry_after": 0})()
+        handler = app.worship_add_parse.__wrapped__.__wrapped__
+        with app.app.test_request_context(
+            "/worship/add/parse", method="POST",
+            data={"raw_lyrics": source, "rights_confirmed": "1"},
+        ):
+            app.session["user_email"] = "leader@example.com"
+            with (
+                patch.dict(app.os.environ, {"ANTHROPIC_API_KEY": "test", "OPENAI_API_KEY": ""}),
+                patch.object(app, "check_rate_limit", return_value=rate),
+                patch.object(app, "ai_budget_ok", return_value=True),
+                patch.object(app, "_parse_worship_lyrics_claude", return_value=broken) as claude,
+                patch.object(app, "_fallback_parse_worship_lyrics", return_value=broken),
+                patch.object(app, "_store_pending_worship_song") as store,
+            ):
+                response = handler()
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/worship/add", response.location)
+        claude.assert_called_once()
+        store.assert_not_called()
+
+    def test_flattened_chart_allows_complete_recovered_lyrics(self):
+        lines = [f"Distinct lyric number {number} carries the whole thought" for number in range(12)]
+        source = " ".join(lines)
+        recovered = {"parts": {"verse1": lines}, "arrangement": ["verse1"]}
+        self.assertFalse(app._looks_under_arranged_worship_parse(recovered, source))
+        recovered["parts"]["verse1"] = [source]
+        self.assertTrue(app._looks_under_arranged_worship_parse(recovered, source))
+
     def test_ultimate_guitar_medley_parses_locally_without_page_or_stage_text(self):
         pasted = """Tabs
 Courses
