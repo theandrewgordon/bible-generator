@@ -4,6 +4,39 @@ import app
 
 
 class WorshipSongFormattingTests(unittest.TestCase):
+    def test_normalization_removes_jesus_syllable_marks_only(self):
+        song = {
+            "title": "Medley",
+            "parts": {"verse": [
+                "Nothing but the blood of Je-sus;",
+                "JE - SUS, jesus, Je-sus.",
+                "Ever-living, all-sufficient King",
+            ]},
+            "arrangement": ["verse"],
+        }
+        normalized = app.normalize_worship_song(song)
+        self.assertEqual(normalized["parts"]["verse"], [
+            "Nothing but the blood of Jesus;",
+            "JESUS, jesus, Jesus.",
+            "Ever-living, all-sufficient King",
+        ])
+        self.assertEqual(song["parts"]["verse"][0], "Nothing but the blood of Je-sus;")
+        self.assertEqual(app.normalize_worship_song(normalized), normalized)
+
+    def test_chorus_chunks_keep_subject_and_predicate_together(self):
+        lines = [
+            "Your glory is so beautiful",
+            "I fall on to my knees in awe",
+            "And the heartbeat of my life",
+            "Is to worship in Your Light",
+            "Your glory is so beautiful",
+            "Your glory is so beautiful",
+        ]
+        chunks = app.chunk_lines(lines)
+        self.assertEqual([line for chunk in chunks for line in chunk["lines"]], lines)
+        self.assertEqual(len(chunks), 2)
+        self.assertTrue(any(lines[2] in chunk["lines"] and lines[3] in chunk["lines"] for chunk in chunks))
+
     def test_normalize_worship_song_canonicalizes_parts_and_arrangement(self):
         song = {
             "title": "House of the Lord",
