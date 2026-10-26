@@ -6,6 +6,34 @@ import app
 
 
 class WorshipParseCleanupTests(unittest.TestCase):
+    def test_hosanna_fragmented_source_repairs_words_and_bridge_phrases(self):
+        source = (Path(__file__).parent / "fixtures" / "hosanna_worship_together.txt").read_text()
+        parsed = app._parse_labeled_worship_lyrics(source)
+        self.assertEqual(len(parsed["parts"]["verse1"]), 8)
+        self.assertEqual(len(parsed["parts"]["verse2"]), 8)
+        self.assertEqual(len(parsed["parts"]["bridge"]), 6)
+        self.assertEqual(parsed["parts"]["chorus"], ["Hosanna hosanna", "Hosanna in the highest"] * 2)
+        self.assertTrue(parsed["parts"]["bridge"][-1].endswith("into eternity"))
+        self.assertFalse(app._looks_under_arranged_worship_parse(parsed, source))
+
+    def test_hosanna_chord_repeat_rows_and_final_chorus_tag(self):
+        chorus = "Ho - sanna, Ho - san - na\nHosanna in the Highest\nHo - sanna, Ho - san - na\nHosanna in the High - est"
+        source = (
+            "Tabs\nHosanna Chords by Hillsong United\n[Intro]\nC#m E F#m7 G#m7 x2\n"
+            "[Verse 1]\nOpening lyric\n[Chorus]\n" + chorus +
+            "\n[Instrumental]\nC#m E F#m7 G#m7 x2\n[Bridge]\nAs I walk from earth in - to eterni - ty\n"
+            "[Chorus]\n" + chorus + "\n" + chorus + "\nHosanna in the High - est\nX\n"
+            "Last update: Jul 10, 2024\nUltimate-Guitar.com"
+        )
+        parsed = app._parse_labeled_worship_lyrics(source)
+        self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "bridge", "chorus", "chorus", "tag"])
+        self.assertNotIn("intro", parsed["parts"])
+        self.assertNotIn("chorus2", parsed["parts"])
+        self.assertEqual(parsed["parts"]["tag"], ["Hosanna in the Highest"])
+        self.assertEqual(parsed["parts"]["bridge"], ["As I walk from earth into eternity"])
+        self.assertTrue(app._is_chord_only_worship_line("C#m E F#m7 G#m7 x2"))
+        self.assertFalse(app._is_chord_only_worship_line("Sing again x2"))
+
     def test_your_love_never_fails_keeps_words_lines_and_bridge_repeats(self):
         source = (Path(__file__).parent / "fixtures" / "worship_together_your_love.txt").read_text()
         parsed = app._parse_labeled_worship_lyrics(source)

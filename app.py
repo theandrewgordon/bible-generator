@@ -1826,6 +1826,21 @@ def _worship_part_label(part_name: str) -> str:
     return label.title()
 
 
+def _clean_worship_syllable_marks(line: str) -> str:
+    """Repair known sung-word splits without changing ordinary compounds."""
+    line = re.sub(r"\b(Je)\s*-\s*(sus)\b", r"\1\2", str(line), flags=re.I)
+
+    def join_known_word(match):
+        joined = re.sub(r"\s*-\s*", "", match.group(0))
+        return joined if joined.lower() in {"hosanna", "highest", "into", "eternity", "hallelujah"} else match.group(0)
+
+    line = re.sub(r"\b[A-Za-z]+(?:\s+-\s+[A-Za-z]+)+\b", join_known_word, line)
+    for word in ("hosanna", "highest", "into", "eternity", "hallelujah"):
+        pattern = r"\b" + r"\s*(?:-\s*)?".join(word) + r"\b"
+        line = re.sub(pattern, lambda match: re.sub(r"[\s-]+", "", match.group(0)), line, flags=re.I)
+    return line
+
+
 def normalize_worship_song(song: dict) -> dict:
     normalized = dict(song or {})
     title = str(normalized.get("title") or "").strip()
@@ -1986,7 +2001,7 @@ def normalize_worship_song(song: dict) -> dict:
         # Chord sheets hyphenate this name to show sung syllables. Keep
         # ordinary compound words intact and preserve the source's casing.
         cleaned_lines = [
-            re.sub(r"\b(Je)\s*-\s*(sus)\b", r"\1\2", line, flags=re.I)
+            _clean_worship_syllable_marks(line)
             for line in cleaned_lines
         ]
         if not cleaned_lines:
@@ -3291,7 +3306,7 @@ _CONTINUATION_STARTS = (
 )
 
 
-_CONTINUATION_END_WORDS = frozenset({"and", "or", "but", "so", "cause", "because", "to", "of", "in", "with"})
+_CONTINUATION_END_WORDS = frozenset({"and", "or", "but", "so", "cause", "because", "to", "of", "in", "with", "like", "your", "my", "our", "the", "breaks"})
 
 
 def _line_continues_to_next(line: str) -> bool:
@@ -3302,6 +3317,8 @@ def _line_continues_to_next(line: str) -> bool:
         return True
     # Whole-word match: "Savior", "again", and "sin" do not end in a conjunction.
     words = re.findall(r"[a-z']+", text)
+    if re.search(r"\b\w+'s cause$", text):
+        return False
     return bool(words) and words[-1] in _CONTINUATION_END_WORDS
 
 
@@ -5172,7 +5189,7 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
             and left_token.lower() not in standalone
         ) or (
             (left_token + right_token).lower() in {
-                "articulate", "one", "eminence", "magnified", "arise", "melody"
+                "articulate", "one", "eminence", "magnified", "arise", "melody", "hosanna", "highest", "into"
             }
         )
         separator = "" if concatenate else " "
@@ -5241,11 +5258,33 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
             continue
         if _is_chord_only_worship_line(line) or _is_worship_non_lyric_instruction_line(line):
             continue
-        current_lines.append(line)
+        current_lines.append(_clean_worship_syllable_marks(line))
     flush_current()
 
     if not raw_sections:
         return None
+
+    # A final heading may print the established chorus twice and add a short
+    # ending. Preserve those occurrences using the existing part plus a tag.
+    expanded_sections = []
+    prior_sections = {}
+    for label, lines in raw_sections:
+        prior = prior_sections.get(label)
+        if prior and lines and len(lines) >= 2 * len(prior):
+            remaining = list(lines)
+            count = 0
+            while remaining[:len(prior)] == prior:
+                count += 1
+                remaining = remaining[len(prior):]
+            if count >= 2 and len(remaining) <= 2:
+                expanded_sections.extend((label, list(prior)) for _ in range(count))
+                if remaining:
+                    expanded_sections.append(("tag", remaining))
+                continue
+        expanded_sections.append((label, lines))
+        if lines:
+            prior_sections[label] = lines
+    raw_sections = expanded_sections
 
     parts: dict[str, list[str]] = {}
     arrangement: list[str] = []
@@ -5294,6 +5333,8 @@ def _is_chord_only_worship_line(line: str) -> bool:
     if not text or len(text) > 160:
         return False
     tokens = [token for token in re.split(r"\s+", text) if token]
+    if tokens and re.fullmatch(r"(?:x\d+|\d+x)", tokens[-1], flags=re.I):
+        tokens = tokens[:-1]
     if not tokens:
         return False
     chord = re.compile(
@@ -6087,7 +6128,7 @@ def _polish_worship_line_capitalization(parsed: dict, source_lyrics: str) -> dic
 
 
 def _normalize_lyric_comparison_line(line: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", str(line or "").lower()).strip()
+    return re.sub(r"[^a-z0-9]+", " ", _clean_worship_syllable_marks(str(line or "")).lower()).strip()
 
 
 def _looks_under_arranged_worship_parse(parsed: dict, source_lyrics: str) -> bool:
