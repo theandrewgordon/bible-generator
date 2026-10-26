@@ -6,6 +6,23 @@ import app
 
 
 class WorshipParseCleanupTests(unittest.TestCase):
+    def test_pnwchords_page_excludes_footer_and_preserves_complete_rows(self):
+        source = (Path(__file__).parent / "fixtures" / "pnwchords_page.txt").read_text()
+        for footer in ("library_music", "Album – All of the Above (2007)", "Copy LinkFacebookXMessenger", "Leave a Reply"):
+            with self.subTest(footer=footer):
+                variant = source[:source.index("library_music")] + footer + "\nName\nEmail\nWebsite"
+                cleaned = app._clean_lyrics_site_paste(variant)
+                self.assertEqual(cleaned["title"], "Hosanna")
+                self.assertEqual(cleaned["artist"], "Hillsong")
+                parsed = app._parse_labeled_worship_lyrics(variant)
+                self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "bridge"])
+                self.assertEqual([len(parsed["parts"][part]) for part in parsed["arrangement"]], [8, 4, 8, 6])
+                self.assertTrue(parsed["parts"]["bridge"][-1].endswith("into eternity"))
+                self.assertNotIn(footer, cleaned["lyrics"])
+                self.assertFalse(app._looks_under_arranged_worship_parse(parsed, cleaned["lyrics"]))
+        explicit = app._clean_lyrics_site_paste(source, "Custom title", "Custom artist")
+        self.assertEqual((explicit["title"], explicit["artist"]), ("Custom title", "Custom artist"))
+
     def test_hosanna_fragmented_source_repairs_words_and_bridge_phrases(self):
         source = (Path(__file__).parent / "fixtures" / "hosanna_worship_together.txt").read_text()
         parsed = app._parse_labeled_worship_lyrics(source)
