@@ -4616,6 +4616,8 @@ def _is_lyrics_site_boilerplate_line(line: str) -> bool:
         return False
     if lowered in _LYRICS_SITE_STOP_LINES:
         return True
+    if lowered in {"optional cookies", "cookie preferences"} or lowered.startswith("we use analytics cookies to understand how our site is used"):
+        return True
     if lowered.startswith("azlyrics ") or lowered in {"azlyrics", "azlyrics.com"}:
         return True
     if lowered.startswith("writer(s):") or lowered.startswith("album:"):
@@ -4640,6 +4642,33 @@ def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: s
     inferred_artist = str(artist_hint or "").strip()
     inferred_key = ""
     worship_initiative_page = any(line.lower() == "the worship initiative" for line in lines)
+
+    # PraiseCharts puts a consent dialog and product catalogue before its
+    # labelled Lyrics block. A privacy-policy link in that dialog is not the
+    # end of the song page; select the actual body before generic stop rules.
+    if any(line.lower() == "praisecharts" for line in lines):
+        for line in lines:
+            heading = re.fullmatch(r"(.+?) Chords PDF \((.+)\)", line, flags=re.I)
+            if heading:
+                inferred_title = inferred_title or heading.group(1).strip()
+                inferred_artist = inferred_artist or heading.group(2).strip()
+            original_key = re.fullmatch(r"Original Key\s+([A-G](?:#|b)?m?)", line, flags=re.I)
+            if original_key:
+                inferred_key = original_key.group(1)
+        lyrics_start = next((
+            index for index, line in enumerate(lines)
+            if line.lower() == "lyrics"
+            and any(_extract_worship_section_label(candidate)[0] for candidate in lines[index + 1:index + 4])
+        ), -1)
+        if lyrics_start >= 0:
+            lyrics_end = next((
+                index for index in range(lyrics_start + 1, len(lines))
+                if lines[index].startswith("©") or lines[index].lower() in {
+                    "other arrangements of this song", "featured in these lists", "videos", "all products"
+                }
+            ), len(lines))
+            raw_text = "\n".join(lines[lyrics_start + 1:lyrics_end])
+            lines = raw_text.splitlines()
 
     ug_heading = next((
         (index, match) for index, line in enumerate(lines)
@@ -9113,7 +9142,10 @@ def worship_add_parse():
         return redirect(url_for("worship_add"))
 
     cleaned_paste = _clean_lyrics_site_paste(raw_lyrics, title, artist)
-    parse_lyrics = cleaned_paste.get("lyrics") or raw_lyrics
+    parse_lyrics = str(cleaned_paste.get("lyrics") or "").strip()
+    if not parse_lyrics:
+        flash("No song lyrics were found in that paste. Copy the labelled lyrics section and try again.", "warning")
+        return redirect(url_for("worship_add"))
 
     # AZLyrics (and similar sites) wrap each lyric line in its own <div>, so a
     # copy-paste produces a blank line between EVERY lyric line, not just between
