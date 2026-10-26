@@ -4660,6 +4660,29 @@ def _clean_lyrics_site_paste(raw_text: str, title_hint: str = "", artist_hint: s
     inferred_key = ""
     worship_initiative_page = any(line.lower() == "the worship initiative" for line in lines)
 
+    if any("pnwchords" in line.lower() for line in lines):
+        heading = next((
+            match for line in lines
+            if (match := re.fullmatch(r"(.+?)\s+[–—-]\s+(.+)", line))
+        ), None)
+        if heading:
+            inferred_title = inferred_title or heading.group(1).strip()
+            inferred_artist = inferred_artist or heading.group(2).strip()
+        chart_start = next((
+            index for index, line in enumerate(lines)
+            if _extract_worship_section_label(line)[0]
+        ), -1)
+        if chart_start >= 0:
+            chart_end = next((
+                index for index in range(chart_start + 1, len(lines))
+                if re.match(r"^(?:library_music\b|album\s*[–—-]|copy link(?:\b|facebook)|leave a reply\b|your email address will not be published|all music and lyrics belong)", lines[index], flags=re.I)
+                or "youtube.com/embed/" in lines[index].lower()
+            ), len(lines))
+            # These are complete chart rows; stripping chords first avoids
+            # treating consecutive lyric lines as inline chord fragments.
+            raw_text = _prepare_worship_validation_source("\n".join(lines[chart_start:chart_end]))
+            lines = raw_text.splitlines()
+
     # PraiseCharts puts a consent dialog and product catalogue before its
     # labelled Lyrics block. A privacy-policy link in that dialog is not the
     # end of the song page; select the actual body before generic stop rules.
