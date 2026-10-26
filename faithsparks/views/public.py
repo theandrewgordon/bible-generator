@@ -28,7 +28,7 @@ from faithsparks.services.firestore import db
 from faithsparks.services.account_operations import generation_guard
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.util.request_utils import get_client_ip
-from faithsparks.products import MATURITY, products_for, products_for_audience
+from faithsparks.products import MATURITY, products_for, products_for_audience, product_is_available
 
 
 bp = Blueprint('public', __name__)
@@ -254,6 +254,8 @@ def labs():
 @bp.get("/labs/reading-quest")
 def reading_quest_lab():
     """Standalone reading practice lab; no child profile or server-side data."""
+    if not product_is_available("reading-quest"):
+        abort(404)
     from faithsparks.services.reading_quest_audio import TASKS, CUES
     response = make_response(render_template(
         "labs_reading_quest.html", noindex=True, reading_tasks=TASKS,
@@ -266,6 +268,8 @@ def reading_quest_lab():
 
 @bp.post("/labs/reading-quest/tts")
 def reading_quest_tts():
+    if not product_is_available("reading-quest"):
+        abort(404)
     from openai import OpenAI
     from faithsparks.services.reading_quest_audio import CUES, INSTRUCTIONS
     from faithsparks.services.ai_budget import ai_budget_ok
