@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Reading Quest | Faith Sparks Labs{% endblock %}
+{% block head_extra %}
+<meta name="robots" content="noindex,nofollow">
+<style>
+.rq-wrap{max-width:960px;margin:2rem auto;padding:1rem;font-family:system-ui,sans-serif}
+.rq-card{background:#fffaf0;border:2px solid #e0ceac;border-radius:22px;padding:clamp(1rem,4vw,2rem);box-shadow:0 8px 26px #263f3420;color:#25392f}
+.rq-nav{display:flex;gap:.7rem;justify-content:space-between;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.rq-pill{background:#e4f5e9;border-radius:30px;padding:.55rem 1rem;font-weight:750}
+.rq-title{font-size:clamp(1.6rem,5vw,2.6rem);margin:.5rem 0;color:#234936}
+.rq-copy{font-size:1.17rem;line-height:1.5}
+.rq-options{display:flex;flex-wrap:wrap;gap:.8rem;justify-content:center;margin:2rem 0}
+.rq-choice,.rq-action{border:2px solid #62876f;border-radius:15px;background:#f3fbf2;color:#193c2d;min-width:100px;min-height:66px;padding:.75rem 1.3rem;font-size:1.5rem;font-weight:750;cursor:pointer}
+.rq-action{font-size:1.1rem;min-height:50px;background:#2c6950;color:white}
+.rq-choice:focus-visible,.rq-action:focus-visible{outline:4px solid #f4b942;outline-offset:3px}
+.rq-choice:disabled{opacity:.5;cursor:default}
+.rq-feedback{min-height:3rem;font-weight:750;font-size:1.17rem;line-height:1.5}
+.rq-actions{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.rq-progress{height:12px;border-radius:9px;background:#e4ddd0;overflow:hidden;margin:1rem 0}
+.rq-progress>div{height:100%;background:#5e9b67;transition:width .25s}
+.rq-note{font-size:.85rem;color:#52665a;margin-top:1.5rem}
+@media(prefers-reduced-motion:reduce){.rq-progress>div{transition:none}}
+</style>
+{% endblock %}
+{% block content %}
+<main class="rq-wrap" id="rq-app">
+  <div class="rq-nav"><a href="/labs">← Back to Labs</a><span class="rq-pill">🌿 Faith Sparks Reading Quest — Prototype</span></div>
+  <div class="rq-card">
+    <div class="rq-nav"><span id="rq-level" class="rq-pill">World 1</span><span id="rq-points" class="rq-pill">⭐ 0 stars</span></div>
+    <div class="rq-progress"><div id="rq-bar" style="width:0%"></div></div>
+    <h1 id="rq-title" class="rq-title">The Word Garden</h1>
+    <p class="rq-copy" id="rq-instruction">Press Play to begin your reading adventure!</p>
+    <div class="rq-options" id="rq-options"></div>
+    <p class="rq-feedback" id="rq-feedback" role="status" aria-live="polite"></p>
+    <div class="rq-actions"><button class="rq-action" id="rq-hear" type="button">🔊 Hear it</button><button class="rq-action" id="rq-next" type="button">▶ Play</button></div>
+    <p class="rq-note">Parent note: This prototype reinforces taught phonics; it is not a diagnostic assessment or a replacement for structured literacy instruction. Audio uses the device's speech engine until reviewed recordings are added. No login or child data collection.</p>
+  </div>
+</main>
+<script>
+(function(){
+"use strict";
+const tasks=[
+ {mode:"listen",title:"Sound Search",say:"Find the word fish.",choices:["fish","dish","wish"],answer:"fish",help:"Listen to each sound: f, i, sh. Fish."},
+ {mode:"build",title:"Build a Word",say:"Build the word ship.",tiles:["sh","i","p","a"],answer:"ship",help:"Ship has three sounds: sh, i, p."},
+ {mode:"listen",title:"Word Detective",say:"Find the word chat.",choices:["chip","chat","chop"],answer:"chat",help:"Chat starts with ch and has the short a sound."},
+ {mode:"build",title:"Treasure Spell",say:"Spell the word shut.",tiles:["sh","u","t","i"],answer:"shut",help:"Shut has three sounds: sh, u, t."},
+ {mode:"listen",title:"Review Castle",say:"Find the word shop.",choices:["ship","shop","shut"],answer:"shop",help:"Shop has the short o sound."}
+];
+let index=-1,points=0,mistakes=0,letters="",done=false;
+const $=id=>document.getElementById(id);
+function speak(t){if(!("speechSynthesis" in window))return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.8;u.pitch=1.02;speechSynthesis.speak(u)}catch(e){}}
+function paint(){const t=tasks[index];done=false;mistakes=0;letters="";$("rq-level").textContent="World 1 · Stop "+(index+1)+"/"+tasks.length;$("rq-title").textContent=t.title;$("rq-instruction").textContent=t.mode==="build"?"Listen. Then tap the letter tiles to build the word.":"Listen. Then tap the word you hear.";$("rq-feedback").textContent="";$("rq-next").hidden=true;$("rq-options").replaceChildren();$("rq-bar").style.width=(index/tasks.length*100)+"%";for(const [n,txt] of (t.choices||t.tiles).entries()){const b=document.createElement("button");b.type="button";b.className="rq-choice";b.textContent=txt;b.addEventListener("click",()=>choose(txt,b));$("rq-options").appendChild(b)}speak(t.say)}
+function choose(value,button){if(done)return;const t=tasks[index];if(t.mode==="build"){button.disabled=true;letters+=value;if(letters===t.answer){complete();return}if(!t.answer.startsWith(letters)){mistakes++;letters="";$("rq-feedback").textContent="Try again. "+(mistakes>=2?t.help:"Listen carefully.");for(const b of $("rq-options").children)b.disabled=false;speak(mistakes>=2?t.help:"Let's try once more.");return}$("rq-feedback").textContent="Keep building!";return}
+if(value===t.answer){complete();return}mistakes++;$("rq-feedback").textContent=mistakes>=2?t.help:"Good try. Listen again.";speak(mistakes>=2?t.help:"Listen again.");if(mistakes>=2){for(const b of $("rq-options").children)if(b.textContent===t.answer)b.style.outline="4px solid #deb14d"}}
+function complete(){done=true;points++;$("rq-points").textContent="⭐ "+points+" stars";$("rq-feedback").textContent="Great reading! You earned a star! ⭐";$("rq-next").hidden=false;$("rq-next").textContent=index===tasks.length-1?"Finish Adventure":"Next Stop ▶";speak("Great work! You earned a star!")}
+function next(){if(index>=tasks.length-1){index=-1;points=0;$("rq-points").textContent="⭐ 0 stars";$("rq-next").textContent="▶ Play";$("rq-next").hidden=false;$("rq-title").textContent="Adventure complete!";$("rq-instruction").textContent="You did it! Play again whenever you're ready.";$("rq-feedback").textContent="⭐ ⭐ ⭐";$("rq-options").replaceChildren();$("rq-bar").style.width="100%";return}index++;paint()}
+$("rq-hear").addEventListener("click",()=>speak(index>=0?tasks[index].say:"Welcome to Reading Quest. Press play!"));
+$("rq-next").addEventListener("click",next);
+})();
+</script>
+{% endblock %}
