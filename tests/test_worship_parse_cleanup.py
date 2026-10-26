@@ -6,6 +6,25 @@ import app
 
 
 class WorshipParseCleanupTests(unittest.TestCase):
+    def test_your_love_never_fails_keeps_words_lines_and_bridge_repeats(self):
+        source = (Path(__file__).parent / "fixtures" / "worship_together_your_love.txt").read_text()
+        parsed = app._parse_labeled_worship_lyrics(source)
+        self.assertEqual(parsed["parts"]["verse1"], [
+            "Nothing can separate", "Even if I ran away", "Your love never fails",
+            "I know I still make mistakes", "But You have new mercy for me everyday",
+            "Cause Your love never fails",
+        ])
+        self.assertEqual(parsed["parts"]["chorus"], [
+            "You stay the same through the ages", "Your love never changes",
+            "There may be pain in the night", "But joy comes in the morning",
+            "When the oceans rage", "I don't have to be afraid",
+            "Because I know that You love me", "And Your love never fails",
+        ])
+        self.assertEqual(len(parsed["parts"]["verse2"]), 6)
+        self.assertEqual(parsed["parts"]["bridge"], ["You make all things work together for my good"])
+        self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse2", "chorus"] + ["bridge"] * 4)
+        self.assertFalse(app._looks_under_arranged_worship_parse(parsed, source))
+
     def test_praisecharts_banner_does_not_hide_labelled_lyrics(self):
         source = (Path(__file__).parent / "fixtures" / "praisecharts_cookie_banner.txt").read_text()
         cleaned = app._clean_lyrics_site_paste(source)

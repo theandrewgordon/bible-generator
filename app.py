@@ -5165,9 +5165,15 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
             return f"{left} {right}".strip()
         left_token, right_token = left_word.group(1), right_word.group(1)
         standalone = {"a", "an", "and", "as", "at", "be", "by", "for", "from", "he", "his", "i", "in", "is", "it", "me", "my", "of", "on", "or", "our", "the", "to", "we", "with", "you", "your"}
+        # Short words are not evidence of a split syllable ("ran / away",
+        # "But / joy", "make / all"). Join only recognizable suffixes.
         concatenate = (
-            len(right_token) == 1
-            or (len(left_token) <= 6 and len(right_token) <= 6 and left_token.lower() not in standalone)
+            right_token.lower() in {"s", "tion", "ation", "tures", "ing", "ness", "ther"}
+            and left_token.lower() not in standalone
+        ) or (
+            (left_token + right_token).lower() in {
+                "articulate", "one", "eminence", "magnified", "arise", "melody"
+            }
         )
         separator = "" if concatenate else " "
         return f"{left}{separator}{right}"
@@ -5201,7 +5207,11 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
         if not pending_fragment:
             pending_fragment = candidate
         elif chord_between:
-            pending_fragment = join_fragment(pending_fragment, candidate)
+            if candidate[:1].isupper() and not _line_continues_to_next(pending_fragment):
+                flush_fragment()
+                pending_fragment = candidate
+            else:
+                pending_fragment = join_fragment(pending_fragment, candidate)
             chord_between = False
         else:
             flush_fragment()
@@ -5217,7 +5227,7 @@ def _parse_labeled_worship_lyrics(lyrics_text: str, title: str = "", artist: str
             flush_current()
             raw_sections.extend((repeat_label, None) for _ in range(repeat_count))
             continue
-        previous_repeat = re.match(r"^\(repeat\s+x?(\d+)x?\b", line, flags=re.I)
+        previous_repeat = re.match(r"^\(?repeat\s+x?(\d+)x?\b", line, flags=re.I)
         if previous_repeat and current_label and current_lines:
             current_repeat_count = min(max(int(previous_repeat.group(1)), 1), 12)
             continue
