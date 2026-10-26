@@ -1,10 +1,65 @@
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import app
 
 
 class WorshipParseCleanupTests(unittest.TestCase):
+    def test_praisecharts_banner_does_not_hide_labelled_lyrics(self):
+        source = (Path(__file__).parent / "fixtures" / "praisecharts_cookie_banner.txt").read_text()
+        cleaned = app._clean_lyrics_site_paste(source)
+        self.assertEqual(cleaned["title"], "Your Glory (with Nothing But The Blood)")
+        self.assertEqual(cleaned["artist"], "All Sons & Daughters")
+        self.assertEqual(cleaned["key"], "D")
+        self.assertTrue(cleaned["lyrics"].startswith("Verse 1\nMy life is Yours"))
+        self.assertNotIn("cookies", cleaned["lyrics"])
+        self.assertNotIn("Other Arrangements", cleaned["lyrics"])
+        self.assertNotIn("©", cleaned["lyrics"])
+        parsed = app._parse_labeled_worship_lyrics(cleaned["lyrics"], cleaned["title"], cleaned["artist"])
+        self.assertEqual(parsed["arrangement"], ["verse1", "chorus", "verse1", "bridge", "verse3", "chorus2"])
+        self.assertEqual(len(parsed["parts"]["verse1"]), 3)
+        self.assertIn("No other fount I know", parsed["parts"]["chorus2"][-1])
+
+        rate = type("_Rate", (), {"allowed": True, "retry_after": 0})()
+        handler = app.worship_add_parse.__wrapped__.__wrapped__
+        with app.app.test_request_context(
+            "/worship/add/parse", method="POST",
+            data={"raw_lyrics": source, "rights_confirmed": "1"},
+        ):
+            with (
+                patch.object(app, "check_rate_limit", return_value=rate),
+                patch.object(app, "_parse_worship_lyrics_claude") as claude,
+                patch.object(app, "_parse_worship_lyrics_openai") as openai,
+                patch.object(app, "_store_pending_worship_song", return_value="A" * 24) as store,
+            ):
+                response = handler()
+        self.assertEqual(response.status_code, 302)
+        claude.assert_not_called()
+        openai.assert_not_called()
+        self.assertEqual(store.call_args.args[0]["title"], cleaned["title"])
+        self.assertEqual(store.call_args.args[0]["arrangement"], parsed["arrangement"])
+
+    def test_cookie_only_paste_is_rejected_before_provider_calls(self):
+        source = "Optional cookies\nWe use analytics cookies to understand how our site is used.\nCookie preferences\nPrivacy policy"
+        rate = type("_Rate", (), {"allowed": True, "retry_after": 0})()
+        handler = app.worship_add_parse.__wrapped__.__wrapped__
+        with app.app.test_request_context(
+            "/worship/add/parse", method="POST",
+            data={"raw_lyrics": source, "rights_confirmed": "1"},
+        ):
+            with (
+                patch.object(app, "check_rate_limit", return_value=rate),
+                patch.object(app, "_parse_worship_lyrics_claude") as claude,
+                patch.object(app, "_parse_worship_lyrics_openai") as openai,
+                patch.object(app, "_store_pending_worship_song") as store,
+            ):
+                response = handler()
+        self.assertEqual(response.status_code, 302)
+        claude.assert_not_called()
+        openai.assert_not_called()
+        store.assert_not_called()
+
     def test_flattened_chart_cannot_be_accepted_as_bridge_only(self):
         opening = (
             "Intro: G D A (Verse for Your Glory) G D A My life is Yours "
