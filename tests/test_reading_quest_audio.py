@@ -110,3 +110,12 @@ def test_expanded_curriculum_is_solvable_and_audio_is_allowlisted():
         first = next((i,t) for i,t in enumerate(TASKS) if t['world'] == world)
         assert CUES[f'{first[0]}-intro'] == first[1]['intro']
         assert first[1]['adult']
+
+
+def test_blending_demo_does_not_ask_tts_to_read_letter_lists_as_sounds():
+    from faithsparks.services.reading_quest_audio import TASKS
+    assert 'Listen to the word: sat.' in TASKS[0]['intro']
+    assert 'grown-up' in TASKS[0]['intro']
+    for text in CUES.values():
+        assert 's, a, t' not in text
+        assert not text.startswith(('Start with s,', 'Use sh,', 'Use ch,', 'Use p,'))
