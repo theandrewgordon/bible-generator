@@ -67,6 +67,11 @@ PRODUCTS = (
         "description": "Explore a calmer shared rhythm for family schedules and weekly logistics.",
     },
     {
+        "id": "reading-quest", "name": "Reading Quest", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/reading-quest", "accent": "forest",
+        "description": "Practice phonics, spelling, and decoding in a gentle word adventure.",
+    },
+    {
         "id": "games-lab", "name": "Games Lab", "area": "labs",
         "maturity": "sandbox", "path": "/labs/games", "accent": "gold",
         "description": "Try small interactive game prototypes for families while we refine the controls, levels, and play flow.",
