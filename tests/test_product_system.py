@@ -18,39 +18,31 @@ def test_product_registry_has_task_first_navigation_and_formal_labs():
     assert all(product["path"] != "/speeddie" for product in PRODUCTS)
 
 
-def test_reading_quest_is_only_exposed_through_labs():
-    quest = next(product for product in PRODUCTS if product["id"] == "reading-quest")
-    assert quest["area"] == "labs"
-    assert quest["maturity"] == "sandbox"
-    assert quest["path"] == "/labs/reading-quest"
-    assert all(item["path"] != quest["path"] for item in PRIMARY_NAVIGATION)
-    assert [rule.rule for rule in app.url_map.iter_rules()
-            if rule.endpoint == "public.reading_quest_lab"] == [quest["path"]]
-
+def test_reading_quest_is_paused_and_unreachable(monkeypatch):
+    from faithsparks.products import products_for
+    from faithsparks.services import ai_budget
+    from unittest.mock import Mock
+    budget = Mock()
+    provider = Mock()
+    monkeypatch.setattr(ai_budget, 'ai_budget_ok', budget)
+    monkeypatch.setattr('openai.OpenAI', provider)
+    assert not any(p['id'] == 'reading-quest' for p in products_for('labs'))
+    assert next(p for p in PRODUCTS if p['id'] == 'reading-quest')['hidden'] is True
     app.config.update(TESTING=True)
     with app.test_client() as client:
-        labs = client.get("/labs")
-        assert labs.status_code == 200
-        assert b'Try Reading Quest' in labs.data
-        assert b'href="/labs/reading-quest"' in labs.data
-
-        quest_page = client.get(quest["path"])
-        assert quest_page.status_code == 200
-        assert b'Reading Quest | Faith Sparks Labs' in quest_page.data
-        assert b'content="noindex,nofollow"' in quest_page.data
-        assert b'href="/labs"' in quest_page.data
-        # The shared desktop/mobile navigation must not gain a direct link.
-        nav = quest_page.data.split(b'id="mainNav"', 1)[1].split(b'</nav>', 1)[0]
-        assert b'Reading Quest' not in nav
-        assert b'href="/labs/reading-quest"' not in nav
-
-        for path in ("/", "/prepare", "/play", "/families", "/churches", "/start-here"):
+        for path in ('/labs', '/', '/prepare', '/play', '/families', '/churches', '/start-here'):
             response = client.get(path)
             assert response.status_code == 200
             assert b'Reading Quest' not in response.data
             assert b'/labs/reading-quest' not in response.data
-        assert client.get("/reading-quest").status_code == 404
-        assert b'reading-quest' not in client.get("/sitemap.xml").data
+        assert client.get('/labs/reading-quest').status_code == 404
+        with client.session_transaction() as session:
+            token = session['_csrf_token']
+        assert client.post('/labs/reading-quest/tts', json={'cue': 'welcome'}, headers={'X-CSRF-Token': token}).status_code == 404
+        assert client.get('/reading-quest').status_code == 404
+        assert b'reading-quest' not in client.get('/sitemap.xml').data
+    budget.assert_not_called()
+    provider.assert_not_called()
 
 
 def test_task_landing_pages_and_parent_brand_render():

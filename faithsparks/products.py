@@ -68,6 +68,7 @@ PRODUCTS = (
     },
     {
         "id": "reading-quest", "name": "Reading Quest", "area": "labs",
+        "hidden": True,  # Paused; retain the prototype for future review.
         "maturity": "sandbox", "path": "/labs/reading-quest", "accent": "forest",
         "description": "Practice phonics, spelling, and decoding in a gentle word adventure.",
     },
@@ -126,8 +127,12 @@ AUDIENCE_PATHS = {
 }
 
 
+def product_is_available(product_id: str) -> bool:
+    return any(product["id"] == product_id and not product.get("hidden", False) for product in PRODUCTS)
+
+
 def products_for(area: str) -> tuple[dict, ...]:
-    return tuple(product for product in PRODUCTS if product["area"] == area)
+    return tuple(product for product in PRODUCTS if product["area"] == area and not product.get("hidden", False))
 
 
 def products_for_audience(audience: str) -> tuple[dict, ...]:

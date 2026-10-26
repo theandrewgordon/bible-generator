@@ -10,6 +10,7 @@ from faithsparks.services.reading_quest_audio import CUES
 
 @pytest.fixture
 def audio(monkeypatch):
+    monkeypatch.setattr(public, "product_is_available", lambda product_id: True)
     app = Flask(__name__, template_folder='../../templates')
     app.secret_key = 'test-secret'
     app.register_blueprint(public.bp)

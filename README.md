@@ -52,6 +52,10 @@ Set `SOFFICE_BIN` or `PDFTOPPM_BIN` when those executables are not on `PATH`. Th
 
 ### Reading Quest lab audio
 
+Paused: Reading Quest is hidden from Labs, and its page/audio endpoints are disabled.
+The prototype is preserved in source. Remove its `hidden` flag in the product registry
+only when ready to restore access after review.
+
 `/labs/reading-quest` uses server-side `gpt-4o-mini-tts` (coral, slow delivery)
 with the existing `OPENAI_API_KEY`. Only fixed curriculum cue IDs are accepted;
 no child profile, names, answers, or arbitrary text are sent to OpenAI. The page
