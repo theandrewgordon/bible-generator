@@ -18,6 +18,15 @@
 .rq-actions{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
 .rq-progress{height:12px;border-radius:9px;background:#e4ddd0;overflow:hidden;margin:1rem 0}
 .rq-progress>div{height:100%;background:#5e9b67;transition:width .25s}
+.rq-worlds{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin:1rem 0}
+.rq-world{border:2px solid #62876f;border-radius:14px;padding:1rem;background:#f3fbf2;color:#193c2d;cursor:pointer;text-align:left;font:inherit}
+.rq-world[aria-pressed="true"]{background:#d6eddb;border-color:#234936;box-shadow:inset 0 -4px #62876f}
+.rq-world strong,.rq-world small{display:block}.rq-world small{margin-top:.4rem;line-height:1.4}
+.rq-model{font-size:clamp(1.8rem,5vw,2.8rem);letter-spacing:.1em;min-height:1.5em;text-align:center;white-space:pre-wrap}
+.rq-adult{background:#eef3ea;border-radius:12px;padding:.85rem;margin:1rem 0;line-height:1.5}.rq-adult summary{cursor:pointer;font-weight:700}
+.rq-choice:disabled{opacity:.85}.rq-choice[aria-pressed="true"]{background:#cce7d4}
+.rq-tools[hidden]{display:none}.rq-tools{display:flex;gap:.7rem;justify-content:center;margin-bottom:1rem}.rq-tools button{font:inherit;padding:.65rem;border:1px solid #62876f;border-radius:10px;background:white;cursor:pointer}
+@media(max-width:600px){.rq-worlds{grid-template-columns:1fr}.rq-world{padding:.75rem}.rq-wrap{margin:.5rem auto}.rq-choice{min-width:75px}}
 .rq-note{font-size:.85rem;color:#52665a;margin-top:1.5rem}
 @media(prefers-reduced-motion:reduce){.rq-progress>div{transition:none}}
 </style>
@@ -25,12 +34,21 @@
 {% block content %}
 <main class="rq-wrap" id="rq-app">
   <div class="rq-nav"><a href="/labs">← Back to Labs</a><span class="rq-pill">🌿 Faith Sparks Reading Quest — Prototype</span></div>
+  <p class="rq-copy">Three short adventures · Practice together · No timer</p>
+  <nav class="rq-worlds" aria-label="Choose an adventure">
+    <button type="button" class="rq-world" id="rq-world-0" aria-pressed="true"><strong>🌱 Word Garden</strong><small>Short a and i · 8 activities</small></button>
+    <button type="button" class="rq-world" id="rq-world-1" aria-pressed="false"><strong>🐚 Sound Shore</strong><small>sh and ch · 8 activities</small></button>
+    <button type="button" class="rq-world" id="rq-world-2" aria-pressed="false"><strong>🏰 Review Castle</strong><small>Words and sentences · 8 activities</small></button>
+  </nav>
   <div class="rq-card">
-    <div class="rq-nav"><span id="rq-level" class="rq-pill">World 1</span><span id="rq-points" class="rq-pill">⭐ 0 stars</span></div>
+    <div class="rq-nav"><span id="rq-level" class="rq-pill">Word Garden · Ready?</span><span id="rq-points" class="rq-pill">⭐ 0 stars</span></div>
     <div class="rq-progress"><div id="rq-bar" style="width:0%"></div></div>
     <h1 id="rq-title" class="rq-title">The Word Garden</h1>
     <p class="rq-copy" id="rq-instruction">Press Play to begin your reading adventure!</p>
+    <p class="rq-model" id="rq-model" aria-live="polite"></p>
     <div class="rq-options" id="rq-options"></div>
+    <div class="rq-tools" id="rq-tools" hidden><button type="button" id="rq-undo">↶ Undo tile</button><button type="button" id="rq-clear">Start word again</button></div>
+    <details class="rq-adult"><summary>Grown-up guide</summary><p id="rq-adult">Sit together for a short practice. Start with Word Garden, or choose a familiar skill. This sample assumes some letter-sound knowledge; it does not place or assess your reader.</p></details>
     <p class="rq-feedback" id="rq-feedback" role="status" aria-live="polite"></p>
     <div class="rq-actions"><button class="rq-action" id="rq-hear" type="button">🔊 Hear it</button><button class="rq-action" id="rq-next" type="button">▶ Play</button></div>
     <p class="rq-note">Parent note: This prototype reinforces taught phonics; it is not a diagnostic assessment or a replacement for structured literacy instruction. Audio uses an AI-generated voice, with device speech as a fallback. Voice and phoneme pronunciations are under review. Audio is kept only in this page’s memory until you leave; no recordings are saved by Faith Sparks. No login or child profile is needed.</p>
@@ -43,6 +61,9 @@ const tasks={{ reading_tasks|tojson }};
 const audioCues={{ reading_audio_cues|tojson }};
 const csrfToken={{ reading_csrf|tojson }};
 let index=-1,points=0,mistakes=0,letters="",done=false;
+let world=0,queue=[],position=-1,teaching=false,reviewing=false,finished=false;
+let selectedTiles=[],missed=new Set();
+const completedWorlds=new Set();
 const $=id=>document.getElementById(id);
 // Audio exists only in this page's memory. Never use persistent browser storage.
 const audioCache=new Map(), pendingAudio=new Map();
@@ -68,13 +89,84 @@ async function speak(t){stopAudio();const generation=audioGeneration,id=audioCue
  await audio.play();}catch(e){if(generation===audioGeneration){audioUnavailable=true;fallbackSpeech(t,generation)}}
 }
 window.addEventListener("pagehide",()=>{stopAudio();for(const url of audioCache.values())URL.revokeObjectURL(url);audioCache.clear()});
-function paint(){const t=tasks[index];done=false;mistakes=0;letters="";$("rq-level").textContent="World 1 · Stop "+(index+1)+"/"+tasks.length;$("rq-title").textContent=t.title;$("rq-instruction").textContent=t.mode==="build"?"Listen. Then tap the letter tiles to build the word.":"Listen. Then tap the word you hear.";$("rq-feedback").textContent="";$("rq-next").hidden=true;$("rq-options").replaceChildren();$("rq-bar").style.width=(index/tasks.length*100)+"%";for(const [n,txt] of (t.choices||t.tiles).entries()){const b=document.createElement("button");b.type="button";b.className="rq-choice";b.textContent=txt;b.addEventListener("click",()=>choose(txt,b));$("rq-options").appendChild(b)}speak(t.say)}
-function choose(value,button){if(done)return;const t=tasks[index];if(t.mode==="build"){button.disabled=true;letters+=value;if(letters===t.answer){complete();return}if(!t.answer.startsWith(letters)){mistakes++;letters="";$("rq-feedback").textContent="Try again. "+(mistakes>=2?t.help:"Listen carefully.");for(const b of $("rq-options").children)b.disabled=false;speak(mistakes>=2?t.help:"Let's try once more.");return}$("rq-feedback").textContent="Keep building!";return}
-if(value===t.answer){complete();return}mistakes++;$("rq-feedback").textContent=mistakes>=2?t.help:"Good try. Listen again.";speak(mistakes>=2?t.help:"Listen again.");if(mistakes>=2){for(const b of $("rq-options").children)if(b.textContent===t.answer)b.style.outline="4px solid #deb14d"}}
-function complete(){done=true;points++;$("rq-points").textContent="⭐ "+points+" stars";$("rq-feedback").textContent="Great reading! You earned a star! ⭐";$("rq-next").hidden=false;$("rq-next").textContent=index===tasks.length-1?"Finish Adventure":"Next Stop ▶";speak("Great work! You earned a star!")}
-function next(){stopAudio();if(index>=tasks.length-1){index=-1;points=0;$("rq-points").textContent="⭐ 0 stars";$("rq-next").textContent="▶ Play";$("rq-next").hidden=false;$("rq-title").textContent="Adventure complete!";$("rq-instruction").textContent="You did it! Play again whenever you're ready.";$("rq-feedback").textContent="⭐ ⭐ ⭐";$("rq-options").replaceChildren();$("rq-bar").style.width="100%";return}index++;paint()}
-$("rq-hear").addEventListener("click",()=>speak(index>=0?tasks[index].say:"Welcome to Reading Quest. Press play!"));
+function current(){return tasks[index]}
+function renderTiles(){
+ const t=current();$("rq-options").replaceChildren();
+ for(const [tileIndex,txt] of (t.choices||t.tiles).entries()){
+  const b=document.createElement("button");b.type="button";b.className="rq-choice";b.textContent=txt;
+  b.disabled=done||(t.mode==="build"&&selectedTiles.includes(tileIndex));
+  b.addEventListener("click",()=>choose(txt,tileIndex));$("rq-options").appendChild(b);
+ }
+}
+function updateBuild(){letters=selectedTiles.map(i=>current().tiles[i]).join("");$("rq-model").textContent=letters||"…";renderTiles()}
+function paint(){
+ const t=current();done=false;mistakes=0;letters="";selectedTiles=[];
+ $("rq-level").textContent=t.worldName+" · "+(reviewing?"Extra practice ":"Stop ")+(position+1)+"/"+queue.length;
+ $("rq-title").textContent=t.title;
+ $("rq-instruction").textContent=t.mode==="build"?"Listen. Tap the tiles in order to build the word.":t.mode==="sort"?t.prompt:t.mode==="sentence"?"Listen. Read each choice, then tap the sentence you hear.":"Listen. Read each choice, then tap the word you hear.";
+ $("rq-model").textContent=t.mode==="sort"?t.word:t.mode==="build"?"…":"";
+ $("rq-adult").textContent=t.adult||"Let your reader try first. Point under each sound if needed, then blend and read the whole word. Use Hear it or practice together at any time.";
+ $("rq-feedback").textContent="";$("rq-next").hidden=true;$("rq-tools").hidden=t.mode!=="build";
+ $("rq-bar").style.width=(position/queue.length*100)+"%";renderTiles();speak(t.say);
+}
+function choose(value,tileIndex){
+ if(done||teaching||finished)return;const t=current();
+ if(t.mode==="build"){
+  if(selectedTiles.includes(tileIndex))return;selectedTiles.push(tileIndex);updateBuild();
+  if(letters===t.answer){complete();return}
+  if(t.answer.startsWith(letters)){$("rq-feedback").textContent="Keep building!";return}
+ }else if(value===t.answer){complete();return}
+ mistakes++;if(!reviewing)missed.add(index);
+ $("rq-feedback").textContent=mistakes>=2?t.help:"Good try. Listen again, or ask your grown-up to blend with you.";
+ speak(mistakes>=2?t.help:"Listen again.");
+ if(t.mode==="build"){selectedTiles=[];updateBuild()}
+}
+function complete(){
+ done=true;points++;$("rq-points").textContent="⭐ "+points+" stars";
+ $("rq-feedback").textContent="You did it! You earned a star. ⭐";
+ $("rq-next").hidden=false;$("rq-next").textContent=position===queue.length-1?"Finish this trail ▶":"Next Stop ▶";
+ renderTiles();speak("Great work! You earned a star!");
+}
+function introduction(){
+ teaching=true;index=queue[0];const t=current();
+ $("rq-level").textContent=t.worldName+" · Learn together";$("rq-title").textContent=t.focus;
+ $("rq-instruction").textContent=t.intro;$("rq-adult").textContent=t.adult;
+ $("rq-model").textContent=world===0?"s · a · t → sat":world===1?"sh → ship     ch → chip":"Read · Build · Blend";
+ $("rq-options").replaceChildren();$("rq-tools").hidden=true;$("rq-feedback").textContent="Hear the example, then try it together.";
+ $("rq-next").hidden=false;$("rq-next").textContent="Let's practice ▶";$("rq-bar").style.width="0%";speak(t.intro);
+}
+function selectWorld(value){
+ stopAudio();world=value;queue=tasks.map((t,i)=>i).filter(i=>tasks[i].world===world);
+ position=-1;index=-1;points=0;missed=new Set();reviewing=false;finished=false;done=false;
+ $("rq-points").textContent="⭐ 0 stars";
+ for(let i=0;i<3;i++)$("rq-world-"+i).setAttribute("aria-pressed",String(i===world));
+ introduction();
+}
+function finish(){
+ finished=true;completedWorlds.add(world);$("rq-bar").style.width="100%";
+ $("rq-title").textContent=current().worldName+" complete!";
+ $("rq-instruction").textContent="You practiced reading, sounds, and spelling. Take a break or choose another adventure.";
+ $("rq-model").textContent="⭐ ⭐ ⭐";$("rq-options").replaceChildren();$("rq-tools").hidden=true;
+ $("rq-feedback").textContent=completedWorlds.size+" of 3 adventures explored this visit. Your practice stays on this page.";
+ $("rq-next").hidden=false;$("rq-next").textContent=world<2?"Next adventure ▶":"Play Word Garden again ▶";
+}
+function next(){
+ stopAudio();if(finished){selectWorld((world+1)%3);return}
+ if(!queue.length){selectWorld(world);return}
+ if(teaching){teaching=false;position=0;index=queue[position];paint();return}
+ if(!done)return;
+ if(position<queue.length-1){position++;index=queue[position];paint();return}
+ if(!reviewing&&missed.size){
+  reviewing=true;queue=[...missed].slice(0,3);position=0;index=queue[0];paint();
+  $("rq-feedback").textContent="Let's revisit a few patterns you practiced. No rush!";return;
+ }
+ finish();
+}
+$("rq-hear").addEventListener("click",()=>speak(index>=0?(teaching?current().intro:current().say):"Welcome to Reading Quest. Press play!"));
 $("rq-next").addEventListener("click",next);
+$("rq-undo").addEventListener("click",()=>{if(!done&&!teaching&&current()?.mode==="build"){selectedTiles.pop();updateBuild()}});
+$("rq-clear").addEventListener("click",()=>{if(!done&&!teaching&&current()?.mode==="build"){selectedTiles=[];updateBuild()}});
+for(let i=0;i<3;i++)$("rq-world-"+i).addEventListener("click",()=>selectWorld(i));
 })();
 </script>
 {% endblock %}

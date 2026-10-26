@@ -10,8 +10,9 @@ CUES = {
     'success': 'Great work! You earned a star!',
 }
 for index, task in enumerate(TASKS):
-    for kind in ('say', 'help'):
-        CUES[f'{index}-{kind}'] = task[kind]
+    for kind in ('say', 'help', 'intro'):
+        if kind in task:
+            CUES[f'{index}-{kind}'] = task[kind]
 
 INSTRUCTIONS = (
     'Speak only the supplied reading lesson text in a warm, calm American English voice. '
