@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow"><title>{{ live.name }} · Live Setup</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#07111f;color:#f8fafc;font:17px/1.5 Arial,Helvetica,sans-serif}main{max-width:1080px;margin:auto;padding:32px 22px}a{color:#5eead4}h1{margin:.6rem 0;font-size:clamp(1.8rem,4vw,2.7rem)}.intro{color:#cbd5e1;max-width:760px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:26px 0}.card,.status{border:1px solid #334155;background:#0f172a;border-radius:18px;padding:22px;min-width:0}h2{font-size:1.2rem;margin:0 0 12px}.card p{font-size:.94rem;color:#cbd5e1}.button{display:inline-block;border:1px solid #475569;border-radius:10px;padding:11px 15px;background:#172235;color:#fff;font:inherit;font-weight:700;text-decoration:none;cursor:pointer;margin:4px 0}.primary{background:#0a7a7c;border-color:#0a7a7c}.qr{display:block;width:min(220px,100%);aspect-ratio:1;background:#fff;border-radius:12px;padding:8px;margin:16px auto}.status strong{display:block}.status p{margin:.3rem 0;color:#cbd5e1}.screen-state{font-weight:800;letter-spacing:.05em;color:#5eead4}.screen-state[data-state="black"],.screen-state[data-state="clear"]{color:#fcd34d}#display-status[data-status="confirmed"]{color:#5eead4}.helper{font-size:.84rem;color:#94a3b8}.copy-status{min-height:1.5em;font-size:.85rem;color:#fcd34d}summary{cursor:pointer;font-weight:700}button:focus-visible,a:focus-visible{outline:3px solid #5eead4;outline-offset:3px}@media(max-width:780px){.cards{grid-template-columns:1fr}main{padding:20px 16px}}
+  </style>
+</head>
+<body>
+<main>
+  <a href="{{ url_for('worship') }}">← Back to Worship</a>
+  <h1>{{ live.name }} · Live Setup</h1>
+  <p class="intro">Keep this page on your laptop. Open the audience window on your external display, pair the iPad remote, then open your stage view.</p>
+  <section class="status" aria-label="Live session status">
+    <strong class="screen-state" id="screen-state">LIVE</strong>
+    <p id="display-status" aria-live="polite">Audience window not yet connected</p>
+    <p id="session-status">Connecting to session…</p>
+    <div class="helper">Reports what the audience browser received; check the TV or projector to verify AirPlay.</div>
+  </section>
+  <div class="cards">
+    <section class="card"><h2>1. Audience display</h2><p>Open a separate window, move it to your AirPlay or external display, then select <strong>Start presenting</strong> there.</p><a class="button primary launch" id="open-audience" href="{{ links.view }}" target="_blank" rel="noopener">Open audience window</a><p class="helper">Only the slides and optional public follow-along code appear here.</p></section>
+    <section class="card"><h2>2. iPad remote</h2><p>Scan this code with the iPad camera. The remote opens with simple Next and Back controls.</p><img class="qr" src="{{ url_for('worship_live_remote_qr', session_id=session_id) }}" alt="Scan to open the private iPad remote"><a class="button launch" href="{{ links.control }}" target="_blank" rel="noopener">Open remote here</a><button class="button" data-copy="{{ links.control }}">Copy remote link</button></section>
+    <section class="card"><h2>3. Laptop stage view</h2><p>Keep current and upcoming lyrics facing you. Choose a balanced layout or give more room to the next slide.</p><a class="button primary launch" href="{{ links.stage }}" target="_blank" rel="noopener">Open stage view</a><button class="button" data-copy="{{ links.stage }}">Copy stage link</button><p class="helper">Stage lyrics stay visible when the audience screen is black or its words are cleared.</p></section>
+  </div>
+  <p class="copy-status" id="copy-status" role="status"></p>
+  <details class="card"><summary>Public follow-along link</summary><p>Share this view-only link with anyone who wants the lyrics on their phone.</p><button class="button" data-copy="{{ follow_url }}">Copy public link</button><p class="helper">The remote code above is for your operator. Keep this setup page on your laptop.</p></details>
+</main>
+<script src="{{ url_for('static', filename='js/worship-display-status.js') }}"></script>
+<script>
+(function(){
+  var sessionId={{ session_id|tojson }},stopped=false;
+  document.getElementById('open-audience').addEventListener('click',function(event){var popup=window.open(this.href,'worship-audience-'+sessionId,'popup=yes,width=1280,height=720');if(popup){popup.opener=null;popup.focus();event.preventDefault();}});
+  document.querySelectorAll('[data-copy]').forEach(function(button){button.addEventListener('click',function(){var status=document.getElementById('copy-status');if(!navigator.clipboard){window.prompt('Copy this link',button.dataset.copy);return;}navigator.clipboard.writeText(button.dataset.copy).then(function(){status.textContent='Link copied.';}).catch(function(){status.textContent='Copy was unavailable. Use the Open button or try again.';});});});
+  function poll(){if(stopped)return;fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');if(!r.ok)throw new Error('offline');return r.json();}).then(function(data){if(!data.ok)throw new Error('offline');WorshipDisplayStatus(document.getElementById('display-status'),data);var label=document.getElementById('screen-state');label.textContent=data.blank?'BLACK SCREEN':data.clear_words?'WORDS CLEARED':'LIVE';label.dataset.state=data.blank?'black':data.clear_words?'clear':'live';document.getElementById('session-status').textContent='Slide '+(data.current_index+1)+' of '+data.slide_count+' · Session connected';}).catch(function(e){document.getElementById('session-status').textContent=e.message==='ended'?'Session ended':'Session reconnecting…';if(e.message==='ended'){stopped=true;document.getElementById('screen-state').textContent='ENDED';document.querySelectorAll('.launch').forEach(function(a){a.removeAttribute('href');});}}).finally(function(){if(!stopped)setTimeout(poll,2500);});}
+  poll();
+})();
+</script>
+</body>
+</html>

@@ -239,7 +239,7 @@
 
 {% if active_worship_live %}<aside class="ws-live-resume" aria-label="Active Live Worship session">
   <div><strong>Live Worship is still active</strong><span>{{ active_worship_live.name }} · Slide {{ active_worship_live.current_slide }} of {{ active_worship_live.slide_count }}</span></div>
-  <div class="ws-live-resume-actions"><a class="ws-btn-primary" href="{{ active_worship_live.presenter_url }}" target="_blank" rel="noopener">Reopen presenter</a><a class="ws-btn-ghost" href="{{ active_worship_live.remote_url }}" target="_blank" rel="noopener">Open remote</a><form method="post" action="{{ url_for('worship_live_end_active') }}" onsubmit="return confirm('End this Live Worship session for everyone?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="ws-btn-ghost ws-live-end">End session</button></form></div>
+  <div class="ws-live-resume-actions"><a class="ws-btn-primary" href="{{ active_worship_live.setup_url or active_worship_live.presenter_url }}" target="_blank" rel="noopener">Open live setup</a><a class="ws-btn-ghost" href="{{ active_worship_live.remote_url }}" target="_blank" rel="noopener">Open remote</a><form method="post" action="{{ url_for('worship_live_end_active') }}" onsubmit="return confirm('End this Live Worship session for everyone?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="ws-btn-ghost ws-live-end">End session</button></form></div>
 </aside>{% endif %}
 
 <details class="ws-church-card">
@@ -1037,8 +1037,8 @@
     }
     requestStart()
       .then(function (data) {
-        if (popup) popup.location = data.presenter_url;
-        else window.location.href = data.presenter_url;
+        if (popup) popup.location = (data.setup_url || data.presenter_url);
+        else window.location.href = (data.setup_url || data.presenter_url);
       })
       .catch(function (error) {
         if (popup) popup.close();

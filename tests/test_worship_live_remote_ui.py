@@ -80,7 +80,7 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
 
     def test_connected_remote_refreshes_and_retries_outages_promptly(self):
         self.assertIn("schedulePoll(3000)", self.template)
-        self.assertIn("Audience not responding", self.template)
+        self.assertIn("Session reconnecting", self.template)
         self.assertIn("draw(confirmed.current,confirmed.blank,confirmed.clearWords)", self.template)
 
     def test_remote_keeps_navigation_reachable_and_active_section_centered(self):
@@ -101,7 +101,7 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("function bindFastPress(button,handler)", self.template)
         self.assertIn("event.pointerType==='touch'||event.pointerType==='pen'", self.template)
         self.assertIn("navigator.vibrate(10)", self.template)
-        self.assertIn("pendingCommands?'Sending…':'Connected'", self.template)
+        self.assertIn("pendingCommands?'Sending…':'Session connected'", self.template)
 
     def test_remote_has_boundary_aware_navigation(self):
         self.assertIn("function updateNavigation()", self.template)

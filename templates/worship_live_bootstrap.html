@@ -25,7 +25,7 @@
     if(!payload.view&&!payload.control&&!payload.stage&&!payload.follow){message.className='error';message.textContent='The secure part of this link is missing. Open the original Live Worship link again.';return;}
     fetch('/worship/live/exchange/{{ session_id }}',{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},credentials:'same-origin',body:JSON.stringify(payload)})
       .then(function(response){return response.json().then(function(data){if(!response.ok||!data.ok)throw new Error(data.error||'Could not open this Live Worship session.');});})
-      .then(function(){window.location.replace(window.location.pathname);})
+      .then(function(){window.location.replace(window.location.pathname+window.location.search);})
       .catch(function(error){message.className='error';message.textContent=error.message;});
   })();
   </script>
