@@ -27,7 +27,7 @@ def _safe_token(value: str) -> str:
 
 
 def check_rate_limit(
-    scope: str, key: str, *, limit: int, window_seconds: int, local_only: bool = False
+    scope: str, key: str, *, limit: int, window_seconds: int, local_only: bool = False, fail_closed: bool = False
 ) -> RateLimitResult:
     """Fixed-window limiter. Firestore in production, process memory in local dev.
 
@@ -71,6 +71,8 @@ def check_rate_limit(
                 return RateLimitResult(False, limit, 0, retry_after)
             return RateLimitResult(True, limit, max(0, limit - count), retry_after)
         except Exception as exc:
+            if fail_closed:
+                return RateLimitResult(False, limit, 0, retry_after)
             try:
                 current_app.logger.warning("[%s] Firestore rate limit fallback: %s", getattr(g, "req_id", ""), exc)
             except Exception:

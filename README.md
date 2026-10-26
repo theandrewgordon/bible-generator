@@ -49,3 +49,29 @@ The `/worship` presentation importer accepts `.pptx` and PDF files. It requires:
 * `OPENAI_API_KEY` for AI-assisted sermon-note highlights. A deterministic, notes-only fallback is used if AI analysis is disabled or unavailable.
 
 Set `SOFFICE_BIN` or `PDFTOPPM_BIN` when those executables are not on `PATH`. The included Dockerfile installs both conversion tools and is used by `render.yaml`.
+
+### Reading Quest lab audio
+
+`/labs/reading-quest` uses server-side `gpt-4o-mini-tts` (coral, slow delivery)
+with the existing `OPENAI_API_KEY`. Only fixed curriculum cue IDs are accepted;
+no child profile, names, answers, or arbitrary text are sent to OpenAI. The page
+labels the voice as AI-generated. Phoneme pronunciations still need human review.
+
+Audio responses use `private, no-store`. Only the current page's memory holds
+repeat-playback audio; there is no audio upload, database, disk, localStorage,
+IndexedDB, or service-worker cache. Leaving the page discards the audio. Do not
+add durable audio caching until voice and pronunciation approval.
+
+Paid requests require session CSRF, have a 256-byte body limit, and are capped
+at 20/minute and 100/day per keyed IP digest plus 500/day globally. Shared
+Firestore limiter errors fail closed. The existing app-wide `AI_DAILY_BUDGET`
+reserves 3 units per request; `AI_DISABLED=1` or
+`READING_QUEST_TTS_DISABLED=1` disables generation. The OpenAI timeout is 12s,
+with retries disabled. Local development without Firestore uses process-memory
+limits/budget; production requires shared Firestore for cross-worker caps.
+Any unavailable generation or playback falls back to device speech for the
+page session. No pronunciation approval or durable audio generation is implied
+by shipping this prototype.
+
+Validation: `python -m pytest tests/test_reading_quest_audio.py tests/test_product_system.py -q`
+and `node tests/reading_quest_audio.cjs` (mocked provider/browser, no paid calls).

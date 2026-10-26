@@ -1,0 +1,64 @@
+[
+  {
+    "mode": "listen",
+    "title": "Sound Search",
+    "say": "Find the word fish.",
+    "choices": [
+      "fish",
+      "dish",
+      "wish"
+    ],
+    "answer": "fish",
+    "help": "Listen to each sound: f, i, sh. Fish."
+  },
+  {
+    "mode": "build",
+    "title": "Build a Word",
+    "say": "Build the word ship.",
+    "tiles": [
+      "sh",
+      "i",
+      "p",
+      "a"
+    ],
+    "answer": "ship",
+    "help": "Ship has three sounds: sh, i, p."
+  },
+  {
+    "mode": "listen",
+    "title": "Word Detective",
+    "say": "Find the word chat.",
+    "choices": [
+      "chip",
+      "chat",
+      "chop"
+    ],
+    "answer": "chat",
+    "help": "Chat starts with ch and has the short a sound."
+  },
+  {
+    "mode": "build",
+    "title": "Treasure Spell",
+    "say": "Spell the word shut.",
+    "tiles": [
+      "sh",
+      "u",
+      "t",
+      "i"
+    ],
+    "answer": "shut",
+    "help": "Shut has three sounds: sh, u, t."
+  },
+  {
+    "mode": "listen",
+    "title": "Review Castle",
+    "say": "Find the word shop.",
+    "choices": [
+      "ship",
+      "shop",
+      "shut"
+    ],
+    "answer": "shop",
+    "help": "Shop has the short o sound."
+  }
+]
