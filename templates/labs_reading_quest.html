@@ -33,27 +33,46 @@
     <div class="rq-options" id="rq-options"></div>
     <p class="rq-feedback" id="rq-feedback" role="status" aria-live="polite"></p>
     <div class="rq-actions"><button class="rq-action" id="rq-hear" type="button">🔊 Hear it</button><button class="rq-action" id="rq-next" type="button">▶ Play</button></div>
-    <p class="rq-note">Parent note: This prototype reinforces taught phonics; it is not a diagnostic assessment or a replacement for structured literacy instruction. Audio uses the device's speech engine until reviewed recordings are added. No login or child data collection.</p>
+    <p class="rq-note">Parent note: This prototype reinforces taught phonics; it is not a diagnostic assessment or a replacement for structured literacy instruction. Audio uses an AI-generated voice, with device speech as a fallback. Voice and phoneme pronunciations are under review. Audio is kept only in this page’s memory until you leave; no recordings are saved by Faith Sparks. No login or child profile is needed.</p>
   </div>
 </main>
 <script>
 (function(){
 "use strict";
-const tasks=[
- {mode:"listen",title:"Sound Search",say:"Find the word fish.",choices:["fish","dish","wish"],answer:"fish",help:"Listen to each sound: f, i, sh. Fish."},
- {mode:"build",title:"Build a Word",say:"Build the word ship.",tiles:["sh","i","p","a"],answer:"ship",help:"Ship has three sounds: sh, i, p."},
- {mode:"listen",title:"Word Detective",say:"Find the word chat.",choices:["chip","chat","chop"],answer:"chat",help:"Chat starts with ch and has the short a sound."},
- {mode:"build",title:"Treasure Spell",say:"Spell the word shut.",tiles:["sh","u","t","i"],answer:"shut",help:"Shut has three sounds: sh, u, t."},
- {mode:"listen",title:"Review Castle",say:"Find the word shop.",choices:["ship","shop","shut"],answer:"shop",help:"Shop has the short o sound."}
-];
+const tasks={{ reading_tasks|tojson }};
+const audioCues={{ reading_audio_cues|tojson }};
+const csrfToken={{ reading_csrf|tojson }};
 let index=-1,points=0,mistakes=0,letters="",done=false;
 const $=id=>document.getElementById(id);
-function speak(t){if(!("speechSynthesis" in window))return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=.8;u.pitch=1.02;speechSynthesis.speak(u)}catch(e){}}
+// Audio exists only in this page's memory. Never use persistent browser storage.
+const audioCache=new Map(), pendingAudio=new Map();
+let audioGeneration=0, activeAudio=null, audioUnavailable=false;
+function stopAudio(){audioGeneration++;if(activeAudio){activeAudio.pause();activeAudio=null}if("speechSynthesis" in window)speechSynthesis.cancel()}
+function fallbackSpeech(t,generation){if(generation!==audioGeneration||!("speechSynthesis" in window))return;try{const u=new SpeechSynthesisUtterance(t);u.rate=.8;u.pitch=1.02;speechSynthesis.speak(u)}catch(e){}}
+async function loadAudio(id){
+ if(audioCache.has(id))return audioCache.get(id);
+ if(pendingAudio.has(id))return pendingAudio.get(id);
+ const pending=(async()=>{const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
+ try{const response=await fetch({{ url_for('public.reading_quest_tts')|tojson }},{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},body:JSON.stringify({cue:id}),signal:controller.signal});
+ if(!response.ok){audioUnavailable=true;throw new Error("Audio unavailable")}
+ if(!response.headers.get("Content-Type")?.startsWith("audio/"))throw new Error("Invalid audio");
+ const blob=await response.blob();if(!blob.size||blob.size>2000000)throw new Error("Invalid audio");
+ const url=URL.createObjectURL(blob);audioCache.set(id,url);return url;
+ }finally{clearTimeout(timeout)}})();
+ pendingAudio.set(id,pending);try{return await pending}finally{pendingAudio.delete(id)}
+}
+async function speak(t){stopAudio();const generation=audioGeneration,id=audioCues[t];
+ if(!id||audioUnavailable){fallbackSpeech(t,generation);return}
+ try{const url=await loadAudio(id);if(generation!==audioGeneration)return;const audio=new Audio(url);activeAudio=audio;
+ audio.onerror=()=>{if(generation===audioGeneration){audioUnavailable=true;fallbackSpeech(t,generation)}};
+ await audio.play();}catch(e){if(generation===audioGeneration){audioUnavailable=true;fallbackSpeech(t,generation)}}
+}
+window.addEventListener("pagehide",()=>{stopAudio();for(const url of audioCache.values())URL.revokeObjectURL(url);audioCache.clear()});
 function paint(){const t=tasks[index];done=false;mistakes=0;letters="";$("rq-level").textContent="World 1 · Stop "+(index+1)+"/"+tasks.length;$("rq-title").textContent=t.title;$("rq-instruction").textContent=t.mode==="build"?"Listen. Then tap the letter tiles to build the word.":"Listen. Then tap the word you hear.";$("rq-feedback").textContent="";$("rq-next").hidden=true;$("rq-options").replaceChildren();$("rq-bar").style.width=(index/tasks.length*100)+"%";for(const [n,txt] of (t.choices||t.tiles).entries()){const b=document.createElement("button");b.type="button";b.className="rq-choice";b.textContent=txt;b.addEventListener("click",()=>choose(txt,b));$("rq-options").appendChild(b)}speak(t.say)}
 function choose(value,button){if(done)return;const t=tasks[index];if(t.mode==="build"){button.disabled=true;letters+=value;if(letters===t.answer){complete();return}if(!t.answer.startsWith(letters)){mistakes++;letters="";$("rq-feedback").textContent="Try again. "+(mistakes>=2?t.help:"Listen carefully.");for(const b of $("rq-options").children)b.disabled=false;speak(mistakes>=2?t.help:"Let's try once more.");return}$("rq-feedback").textContent="Keep building!";return}
 if(value===t.answer){complete();return}mistakes++;$("rq-feedback").textContent=mistakes>=2?t.help:"Good try. Listen again.";speak(mistakes>=2?t.help:"Listen again.");if(mistakes>=2){for(const b of $("rq-options").children)if(b.textContent===t.answer)b.style.outline="4px solid #deb14d"}}
 function complete(){done=true;points++;$("rq-points").textContent="⭐ "+points+" stars";$("rq-feedback").textContent="Great reading! You earned a star! ⭐";$("rq-next").hidden=false;$("rq-next").textContent=index===tasks.length-1?"Finish Adventure":"Next Stop ▶";speak("Great work! You earned a star!")}
-function next(){if(index>=tasks.length-1){index=-1;points=0;$("rq-points").textContent="⭐ 0 stars";$("rq-next").textContent="▶ Play";$("rq-next").hidden=false;$("rq-title").textContent="Adventure complete!";$("rq-instruction").textContent="You did it! Play again whenever you're ready.";$("rq-feedback").textContent="⭐ ⭐ ⭐";$("rq-options").replaceChildren();$("rq-bar").style.width="100%";return}index++;paint()}
+function next(){stopAudio();if(index>=tasks.length-1){index=-1;points=0;$("rq-points").textContent="⭐ 0 stars";$("rq-next").textContent="▶ Play";$("rq-next").hidden=false;$("rq-title").textContent="Adventure complete!";$("rq-instruction").textContent="You did it! Play again whenever you're ready.";$("rq-feedback").textContent="⭐ ⭐ ⭐";$("rq-options").replaceChildren();$("rq-bar").style.width="100%";return}index++;paint()}
 $("rq-hear").addEventListener("click",()=>speak(index>=0?tasks[index].say:"Welcome to Reading Quest. Press play!"));
 $("rq-next").addEventListener("click",next);
 })();

@@ -254,7 +254,66 @@ def labs():
 @bp.get("/labs/reading-quest")
 def reading_quest_lab():
     """Standalone reading practice lab; no child profile or server-side data."""
-    return render_template("labs_reading_quest.html", noindex=True)
+    from faithsparks.services.reading_quest_audio import TASKS, CUES
+    response = make_response(render_template(
+        "labs_reading_quest.html", noindex=True, reading_tasks=TASKS,
+        reading_audio_cues={text: cue for cue, text in CUES.items()},
+        reading_csrf=_same_brain_public_csrf(),
+    ))
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@bp.post("/labs/reading-quest/tts")
+def reading_quest_tts():
+    from openai import OpenAI
+    from faithsparks.services.reading_quest_audio import CUES, INSTRUCTIONS
+    from faithsparks.services.ai_budget import ai_budget_ok
+
+    def reply(body, status=200, **headers):
+        response = Response(body, status=status, mimetype="audio/mpeg") if isinstance(body, bytes) else jsonify(body)
+        response.status_code = status
+        response.headers.update({"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", **headers})
+        return response
+
+    if request.content_length is None or request.content_length > 256:
+        return reply({"error": "invalid"}, 413)
+    if request.headers.get("Sec-Fetch-Site") == "cross-site":
+        return reply({"error": "csrf"}, 403)
+    token = request.headers.get("X-CSRF-Token", "")
+    expected = session.get("_csrf_token", "")
+    if not token or not expected or not hmac.compare_digest(token, expected):
+        return reply({"error": "csrf"}, 403)
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or set(payload) != {"cue"} or not isinstance(payload["cue"], str) or payload["cue"] not in CUES:
+        return reply({"error": "invalid"}, 400)
+    if not os.getenv("OPENAI_API_KEY") or os.getenv("READING_QUEST_TTS_DISABLED", "").lower() in {"1", "true", "yes", "on"}:
+        return reply({"error": "tts_unavailable"}, 503)
+    # Keyed digest avoids storing raw IPs or child identifiers in limiter records.
+    ip_key = hmac.new(str(current_app.secret_key).encode(), get_client_ip().encode(), hashlib.sha256).hexdigest()
+    for scope, key, limit, window in (
+        ("reading_quest_tts_minute", ip_key, 20, 60),
+        ("reading_quest_tts_day", ip_key, 100, 86400),
+        ("reading_quest_tts_global", "all", 500, 86400),
+    ):
+        result = check_rate_limit(scope, key, limit=limit, window_seconds=window, fail_closed=True)
+        if not result.allowed:
+            return reply({"error": "rate_limited"}, 429, **{"Retry-After": str(result.retry_after)})
+    if not ai_budget_ok("reading_quest_tts", 3):
+        return reply({"error": "tts_unavailable"}, 503)
+    try:
+        # No retries: every admitted request can incur at most one paid call.
+        with OpenAI(api_key=os.environ["OPENAI_API_KEY"], timeout=12, max_retries=0) as client:
+            speech = client.audio.speech.create(
+                model="gpt-4o-mini-tts", voice="coral", input=CUES[payload["cue"]],
+                instructions=INSTRUCTIONS, response_format="mp3", speed=0.85,
+            )
+            audio = speech.read()
+        if not audio or len(audio) > 2_000_000:
+            return reply({"error": "tts_failed"}, 503)
+    except Exception:
+        return reply({"error": "tts_failed"}, 503)
+    return reply(audio, **{"X-AI-Voice": "OpenAI"})
 
 
 _SAME_BRAIN_FILE = Path(__file__).resolve().parents[1] / "content" / "lab_games" / "same-brain.html"
