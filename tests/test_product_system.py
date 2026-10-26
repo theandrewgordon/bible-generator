@@ -13,9 +13,44 @@ def test_product_registry_has_task_first_navigation_and_formal_labs():
     ]
     labs = [product for product in PRODUCTS if product["area"] == "labs"]
     assert {product["maturity"] for product in labs} <= {"beta", "experiment", "sandbox"}
-    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio", "games-lab", "same-brain"}
+    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio", "games-lab", "same-brain", "reading-quest"}
     assert next(product for product in PRODUCTS if product["id"] == "same-brain")["path"] == "/same-brain"
     assert all(product["path"] != "/speeddie" for product in PRODUCTS)
+
+
+def test_reading_quest_is_only_exposed_through_labs():
+    quest = next(product for product in PRODUCTS if product["id"] == "reading-quest")
+    assert quest["area"] == "labs"
+    assert quest["maturity"] == "sandbox"
+    assert quest["path"] == "/labs/reading-quest"
+    assert all(item["path"] != quest["path"] for item in PRIMARY_NAVIGATION)
+    assert [rule.rule for rule in app.url_map.iter_rules()
+            if rule.endpoint == "public.reading_quest_lab"] == [quest["path"]]
+
+    app.config.update(TESTING=True)
+    with app.test_client() as client:
+        labs = client.get("/labs")
+        assert labs.status_code == 200
+        assert b'Try Reading Quest' in labs.data
+        assert b'href="/labs/reading-quest"' in labs.data
+
+        quest_page = client.get(quest["path"])
+        assert quest_page.status_code == 200
+        assert b'Reading Quest | Faith Sparks Labs' in quest_page.data
+        assert b'content="noindex,nofollow"' in quest_page.data
+        assert b'href="/labs"' in quest_page.data
+        # The shared desktop/mobile navigation must not gain a direct link.
+        nav = quest_page.data.split(b'id="mainNav"', 1)[1].split(b'</nav>', 1)[0]
+        assert b'Reading Quest' not in nav
+        assert b'href="/labs/reading-quest"' not in nav
+
+        for path in ("/", "/prepare", "/play", "/families", "/churches", "/start-here"):
+            response = client.get(path)
+            assert response.status_code == 200
+            assert b'Reading Quest' not in response.data
+            assert b'/labs/reading-quest' not in response.data
+        assert client.get("/reading-quest").status_code == 404
+        assert b'reading-quest' not in client.get("/sitemap.xml").data
 
 
 def test_task_landing_pages_and_parent_brand_render():
