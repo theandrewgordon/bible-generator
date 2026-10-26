@@ -1,10 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Add Song or Slide · Faith Sparks{% endblock %}
+{% set add_mode = request.args.get('mode', '') %}
+{% if add_mode not in ['import', 'manual', 'slide', 'video'] %}
+  {% set add_mode = {'worship_add_parse': 'import', 'worship_service_slide_add': 'slide', 'worship_video_add': 'video'}.get(request.endpoint, '') %}
+{% endif %}
+{% if conflict_song %}{% set add_mode = 'conflict' %}{% endif %}
+{% set page_titles = {'import': 'Import a song', 'manual': 'Write a song manually', 'slide': 'Add a service slide', 'video': 'Add a YouTube video', 'conflict': 'Song already in your library'} %}
+{% block title %}{{ page_titles.get(add_mode, 'Add to Worship') }} · Faith Sparks{% endblock %}
 
 {% block head_extra %}
 <style>
-  .wa-panels{display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start;margin-top:1.5rem}
-  .wa-card{flex:1;min-width:300px;background:var(--box);border-radius:14px;padding:1.5rem;box-shadow:var(--card-shadow)}
+  .wa-workspace{max-width:840px;margin:0 auto}
+  .wa-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin:1.5rem 0}
+  .wa-choice{display:block;padding:1.5rem;border:1px solid var(--border,#cbd5e1);border-radius:14px;background:var(--box);color:var(--text);text-decoration:none;box-shadow:var(--card-shadow)}
+  .wa-choice:hover{border-color:var(--primary)}
+  .wa-choice:focus-visible{outline:3px solid var(--primary);outline-offset:3px}
+  .wa-choice strong{display:block;font-size:1.1rem;margin-bottom:.45rem}
+  .wa-choice p{margin:0;color:var(--text-secondary);font-size:.9rem}
+  .wa-choice-primary{grid-column:1/-1;border:2px solid var(--primary)}
+  .wa-step-list{display:flex;flex-wrap:wrap;gap:.6rem 1.25rem;padding:0;list-style:none;color:var(--text-secondary);font-size:.85rem;margin:1.25rem 0}
+  .wa-step-list [aria-current]{color:var(--primary);font-weight:700}
+  .wa-backgrounds{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.65rem;margin-top:1rem}
+  .wa-background{border:1px solid var(--border,#cbd5e1);border-radius:10px;overflow:hidden;padding:.5rem;cursor:pointer;font-size:.82rem}
+  .wa-background:has(input:checked){outline:2px solid var(--primary)}
+  .wa-background img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:5px;display:block;margin-bottom:.4rem}
+  .wa-card[hidden],.wa-workspace [hidden]{display:none!important}
+  @media(max-width:600px){.wa-choices{grid-template-columns:1fr}.wa-card{padding:1rem!important;min-width:0!important}.wa-workspace h1{font-size:1.7rem}}
+  .wa-card{min-width:0;background:var(--box);border-radius:14px;padding:1.5rem;box-shadow:var(--card-shadow)}
   .wa-card h2{margin:0 0 1.25rem;font-size:1.1rem;font-weight:700;letter-spacing:.2px;color:var(--text)}
   .wa-field{margin-bottom:1rem}
   .wa-label{display:block;font-weight:600;font-size:.9rem;margin-bottom:4px;color:var(--text)}
@@ -52,11 +73,24 @@
 {% endblock %}
 
 {% block content %}
-<h1>Add Song or Service Slide</h1>
+<div class="wa-workspace">
+<h1>{{ page_titles.get(add_mode, 'Add to Worship') }}</h1>
 <p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a> · <a href="{{ url_for('worship_song_import_getting_started') }}">How to import a song from a webpage</a></p>
 
+{% if not add_mode %}
+<p class="muted">What would you like to add?</p>
+<nav class="wa-choices" aria-label="Choose what to add">
+  <a class="wa-choice wa-choice-primary" href="{{ url_for('worship_add', mode='import') }}"><strong>Import a song</strong><p>Paste lyrics, a chord chart, or a webpage link. Review every slide before saving.</p></a>
+  <a class="wa-choice" href="{{ url_for('worship_add', mode='manual') }}"><strong>Write a song manually</strong><p>Enter lyric parts and arrange their order.</p></a>
+  <a class="wa-choice" href="{{ url_for('worship_add', mode='slide') }}"><strong>Add a service slide</strong><p>Create a welcome, announcement, or photo slide.</p></a>
+  <a class="wa-choice" href="{{ url_for('worship_add', mode='video') }}"><strong>Add a YouTube video</strong><p>Add a video with optional start and stop times.</p></a>
+</nav>
+{% endif %}
+
+{% if add_mode == 'slide' %}
+<p class="wa-helper"><a href="{{ url_for('worship_add') }}">Choose a different item</a></p>
 <div class="wa-card" style="margin:1.5rem 0">
-  <h2>Add a service slide</h2>
+  <h2>Slide details</h2>
   <p class="wa-helper">Create a reusable welcome, announcement, or photo slide and place it anywhere in a set.</p>
   <form method="post" action="{{ url_for('worship_service_slide_add') }}" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -92,7 +126,7 @@
         </select>
       </div>
     </div>
-    <label class="wa-helper" style="display:flex;gap:.55rem;align-items:flex-start;margin:.9rem 0">
+    <label id="service-photo-rights" class="wa-helper" style="display:flex;gap:.55rem;align-items:flex-start;margin:.9rem 0">
       <input type="checkbox" name="rights_confirmed" value="1" style="margin-top:.2rem">
       <span>I confirm I have permission from the photographer and any identifiable people (or their parent/guardian where appropriate) to display an uploaded photo.</span>
     </label>
@@ -100,8 +134,11 @@
   </form>
 </div>
 
+{% endif %}
+{% if add_mode == 'video' %}
+<p class="wa-helper"><a href="{{ url_for('worship_add') }}">Choose a different item</a></p>
 <div class="wa-card" style="margin:1.5rem 0">
-  <h2>Add a YouTube video</h2>
+  <h2>Video details</h2>
   <p class="wa-helper">Adds a cueable video to the service order. Playback uses YouTube's privacy-enhanced embed and may still require one tap to start.</p>
   <form method="post" action="{{ url_for('worship_video_add') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -110,6 +147,8 @@
     <button class="wa-btn-primary" type="submit">Save Video Item</button>
   </form>
 </div>
+
+{% endif %}
 
 {% if conflict_song %}
 <div class="wa-conflict">
@@ -131,12 +170,15 @@
 </div>
 {% endif %}
 
-<div class="wa-panels">
+{% if add_mode in ['manual', 'import'] %}
+<p class="wa-helper"><a href="{{ url_for('worship_add') }}">Choose a different item</a></p>
+{% endif %}
+{% if add_mode == 'manual' %}
 
   <!-- ── Manual Entry ── -->
   <div class="wa-card">
-    <h2>Manual Entry</h2>
-    <form method="post" action="{{ url_for('worship_add') }}">
+    <h2>Song details</h2>
+    <form method="post" action="{{ url_for('worship_add', mode='manual') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
       <div class="wa-field">
@@ -157,25 +199,28 @@
           <input id="worship-add-key" type="text" name="key" class="wa-input wa-input-key">
         </div>
       </div>
-      <div class="wa-field">
-        <label class="wa-label" for="worship-add-background">Background</label>
-        <select id="worship-add-background" name="background" class="wa-input">
-          <option value="">Auto — avoid repeats</option>
+      <details class="wa-validation-box">
+        <summary>Song background</summary>
+        <p class="wa-helper">Auto keeps one background for the song and varies the look between nearby songs.</p>
+        <label><input type="radio" name="background" value="" checked> Auto — avoid repeats</label>
+        <div class="wa-backgrounds">
           {% for bg in backgrounds %}
-          <option value="{{ bg }}">{{ bg }}</option>
+          <label class="wa-background">
+            <img src="{{ url_for('static', filename='worship/backgrounds/' ~ (background_files|default({})).get(bg, {}).get('file', bg)) }}" alt="" loading="lazy">
+            <input type="radio" name="background" value="{{ bg }}"> {{ bg|replace('.png', '')|replace('-', ' ')|replace('_', ' ')|title }}
+          </label>
           {% endfor %}
-        </select>
-        <p class="wa-helper">Auto keeps one background for the whole song and chooses a different look for nearby songs in the set.</p>
-      </div>
+        </div>
+      </details>
       <div class="wa-field">
-        <label class="wa-label" for="worship-add-type">Type</label>
+        <label class="wa-label" for="worship-add-type">Content type</label>
         <select id="worship-add-type" name="type" class="wa-input">
-          <option value="song">song</option>
-          <option value="scripture">scripture</option>
-          <option value="prayer">prayer</option>
-          <option value="reading">reading</option>
+          <option value="song">Song</option>
+          <option value="scripture">Scripture</option>
+          <option value="prayer">Prayer</option>
+          <option value="reading">Reading</option>
         </select>
-        <p class="wa-helper">For Scripture outside the built-in WEB, KJV, ESV, and NLT picker, paste your authorized text manually and identify the translation. You are responsible for permission and attribution.</p>
+        <p id="manual-scripture-help" class="wa-helper" hidden>For Scripture outside the built-in WEB, KJV, ESV, and NLT picker, paste your authorized text manually and identify the translation. You are responsible for permission and attribution.</p>
       </div>
       <div class="wa-row">
         <div class="wa-field">
@@ -209,22 +254,25 @@
     </form>
   </div>
 
-  <!-- ── AI Parse ── -->
+{% endif %}
+{% if add_mode == 'import' %}
+  <ol class="wa-step-list" aria-label="Song import progress"><li aria-current="step">1. Add source</li><li>2. Review lyrics and slides</li><li>3. Save to library</li></ol>
+  <!-- Song import -->
   <div class="wa-card" id="import-with-ai">
-    <h2>Import with AI</h2>
+    <h2>Add your source</h2>
     <form method="post" action="{{ url_for('worship_add_parse') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <input type="hidden" name="import_mode" id="import-mode" value="paste" />
 
-      <div class="wa-import-tabs" role="tablist" aria-label="Import source">
-        <button type="button" class="wa-import-tab is-active" data-import-tab="paste" role="tab" aria-selected="true">Paste page</button>
-        <button type="button" class="wa-import-tab" data-import-tab="link" role="tab" aria-selected="false">Paste link</button>
+      <div class="wa-import-tabs" role="group" aria-label="Import source">
+        <button type="button" class="wa-import-tab is-active" data-import-tab="paste" aria-pressed="true">Paste text</button>
+        <button type="button" class="wa-import-tab" data-import-tab="link" aria-pressed="false">Use a link</button>
       </div>
 
       <div class="wa-import-panel" data-import-panel="paste">
         <div class="wa-field">
           <label class="wa-label" for="worship-add-raw-lyrics">Paste lyrics or whole page *</label>
-          <textarea id="worship-add-raw-lyrics" name="raw_lyrics" rows="18" required class="wa-input"
+          <textarea id="worship-add-raw-lyrics" name="raw_lyrics" rows="12" required class="wa-input"
             placeholder="Paste a Worship Together or The Worship Initiative song page. Plain lyrics also work, but may not include section order."></textarea>
         </div>
         <p class="wa-helper"><strong>Best sources:</strong> WorshipTogether.com or TheWorshipInitiative.com. Their Verse, Chorus, Bridge, and repeat labels produce a more reliable arrangement. Plain lyric sites such as AZLyrics are a fallback and should be validated against a labelled source.</p>
@@ -236,37 +284,11 @@
           <input id="worship-add-import-url" type="url" name="import_url" class="wa-input"
             placeholder="https://www.worshiptogether.com/songs/...">
         </div>
-        <p class="wa-helper">Try Worship Together or The Worship Initiative first. Some sites block link imports; if that happens, copy the whole page and use Paste page.</p>
+        <p class="wa-helper">Try Worship Together or The Worship Initiative first. Some sites block link imports; if that happens, copy the whole page and use Paste text.</p>
       </div>
 
-      <details class="wa-validation-box">
-        <summary>Validate with a second source (recommended)</summary>
-        <p class="wa-helper" style="margin-top:.75rem">Paste a section-labelled chord sheet, or provide its public link. It will verify section boundaries and arrangement without replacing your lyric text.</p>
-        <div class="wa-field">
-          <label class="wa-label-muted">Chord sheet or labelled lyrics</label>
-          <textarea name="validation_text" rows="9" class="wa-input"
-            placeholder="[Verse 1]&#10;...&#10;&#10;[Chorus]&#10;..."></textarea>
-        </div>
-        <div class="wa-field" style="margin-bottom:0">
-          <label class="wa-label-muted">Or validation source link</label>
-          <input type="url" name="validation_url" class="wa-input" placeholder="https://www.theworshipinitiative.com/songs/...">
-        </div>
-      </details>
-
-      <label class="wa-helper" style="display:flex;gap:.55rem;align-items:flex-start;margin:.9rem 0">
-        <input type="checkbox" name="save_chord_sheet" value="1" style="margin-top:.2rem">
-        <span><strong>Save a musician chord sheet with this song.</strong> If the primary paste contains chords, Faith Sparks will clean and attach it. Otherwise, a chord chart supplied as the second source will be attached.</span>
-      </label>
-
-      <label class="wa-helper" style="display:flex;gap:.55rem;align-items:flex-start;margin:.9rem 0">
-        <input type="checkbox" name="rights_confirmed" value="1" required style="margin-top:.2rem">
-        <span>I confirm my church is licensed or otherwise permitted to copy, store, display, and export these lyrics and any validation material. I am responsible for following the applicable license and reporting requirements; Faith Sparks does not grant lyric or chart rights.</span>
-      </label>
-
-      <button type="submit" class="wa-btn-primary">Import Song</button>
-
-      <p class="wa-optional-header">Optional — AI will infer from lyrics</p>
-      <p class="wa-helper" style="margin-top:-.4rem">
+      <details class="wa-validation-box"><summary>Song details (optional)</summary>
+      <p class="wa-helper" style="margin-top:.75rem">
         Fill these in to override what the AI infers, or leave them blank.
       </p>
 
@@ -289,9 +311,39 @@
         </div>
       </div>
 
+      </details>
+
+      <details class="wa-validation-box">
+        <summary>Compare with another source (optional)</summary>
+        <p class="wa-helper" style="margin-top:.75rem">Paste a section-labelled chord sheet, or provide its public link. It will verify section boundaries and arrangement without replacing your lyric text.</p>
+        <div class="wa-field">
+          <label class="wa-label-muted" for="validation-text">Chord sheet or labelled lyrics</label>
+          <textarea id="validation-text" name="validation_text" rows="9" class="wa-input"
+            placeholder="[Verse 1]&#10;...&#10;&#10;[Chorus]&#10;..."></textarea>
+        </div>
+        <div class="wa-field" style="margin-bottom:0">
+          <label class="wa-label-muted" for="validation-url">Or validation source link</label>
+          <input id="validation-url" type="url" name="validation_url" class="wa-input" placeholder="https://www.theworshipinitiative.com/songs/...">
+        </div>
+      </details>
+
+      <label class="wa-helper" style="display:flex;gap:.55rem;align-items:flex-start;margin:.9rem 0">
+        <input type="checkbox" name="save_chord_sheet" value="1" style="margin-top:.2rem">
+        <span><strong>Attach a musician chord chart.</strong> If the primary paste contains chords, Faith Sparks will clean and attach it. Otherwise, a chord chart supplied as the second source will be attached.</span>
+      </label>
+
+      <label class="wa-helper" style="display:flex;gap:.55rem;align-items:flex-start;margin:.9rem 0">
+        <input type="checkbox" name="rights_confirmed" value="1" required style="margin-top:.2rem">
+        <span>I confirm my church is licensed or otherwise permitted to copy, store, display, and export these lyrics and any validation material. I am responsible for following the applicable license and reporting requirements; Faith Sparks does not grant lyric or chart rights.</span>
+      </label>
+
+      <button type="submit" class="wa-btn-primary">Continue to review</button>
+
+
     </form>
   </div>
 
+{% endif %}
 </div>
 
 <script>
@@ -312,13 +364,13 @@
     importTabs.forEach(tab => {
       const active = tab.dataset.importTab === mode;
       tab.classList.toggle('is-active', active);
-      tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      tab.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
     importPanels.forEach(panel => {
       panel.hidden = panel.dataset.importPanel !== mode;
     });
-    if (pasteTextarea) pasteTextarea.required = mode === 'paste';
-    if (linkInput) linkInput.required = mode === 'link';
+    if (pasteTextarea) { pasteTextarea.required = mode === 'paste'; pasteTextarea.disabled = mode !== 'paste'; }
+    if (linkInput) { linkInput.required = mode === 'link'; linkInput.disabled = mode !== 'link'; }
   }
 
   importTabs.forEach(tab => {
@@ -327,6 +379,7 @@
     });
   });
   setImportMode('paste');
+  if (!partsList) return;
 
   function updateHidden() {
     const names = Array.from(orderWrap.querySelectorAll('[data-name]')).map(el => el.dataset.name);
@@ -399,6 +452,7 @@
     nameInput.className = 'part-name-input wa-part-name';
     nameInput.placeholder = 'e.g. verse1, chorus, bridge';
     nameInput.value = defaultName || '';
+    nameInput.setAttribute('aria-label', 'Part name');
 
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
@@ -408,6 +462,7 @@
 
     const textarea = document.createElement('textarea');
     textarea.name = 'part_lines';
+    textarea.setAttribute('aria-label', 'Lyrics for this part');
     textarea.rows = 4;
     textarea.placeholder = 'One lyric line per line';
     textarea.className = 'wa-input';
@@ -505,13 +560,34 @@
   var fields = document.getElementById('service-photo-fields');
   if (!type || !fields) return;
   var file = fields.querySelector('input[type="file"]');
+  var rights = document.getElementById('service-photo-rights');
   function syncPhotoFields() {
     var isPhoto = type.value === 'photo';
     fields.hidden = !isPhoto;
-    if (file) file.required = isPhoto;
+    if (file) { file.required = isPhoto; file.disabled = !isPhoto; }
+    if (rights) {
+      rights.hidden = !isPhoto;
+      var checkbox = rights.querySelector('input');
+      checkbox.required = isPhoto;
+      checkbox.disabled = !isPhoto;
+    }
   }
   type.addEventListener('change', syncPhotoFields);
   syncPhotoFields();
+})();
+</script>
+<script>
+(function () {
+  var type = document.getElementById('worship-add-type');
+  var help = document.getElementById('manual-scripture-help');
+  if (type && help) {
+    function syncScriptureHelp() { help.hidden = type.value !== 'scripture'; }
+    type.addEventListener('change', syncScriptureHelp);
+    syncScriptureHelp();
+  }
+  if (!new URLSearchParams(location.search).has('mode') && location.hash === '#import-with-ai') {
+    location.replace({{ url_for('worship_add', mode='import')|tojson }});
+  }
 })();
 </script>
 {% endblock %}

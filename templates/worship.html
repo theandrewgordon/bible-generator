@@ -192,7 +192,7 @@
   <div><p class="ws-kicker">Sunday workspace</p><h1>Plan Worship</h1><p>Build Sunday, check every slide, and run the service from one place.</p></div>
   <div class="ws-page-actions">
     <button type="button" class="ws-btn-ghost" id="worship-tour-btn">Quick tour</button>
-    {% if worship_church.role in ['owner', 'editor', 'member'] %}<a href="{{ url_for('worship_add') }}" class="ws-link-primary">+ New song or slide</a>{% endif %}
+    {% if worship_church.role in ['owner', 'editor', 'member'] %}<a href="{{ url_for('worship_add') }}" class="ws-link-primary">+ Add to Worship</a>{% endif %}
     <details class="ws-menu"><summary>More</summary><div class="ws-menu-panel">
       {% if worship_church.role in ['owner', 'editor', 'member'] %}<button type="button" id="quick-scripture-btn">Add Scripture</button><a href="{{ url_for('worship_presentation_import') }}">Import PowerPoint</a>{% endif %}
       <a href="{{ url_for('worship_getting_started') }}">Help & getting started</a><a href="{{ url_for('worship_deck_history') }}">Past slide decks</a><a href="{{ url_for('worship_licensing') }}">Licensing & sources</a>
@@ -233,7 +233,7 @@
   </div>
   <div class="ws-first-service-actions">
     {% if songs %}<button type="button" class="ws-btn-primary" id="starter-service-btn">Build starter service</button>{% endif %}
-    {% if worship_church.role in ['owner', 'editor', 'member'] %}<a class="ws-btn-ghost" href="{{ url_for('worship_add') }}">Add first song</a>{% if not songs %}<button type="button" class="ws-btn-ghost" id="first-scripture-btn">Add Scripture</button>{% endif %}{% endif %}
+    {% if worship_church.role in ['owner', 'editor', 'member'] %}<a class="ws-btn-ghost" href="{{ url_for('worship_add', mode='import') }}">Add first song</a>{% if not songs %}<button type="button" class="ws-btn-ghost" id="first-scripture-btn">Add Scripture</button>{% endif %}{% endif %}
   </div>
 </section>{% endif %}
 

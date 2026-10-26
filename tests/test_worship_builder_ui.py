@@ -1,4 +1,5 @@
 import unittest
+import re
 from pathlib import Path
 
 from flask import render_template
@@ -124,10 +125,10 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertIn("Import a song from a webpage", html)
         self.assertIn("Ctrl + A", html)
         self.assertIn("Ctrl + V", html)
-        self.assertIn("Import Song", html)
+        self.assertIn("Continue to review", html)
         self.assertIn("Confirm and Save Song", html)
         self.assertIn("does not provide lyric, chord-chart, or performance rights", html)
-        self.assertIn("/worship/add#import-with-ai", html)
+        self.assertIn("/worship/add?mode=import", html)
 
     def test_getting_started_route_is_registered(self):
         routes = {rule.rule for rule in worship_app.app.url_map.iter_rules()}
@@ -150,20 +151,82 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertIn('id="delete-church-btn"', html)
         self.assertIn("DELETE Grace Church", html)
 
-    def test_worship_forms_show_rights_acknowledgments(self):
-        with worship_app.app.test_request_context("/worship/add"):
-            html = render_template("worship_add.html", conflict_song=None, backgrounds=[])
+    def _render_add(self, mode="", conflict_song=None):
+        with worship_app.app.test_request_context("/worship/add?mode=" + mode):
+            html = render_template(
+                "worship_add.html", conflict_song=conflict_song,
+                backgrounds=["deep-blue-abstract.png"],
+                background_files={"deep-blue-abstract.png": {"file": "deep-blue-abstract.jpg"}},
+            )
+        return re.sub(r"<script\b.*?</script>", "", html, flags=re.S)
 
-        self.assertGreaterEqual(html.count('name="rights_confirmed"'), 3)
-        self.assertIn("Faith Sparks does not grant lyric or chart rights", html)
-        self.assertIn("permission from the photographer", html)
+    def test_add_chooser_links_to_four_tasks_without_showing_forms(self):
+        html = self._render_add()
+        for mode in ("import", "manual", "slide", "video"):
+            self.assertIn("/worship/add?mode=" + mode, html)
+        self.assertNotIn('name="raw_lyrics"', html)
+        self.assertNotIn('name="part_name"', html)
+        self.assertNotIn('name="rights_confirmed"', html)
+        self.assertIn('aria-label="Choose what to add"', self._render_add("unknown"))
+
+    def test_add_forms_are_isolated_and_keep_rights_acknowledgments(self):
+        expected = {
+            "import": ('action="/worship/add/parse"', "Faith Sparks does not grant lyric or chart rights"),
+            "manual": ('action="/worship/add?mode=manual"', "Faith Sparks does not grant content rights"),
+            "slide": ('action="/worship/service-slide/add"', "permission from the photographer"),
+            "video": ('action="/worship/video/add"', "Save Video Item"),
+        }
+        for mode, (action, text) in expected.items():
+            with self.subTest(mode=mode):
+                html = self._render_add(mode)
+                self.assertIn(action, html)
+                self.assertIn(text, html)
+                for other_mode, (other_action, _) in expected.items():
+                    if other_mode != mode:
+                        self.assertNotIn(other_action, html)
+                if mode != "video":
+                    self.assertEqual(html.count('name="rights_confirmed"'), 1)
+
+    def test_import_details_precede_review_action_and_background_files_resolve(self):
+        html = self._render_add("import")
+        self.assertLess(html.index('id="worship-parse-title"'), html.index('>Continue to review</button>'))
+        self.assertLess(html.index('name="validation_text"'), html.index('>Continue to review</button>'))
+        self.assertIn('aria-current="step"', html)
+        manual = self._render_add("manual")
+        self.assertIn('/static/worship/backgrounds/deep-blue-abstract.jpg', manual)
+        self.assertIn('value="deep-blue-abstract.png"', manual)
+        self.assertIn("Deep Blue Abstract", manual)
+
+    def test_duplicate_conflict_takes_precedence_over_add_forms(self):
+        html = self._render_add("import", {"id": "sample", "title": "Sample"})
+        self.assertIn('name="overwrite"', html)
+        self.assertIn("Edit Existing", html)
+        self.assertNotIn('name="raw_lyrics"', html)
+        self.assertNotIn('name="video_url"', html)
+
+    def test_invalid_add_submissions_return_to_their_task(self):
+        for mode, route, handler in (
+            ("manual", "/worship/add?mode=manual", worship_app.worship_add),
+            ("slide", "/worship/service-slide/add", worship_app.worship_service_slide_add),
+            ("video", "/worship/video/add", worship_app.worship_video_add),
+        ):
+            with self.subTest(mode=mode):
+                with worship_app.app.test_request_context(route, method="POST", data={}):
+                    response = handler.__wrapped__.__wrapped__()
+                self.assertEqual(response.status_code, 302)
+                self.assertIn("mode=" + mode, response.location)
+        with worship_app.app.test_request_context("/worship/add/parse", method="POST", data={}):
+            response, status = worship_app.worship_add_parse.__wrapped__.__wrapped__()
+        self.assertEqual(status, 400)
+        self.assertIn('name="raw_lyrics"', response)
+        self.assertNotIn('name="video_url"', response)
 
     def test_ai_import_can_attach_the_pasted_chord_sheet(self):
         html = (Path(worship_app.app.root_path) / "templates" / "worship_add.html").read_text(encoding="utf-8")
         review = (Path(worship_app.app.root_path) / "templates" / "worship_import_review.html").read_text(encoding="utf-8")
 
         self.assertIn('name="save_chord_sheet"', html)
-        self.assertIn("Save a musician chord sheet with this song", html)
+        self.assertIn("Attach a musician chord chart", html)
         self.assertIn("Musician resource ready", review)
         self.assertIn("Preview chord sheet", review)
         self.assertIn("worship_import_resource_chart", review)
