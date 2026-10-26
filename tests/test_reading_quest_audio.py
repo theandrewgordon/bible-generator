@@ -79,3 +79,34 @@ def test_limit_budget_and_failure_fallback(audio, monkeypatch):
 def test_limiter_fails_closed_on_storage_error(monkeypatch):
     monkeypatch.setattr(rate_limit, 'db', SimpleNamespace(collection=Mock(side_effect=RuntimeError('offline'))))
     assert not rate_limit.check_rate_limit('rq', 'all', limit=1, window_seconds=60, fail_closed=True).allowed
+
+
+def test_expanded_curriculum_is_solvable_and_audio_is_allowlisted():
+    from collections import Counter
+    from faithsparks.services.reading_quest_audio import TASKS
+    assert Counter(t['world'] for t in TASKS) == {0: 8, 1: 8, 2: 8}
+    assert {t['mode'] for t in TASKS} == {'listen', 'build', 'sort', 'sentence'}
+    for index, task in enumerate(TASKS):
+        assert CUES[f'{index}-say'] == task['say']
+        assert CUES[f'{index}-help'] == task['help']
+        if task['mode'] == 'build':
+            # Each physical tile may be used once; every word must be buildable.
+            tiles = Counter(task['tiles'])
+            def build(prefix, available):
+                if prefix == task['answer']:
+                    return True
+                for tile, count in available.items():
+                    if count and task['answer'].startswith(prefix + tile):
+                        rest = available.copy(); rest[tile] -= 1
+                        if build(prefix + tile, rest):
+                            return True
+                return False
+            assert build('', tiles)
+        else:
+            assert task['choices'].count(task['answer']) == 1
+            assert len(set(task['choices'])) == len(task['choices'])
+        assert len(task['say']) < 500 and len(task['help']) < 500
+    for world in range(3):
+        first = next((i,t) for i,t in enumerate(TASKS) if t['world'] == world)
+        assert CUES[f'{first[0]}-intro'] == first[1]['intro']
+        assert first[1]['adult']

@@ -1,64 +1,350 @@
 [
   {
+    "world": 0,
+    "worldName": "Word Garden",
     "mode": "listen",
-    "title": "Sound Search",
-    "say": "Find the word fish.",
+    "title": "Word Search",
+    "say": "Find the word sat.",
+    "answer": "sat",
+    "help": "Look at the middle sound. Sat has the short a sound.",
     "choices": [
-      "fish",
-      "dish",
-      "wish"
+      "sat",
+      "sit"
     ],
-    "answer": "fish",
-    "help": "Listen to each sound: f, i, sh. Fish."
+    "intro": "Say the sounds, then slide them together: s, a, t. Sat. Keep each sound short.",
+    "focus": "Short a and short i",
+    "adult": "Try together: point under each letter in sat, say its sound, then sweep a finger under the whole word."
   },
   {
+    "world": 0,
+    "worldName": "Word Garden",
+    "mode": "listen",
+    "title": "Word Search",
+    "say": "Find the word map.",
+    "answer": "map",
+    "help": "Read to the end. Map ends with p.",
+    "choices": [
+      "mat",
+      "map"
+    ]
+  },
+  {
+    "world": 0,
+    "worldName": "Word Garden",
+    "mode": "build",
+    "title": "Build a Word",
+    "say": "Build the word sat.",
+    "answer": "sat",
+    "help": "Start with s, then a, then t. Blend the three sounds.",
+    "tiles": [
+      "t",
+      "a",
+      "s"
+    ]
+  },
+  {
+    "world": 0,
+    "worldName": "Word Garden",
+    "mode": "listen",
+    "title": "Word Search",
+    "say": "Find the word sit.",
+    "answer": "sit",
+    "help": "Sit has the short i sound in the middle.",
+    "choices": [
+      "sat",
+      "sit",
+      "pin"
+    ]
+  },
+  {
+    "world": 0,
+    "worldName": "Word Garden",
+    "mode": "build",
+    "title": "Build a Word",
+    "say": "Build the word map.",
+    "answer": "map",
+    "help": "Start with m, then a, then p. Blend the three sounds.",
+    "tiles": [
+      "p",
+      "m",
+      "a"
+    ]
+  },
+  {
+    "world": 0,
+    "worldName": "Word Garden",
+    "mode": "listen",
+    "title": "Word Search",
+    "say": "Find the word pin.",
+    "answer": "pin",
+    "help": "Pin has short i in the middle and n at the end.",
+    "choices": [
+      "pit",
+      "pan",
+      "pin"
+    ]
+  },
+  {
+    "world": 0,
+    "worldName": "Word Garden",
+    "mode": "build",
+    "title": "Build a Word",
+    "say": "Build the word sit.",
+    "answer": "sit",
+    "help": "Start with s, then i, then t. Blend the three sounds.",
+    "tiles": [
+      "t",
+      "s",
+      "i"
+    ]
+  },
+  {
+    "world": 0,
+    "worldName": "Word Garden",
+    "mode": "sentence",
+    "title": "Sentence Trail",
+    "say": "Listen, then tap the sentence: Sam sat.",
+    "answer": "Sam sat.",
+    "help": "Read the last word. Sat begins with s.",
+    "adult": "Read the name Sam together first. Let your reader point to each word.",
+    "choices": [
+      "Sam sat.",
+      "Sam ran."
+    ]
+  },
+  {
+    "world": 1,
+    "worldName": "Sound Shore",
+    "mode": "listen",
+    "title": "Word Search",
+    "say": "Find the word ship.",
+    "answer": "ship",
+    "help": "Ship begins with sh. Keep s and h together as one sound.",
+    "choices": [
+      "ship",
+      "chip"
+    ],
+    "intro": "The letters s and h work together in ship. The letters c and h work together in chip. Each pair represents one sound.",
+    "focus": "Two letters, one sound",
+    "adult": "Model sh as in ship and ch as in chip. Keep each pair together when pointing to the sounds."
+  },
+  {
+    "world": 1,
+    "worldName": "Sound Shore",
+    "mode": "sort",
+    "title": "Sound Sort",
+    "say": "Read ship. Which pair makes its first sound?",
+    "answer": "sh",
+    "help": "Ship starts with sh. The two letters make one sound.",
+    "word": "ship",
+    "prompt": "Read ship. Which pair makes its first sound?",
+    "choices": [
+      "sh",
+      "ch"
+    ]
+  },
+  {
+    "world": 1,
+    "worldName": "Sound Shore",
     "mode": "build",
     "title": "Build a Word",
     "say": "Build the word ship.",
-    "tiles": [
-      "sh",
-      "i",
-      "p",
-      "a"
-    ],
     "answer": "ship",
-    "help": "Ship has three sounds: sh, i, p."
-  },
-  {
-    "mode": "listen",
-    "title": "Word Detective",
-    "say": "Find the word chat.",
-    "choices": [
-      "chip",
-      "chat",
-      "chop"
-    ],
-    "answer": "chat",
-    "help": "Chat starts with ch and has the short a sound."
-  },
-  {
-    "mode": "build",
-    "title": "Treasure Spell",
-    "say": "Spell the word shut.",
+    "help": "Use sh, then i, then p. Three tiles for three sounds.",
     "tiles": [
+      "p",
       "sh",
-      "u",
-      "t",
       "i"
-    ],
-    "answer": "shut",
-    "help": "Shut has three sounds: sh, u, t."
+    ]
   },
   {
+    "world": 1,
+    "worldName": "Sound Shore",
     "mode": "listen",
-    "title": "Review Castle",
-    "say": "Find the word shop.",
+    "title": "Word Search",
+    "say": "Find the word chip.",
+    "answer": "chip",
+    "help": "Chip begins with ch and has short i.",
     "choices": [
       "ship",
-      "shop",
-      "shut"
-    ],
+      "chip",
+      "chop"
+    ]
+  },
+  {
+    "world": 1,
+    "worldName": "Sound Shore",
+    "mode": "sort",
+    "title": "Sound Sort",
+    "say": "Read chat. Which pair makes its first sound?",
+    "answer": "ch",
+    "help": "Chat starts with ch. The two letters make one sound.",
+    "word": "chat",
+    "prompt": "Read chat. Which pair makes its first sound?",
+    "choices": [
+      "sh",
+      "ch"
+    ]
+  },
+  {
+    "world": 1,
+    "worldName": "Sound Shore",
+    "mode": "build",
+    "title": "Build a Word",
+    "say": "Build the word chat.",
+    "answer": "chat",
+    "help": "Use ch, then a, then t. Blend the three sounds.",
+    "tiles": [
+      "t",
+      "ch",
+      "a"
+    ]
+  },
+  {
+    "world": 1,
+    "worldName": "Sound Shore",
+    "mode": "sort",
+    "title": "Sound Sort",
+    "say": "Read fish. Which pair makes its last sound?",
+    "answer": "sh",
+    "help": "Fish ends with sh. Listen at the end of the word.",
+    "word": "fish",
+    "prompt": "Read fish. Which pair makes its last sound?",
+    "choices": [
+      "ch",
+      "sh"
+    ]
+  },
+  {
+    "world": 1,
+    "worldName": "Sound Shore",
+    "mode": "listen",
+    "title": "Word Search",
+    "say": "Find the word shop.",
     "answer": "shop",
-    "help": "Shop has the short o sound."
+    "help": "Shop starts with sh and has short o in the middle.",
+    "choices": [
+      "ship",
+      "chop",
+      "shop"
+    ]
+  },
+  {
+    "world": 2,
+    "worldName": "Review Castle",
+    "mode": "listen",
+    "title": "Word Search",
+    "say": "Find the word map.",
+    "answer": "map",
+    "help": "Map starts with m and ends with p.",
+    "choices": [
+      "map",
+      "mat",
+      "sat"
+    ],
+    "intro": "Let us use the sounds and words we practiced. Read from left to right. Take your time.",
+    "focus": "Use what you practiced",
+    "adult": "Let your reader try first. If needed, point to each sound, blend together, then read the whole word again."
+  },
+  {
+    "world": 2,
+    "worldName": "Review Castle",
+    "mode": "build",
+    "title": "Build a Word",
+    "say": "Build the word pin.",
+    "answer": "pin",
+    "help": "Use p, then i, then n. Blend the three sounds.",
+    "tiles": [
+      "n",
+      "i",
+      "p"
+    ]
+  },
+  {
+    "world": 2,
+    "worldName": "Review Castle",
+    "mode": "sort",
+    "title": "Sound Sort",
+    "say": "Read chop. Which pair makes its first sound?",
+    "answer": "ch",
+    "help": "Chop starts with ch.",
+    "word": "chop",
+    "prompt": "Read chop. Which pair makes its first sound?",
+    "choices": [
+      "ch",
+      "sh"
+    ]
+  },
+  {
+    "world": 2,
+    "worldName": "Review Castle",
+    "mode": "listen",
+    "title": "Word Search",
+    "say": "Find the word fish.",
+    "answer": "fish",
+    "help": "Fish begins with f and ends with sh.",
+    "choices": [
+      "fish",
+      "ship",
+      "chip"
+    ]
+  },
+  {
+    "world": 2,
+    "worldName": "Review Castle",
+    "mode": "build",
+    "title": "Build a Word",
+    "say": "Build the word shop.",
+    "answer": "shop",
+    "help": "Use sh, then o, then p. Keep sh together.",
+    "tiles": [
+      "p",
+      "sh",
+      "o"
+    ]
+  },
+  {
+    "world": 2,
+    "worldName": "Review Castle",
+    "mode": "build",
+    "title": "Build a Word",
+    "say": "Build the word chip.",
+    "answer": "chip",
+    "help": "Use ch, then i, then p. Keep ch together.",
+    "tiles": [
+      "p",
+      "ch",
+      "i"
+    ]
+  },
+  {
+    "world": 2,
+    "worldName": "Review Castle",
+    "mode": "sentence",
+    "title": "Sentence Trail",
+    "say": "Listen, then tap the sentence: Sam sat.",
+    "answer": "Sam sat.",
+    "help": "Look for sat. Read all three sounds in the last word.",
+    "adult": "Read Sam together if needed. Encourage pointing under each word.",
+    "choices": [
+      "Sam ran.",
+      "Sam sat.",
+      "Sam hid."
+    ]
+  },
+  {
+    "world": 2,
+    "worldName": "Review Castle",
+    "mode": "sentence",
+    "title": "Sentence Trail",
+    "say": "Listen, then tap the sentence: A fish.",
+    "answer": "A fish.",
+    "help": "Look for fish. It starts with f and ends with sh.",
+    "adult": "Explain that A is a familiar word here. Say it together, then let your reader decode fish.",
+    "choices": [
+      "A ship.",
+      "A chip.",
+      "A fish."
+    ]
   }
 ]
