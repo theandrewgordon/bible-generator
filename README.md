@@ -75,3 +75,21 @@ by shipping this prototype.
 
 Validation: `python -m pytest tests/test_reading_quest_audio.py tests/test_product_system.py -q`
 and `node tests/reading_quest_audio.cjs` (mocked provider/browser, no paid calls).
+
+#### Expanded sample curriculum
+
+The lab has three independently selectable eight-activity adventures (24 total):
+Word Garden (short a/i CVC words), Sound Shore (sh/ch and short vowels), and
+Review Castle (cumulative words and short sentence choices). Each starts with a
+fixed teaching example and an adult prompt. Readers can undo tiles, replay
+instructions, and revisit up to three missed activities once before completion.
+Stars reward completion, including supported attempts; they are not mastery scores.
+
+This is original practice content, not a validated intervention, diagnostic,
+placement assessment, or reproduction of Nessy/Reading.com curricula. It assumes
+prior instruction in the letter sounds used (including f, short o, and the name
+Sam for later activities). Grown-ups should model any unfamiliar sounds. Sentence
+choices are listening/reading practice, not a test of independent oral reading.
+Progress, mistakes, and stars exist only in page memory and reset on reload;
+selecting an adventure restarts that adventure. No learner data is submitted.
+New AI teaching and phoneme cues require listening review before durable caching.
