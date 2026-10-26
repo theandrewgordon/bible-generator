@@ -17,6 +17,7 @@ for index, task in enumerate(TASKS):
 INSTRUCTIONS = (
     'Speak only the supplied reading lesson text in a warm, calm American English voice. '
     'Use a slow, clear pace suitable for beginning readers. '
-    'When demonstrating individual sounds, pronounce phonemes rather than letter names, '
-    'without adding an uh sound to consonants. Do not add commentary.'
+    'Read the supplied whole words and directions only. Do not invent isolated sound '
+    'demonstrations or spell words aloud. When directions mention letters or letter pairs, '
+    'name those letters. The grown-up models isolated phonemes. Do not add commentary.'
 )

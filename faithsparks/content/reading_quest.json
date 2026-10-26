@@ -11,9 +11,9 @@
       "sat",
       "sit"
     ],
-    "intro": "Say the sounds, then slide them together: s, a, t. Sat. Keep each sound short.",
+    "intro": "Listen to the word: sat. Now ask your grown-up to model the three sounds and blend them with you.",
     "focus": "Short a and short i",
-    "adult": "Try together: point under each letter in sat, say its sound, then sweep a finger under the whole word."
+    "adult": "Model the sounds /s/ /\u00e6/ /t/, not the letter names ess, ay, tee. Keep /t/ short without an added uh. Point under each letter, then sweep under sat and blend. The AI voice models whole words; you model the individual sounds."
   },
   {
     "world": 0,
@@ -22,7 +22,7 @@
     "title": "Word Search",
     "say": "Find the word map.",
     "answer": "map",
-    "help": "Read to the end. Map ends with p.",
+    "help": "Listen to the whole word: map. Look carefully at the last letter. Ask your grown-up to model the ending sound.",
     "choices": [
       "mat",
       "map"
@@ -35,7 +35,7 @@
     "title": "Build a Word",
     "say": "Build the word sat.",
     "answer": "sat",
-    "help": "Start with s, then a, then t. Blend the three sounds.",
+    "help": "Listen to the whole word: sat. Ask your grown-up to model its sounds. Then try the tiles again.",
     "tiles": [
       "t",
       "a",
@@ -63,7 +63,7 @@
     "title": "Build a Word",
     "say": "Build the word map.",
     "answer": "map",
-    "help": "Start with m, then a, then p. Blend the three sounds.",
+    "help": "Listen to the whole word: map. Ask your grown-up to model its sounds. Then try the tiles again.",
     "tiles": [
       "p",
       "m",
@@ -77,7 +77,7 @@
     "title": "Word Search",
     "say": "Find the word pin.",
     "answer": "pin",
-    "help": "Pin has short i in the middle and n at the end.",
+    "help": "Listen to the whole word: pin. Ask your grown-up to model the middle and ending sounds.",
     "choices": [
       "pit",
       "pan",
@@ -91,7 +91,7 @@
     "title": "Build a Word",
     "say": "Build the word sit.",
     "answer": "sit",
-    "help": "Start with s, then i, then t. Blend the three sounds.",
+    "help": "Listen to the whole word: sit. Ask your grown-up to model its sounds. Then try the tiles again.",
     "tiles": [
       "t",
       "s",
@@ -105,7 +105,7 @@
     "title": "Sentence Trail",
     "say": "Listen, then tap the sentence: Sam sat.",
     "answer": "Sam sat.",
-    "help": "Read the last word. Sat begins with s.",
+    "help": "Listen to the last word: sat. Ask your grown-up to model its first sound, then read the sentence together.",
     "adult": "Read the name Sam together first. Let your reader point to each word.",
     "choices": [
       "Sam sat.",
@@ -150,7 +150,7 @@
     "title": "Build a Word",
     "say": "Build the word ship.",
     "answer": "ship",
-    "help": "Use sh, then i, then p. Three tiles for three sounds.",
+    "help": "Listen to the whole word: ship. Ask your grown-up to model its sounds. Then try the tiles again.",
     "tiles": [
       "p",
       "sh",
@@ -193,7 +193,7 @@
     "title": "Build a Word",
     "say": "Build the word chat.",
     "answer": "chat",
-    "help": "Use ch, then a, then t. Blend the three sounds.",
+    "help": "Listen to the whole word: chat. Ask your grown-up to model its sounds. Then try the tiles again.",
     "tiles": [
       "t",
       "ch",
@@ -236,7 +236,7 @@
     "title": "Word Search",
     "say": "Find the word map.",
     "answer": "map",
-    "help": "Map starts with m and ends with p.",
+    "help": "Listen to the whole word: map. Ask your grown-up to model its first and last sounds.",
     "choices": [
       "map",
       "mat",
@@ -253,7 +253,7 @@
     "title": "Build a Word",
     "say": "Build the word pin.",
     "answer": "pin",
-    "help": "Use p, then i, then n. Blend the three sounds.",
+    "help": "Listen to the whole word: pin. Ask your grown-up to model its sounds. Then try the tiles again.",
     "tiles": [
       "n",
       "i",
@@ -296,7 +296,7 @@
     "title": "Build a Word",
     "say": "Build the word shop.",
     "answer": "shop",
-    "help": "Use sh, then o, then p. Keep sh together.",
+    "help": "Listen to the whole word: shop. Ask your grown-up to model its sounds. Then try the tiles again.",
     "tiles": [
       "p",
       "sh",
@@ -310,7 +310,7 @@
     "title": "Build a Word",
     "say": "Build the word chip.",
     "answer": "chip",
-    "help": "Use ch, then i, then p. Keep ch together.",
+    "help": "Listen to the whole word: chip. Ask your grown-up to model its sounds. Then try the tiles again.",
     "tiles": [
       "p",
       "ch",
@@ -324,7 +324,7 @@
     "title": "Sentence Trail",
     "say": "Listen, then tap the sentence: Sam sat.",
     "answer": "Sam sat.",
-    "help": "Look for sat. Read all three sounds in the last word.",
+    "help": "Listen to the last word: sat. Ask your grown-up to model its first sound, then read the sentence together.",
     "adult": "Read Sam together if needed. Encourage pointing under each word.",
     "choices": [
       "Sam ran.",
