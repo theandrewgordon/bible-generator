@@ -8185,13 +8185,13 @@ def worship_service_slide_add():
     image_layout = request.form.get("image_layout", "full").strip().lower()
     if slide_type not in _WORSHIP_SERVICE_TYPES:
         flash("Choose a valid service slide type.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="slide"))
     if not title:
         flash("A service slide title is required.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="slide"))
     if slide_type == "photo" and not _boolish(request.form.get("rights_confirmed")):
         flash("Confirm that you have permission to display this photo.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="slide"))
     image_path = ""
     if slide_type == "photo":
         try:
@@ -8199,7 +8199,7 @@ def worship_service_slide_add():
         except (ValueError, RuntimeError) as exc:
             app.logger.warning("worship photo slide upload rejected: %s", exc)
             flash(str(exc), "error")
-            return redirect(url_for("worship_add"))
+            return redirect(url_for("worship_add", mode="slide"))
     try:
         item_id = _make_unique_worship_song_id(title, "", slide_type)
         item = normalize_worship_song({
@@ -8220,7 +8220,7 @@ def worship_service_slide_add():
     except RuntimeError as exc:
         app.logger.warning("worship service slide save failed: %s", exc)
         flash("The worship library is temporarily unavailable. Please try again.", "error")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="slide"))
     flash(f"'{title}' added to the service library.", "success")
     return redirect(url_for("worship"))
 
@@ -8234,16 +8234,16 @@ def worship_video_add():
     title = request.form.get("title", "").strip()
     if not video_id:
         flash("Paste a valid HTTPS YouTube link.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="video"))
     if not title:
         flash("Give the video a title for the service order.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="video"))
     try:
         start = max(0, int(request.form.get("video_start") or 0))
         end = max(0, int(request.form.get("video_end") or 0))
     except (TypeError, ValueError):
         flash("Video start and end must be seconds.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="video"))
     item_id = _make_unique_worship_song_id(title, "", _WORSHIP_VIDEO_TYPE)
     item = normalize_worship_song({
         "id": item_id,
@@ -8263,7 +8263,7 @@ def worship_video_add():
     except RuntimeError as exc:
         app.logger.warning("worship video save failed: %s", exc)
         flash("The video could not be saved right now.", "error")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="video"))
     flash("YouTube video added to the worship library.", "success")
     return redirect(url_for("worship"))
 
@@ -8966,7 +8966,7 @@ def worship_add():
                 app.logger.warning("worship_add overwrite load failed: %s", exc)
                 flash("The saved import could not be loaded right now. Please try again.", "error")
                 return render_template("worship_add.html", conflict_song=None,
-                                       backgrounds=list(_load_bg_config().keys())), 503
+                                       backgrounds=list(_load_bg_config().keys()), background_files=_load_bg_config()), 503
             if pending_payload:
                 pending = pending_payload.get("song") or {}
                 used_fallback = bool(pending_payload.get("used_fallback"))
@@ -8977,7 +8977,7 @@ def worship_add():
                     app.logger.warning("worship_add overwrite save failed: %s", exc)
                     flash("The song could not be overwritten right now. Your import is still available; please retry.", "error")
                     return render_template("worship_add.html", conflict_song=pending,
-                                           backgrounds=list(_load_bg_config().keys())), 503
+                                           backgrounds=list(_load_bg_config().keys()), background_files=_load_bg_config()), 503
                 _delete_pending_worship_song(pending_token)
                 session.pop("pending_worship_token", None)
                 if used_fallback:
@@ -8986,7 +8986,7 @@ def worship_add():
                     flash(f"'{pending['title']}' overwritten.", "success")
                 return redirect(url_for("worship"))
             flash("Nothing to overwrite.", "warning")
-            return redirect(url_for("worship_add"))
+            return redirect(url_for("worship_add", mode="manual"))
 
         title = request.form.get("title", "").strip()
         artist = request.form.get("artist", "").strip()
@@ -8996,7 +8996,7 @@ def worship_add():
         background = request.form.get("background", "").strip()
         if background and not _valid_worship_background(background):
             flash("Choose a background from the approved worship library.", "warning")
-            return redirect(url_for("worship_add"))
+            return redirect(url_for("worship_add", mode="manual"))
 
         part_names = request.form.getlist("part_name")
         part_lines_raw = request.form.getlist("part_lines")
@@ -9004,11 +9004,11 @@ def worship_add():
 
         if not title:
             flash("Title is required.", "warning")
-            return redirect(url_for("worship_add"))
+            return redirect(url_for("worship_add", mode="manual"))
 
         if not _boolish(request.form.get("rights_confirmed")):
             flash("Confirm that your church has permission to store and use this material.", "warning")
-            return redirect(url_for("worship_add"))
+            return redirect(url_for("worship_add", mode="manual"))
 
         parts = {}
         for name, lines_text in zip(part_names, part_lines_raw):
@@ -9043,7 +9043,7 @@ def worship_add():
 
         if not song["parts"]:
             flash("Add at least one song part with lyrics.", "warning")
-            return redirect(url_for("worship_add"))
+            return redirect(url_for("worship_add", mode="manual"))
 
         # Re-adding an existing song routes through the overwrite/conflict screen
         # rather than silently creating title-2, title-3, ...
@@ -9057,7 +9057,7 @@ def worship_add():
             app.logger.warning("worship_add persistence failed: %s", exc)
             flash("The song library is temporarily unavailable. Please try again.", "error")
             return render_template("worship_add.html", conflict_song=None,
-                                   backgrounds=list(_load_bg_config().keys())), 503
+                                   backgrounds=list(_load_bg_config().keys()), background_files=_load_bg_config()), 503
         flash(f"'{title}' saved.", "success")
         return redirect(url_for("worship"))
 
@@ -9070,9 +9070,9 @@ def worship_add():
             app.logger.warning("worship_add conflict lookup failed: %s", exc)
             flash("The song library is temporarily unavailable. Please try again.", "error")
             return render_template("worship_add.html", conflict_song=None,
-                                   backgrounds=list(_load_bg_config().keys())), 503
+                                   backgrounds=list(_load_bg_config().keys()), background_files=_load_bg_config()), 503
     return render_template("worship_add.html", conflict_song=conflict_song,
-                            backgrounds=list(_load_bg_config().keys()))
+                            backgrounds=list(_load_bg_config().keys()), background_files=_load_bg_config())
 
 
 WORSHIP_PARSE_MAX_CHARS = 15_000  # what the AI sees; a real song is well under this
@@ -9147,7 +9147,7 @@ def worship_add_parse():
     if request.content_length and request.content_length > 180_000:
         flash("That import is too large. Please paste only the song lyrics.", "warning")
         return render_template("worship_add.html", conflict_song=None,
-                               backgrounds=list(_load_bg_config().keys())), 413
+                               backgrounds=list(_load_bg_config().keys()), background_files=_load_bg_config()), 413
     raw_lyrics = request.form.get("raw_lyrics", "").strip()
     import_url = request.form.get("import_url", "").strip()
     validation_text = request.form.get("validation_text", "").strip()
@@ -9165,7 +9165,7 @@ def worship_add_parse():
         return render_template(
             "worship_add.html",
             conflict_song=None,
-            backgrounds=list(_load_bg_config().keys()),
+            backgrounds=list(_load_bg_config().keys()), background_files=_load_bg_config(),
         ), 400
 
     user_key = str(session.get("user_email") or get_client_ip())
@@ -9176,18 +9176,18 @@ def worship_add_parse():
         flash("Too many song imports were requested. Please wait a little and try again.", "warning")
         response = app.make_response((render_template(
             "worship_add.html", conflict_song=None,
-            backgrounds=list(_load_bg_config().keys())
+            backgrounds=list(_load_bg_config().keys()), background_files=_load_bg_config()
         ), 429))
         response.headers["Retry-After"] = str(retry_after)
         return response
 
     if len(raw_lyrics) > 60_000:
         flash("That paste is too large. Please include only the song page or lyrics.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="import"))
 
     if len(validation_text) > 60_000:
         flash("That validation paste is too large. Please include only the chord or lyric sheet.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="import"))
 
     if import_url:
         try:
@@ -9195,7 +9195,7 @@ def worship_add_parse():
         except Exception as e:
             app.logger.warning("worship_add_parse: import failed: %s", e, exc_info=True)
             flash("Could not read that song link. Please paste the lyrics directly and try again.", "error")
-            return redirect(url_for("worship_add"))
+            return redirect(url_for("worship_add", mode="import"))
         raw_lyrics = "\n\n".join(part for part in [raw_lyrics, fetched_text] if part)
 
     if validation_url and not validation_text:
@@ -9209,17 +9209,17 @@ def worship_add_parse():
 
     if len(raw_lyrics) > 60_000 or len(raw_lyrics.splitlines()) > 1_200:
         flash("That song page is too large to import. Please paste only the lyrics.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="import"))
 
     if not raw_lyrics:
         flash("Paste lyrics or enter a song page link to parse.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="import"))
 
     cleaned_paste = _clean_lyrics_site_paste(raw_lyrics, title, artist)
     parse_lyrics = str(cleaned_paste.get("lyrics") or "").strip()
     if not parse_lyrics:
         flash("No song lyrics were found in that paste. Copy the labelled lyrics section and try again.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="import"))
 
     # AZLyrics (and similar sites) wrap each lyric line in its own <div>, so a
     # copy-paste produces a blank line between EVERY lyric line, not just between
@@ -9238,7 +9238,7 @@ def worship_add_parse():
                     len(parse_lyrics), parse_lyrics.count("\n"))
     if len(parse_lyrics) > WORSHIP_PARSE_MAX_CHARS:
         flash("Those lyrics are longer than one song. Please paste a single song.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="import"))
 
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
@@ -9344,7 +9344,7 @@ OTHER RULES:
                 flash("No AI key is configured and the local parser could not find song sections.", "error")
             else:
                 flash("We couldn't structure those lyrics yet. Please check the text and try again.", "error")
-            return redirect(url_for("worship_add"))
+            return redirect(url_for("worship_add", mode="import"))
         fallback_reason = "AI parsing was unavailable, so Faith Sparks auto-structured the sections."
         flash(fallback_reason, "warning")
         used_fallback_parser = True
@@ -9378,7 +9378,7 @@ OTHER RULES:
         fallback = _fallback_parse_worship_lyrics(parse_lyrics, title, artist, version, key)
         if not fallback:
             flash("AI response was missing required fields (parts/arrangement).", "error")
-            return redirect(url_for("worship_add"))
+            return redirect(url_for("worship_add", mode="import"))
         song = normalize_worship_song(fallback)
         fallback_reason = "AI response was incomplete, so Faith Sparks auto-structured the sections."
         used_fallback_parser = True
@@ -9389,7 +9389,7 @@ OTHER RULES:
             or _looks_like_chord_fragmented_worship_parse(song, parse_lyrics)
         ):
             flash("That chord chart split lyrics around chord symbols, and the result was not safe for slides. Try its Free Lyrics Download page, paste labelled lyrics, or use manual entry.", "error")
-            return redirect(url_for("worship_add"))
+            return redirect(url_for("worship_add", mode="import"))
 
     # The form explicitly promises that supplied metadata overrides inference.
     for field, supplied_value in (
@@ -9402,7 +9402,7 @@ OTHER RULES:
             song[field] = supplied_value
     if not song.get("title"):
         flash("We could not determine the song title. Enter a title and try again.", "warning")
-        return redirect(url_for("worship_add"))
+        return redirect(url_for("worship_add", mode="import"))
     # Use the base ID (not a unique-suffixed one) so re-importing the same song
     # triggers the conflict/overwrite flow instead of creating gratitude-...-2, -3, etc.
     song["id"] = _worship_song_id_base(song.get("title", ""), song.get("artist", ""), song.get("version", "")) or "untitled-song"
@@ -9452,7 +9452,7 @@ OTHER RULES:
         app.logger.warning("worship_add_parse review persistence failed: %s", exc)
         flash("The song was parsed, but its review could not be preserved. Please retry the import.", "error")
         return render_template("worship_add.html", conflict_song=None,
-                               backgrounds=list(_load_bg_config().keys())), 503
+                               backgrounds=list(_load_bg_config().keys()), background_files=_load_bg_config()), 503
     return redirect(url_for("worship_import_review", token=review_token))
 
 

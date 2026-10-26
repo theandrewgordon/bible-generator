@@ -35,7 +35,7 @@
   <p class="wgs-kicker">Worship getting started</p>
   <h1>Import a song from a webpage</h1>
   <p class="wgs-lead">Copy a permitted song page, paste it into Faith Sparks, and let the importer organize the title, artist, key, sections, arrangement, and slides for you.</p>
-  <div class="wgs-actions"><a class="wgs-primary" href="{{ url_for('worship_add') }}#import-with-ai">Start a song import</a><a class="wgs-secondary" href="{{ url_for('worship_getting_started') }}">All worship help</a><a class="wgs-secondary" href="{{ url_for('worship') }}">Back to Plan Worship</a></div>
+  <div class="wgs-actions"><a class="wgs-primary" href="{{ url_for('worship_add', mode='import') }}">Start a song import</a><a class="wgs-secondary" href="{{ url_for('worship_getting_started') }}">All worship help</a><a class="wgs-secondary" href="{{ url_for('worship') }}">Back to Plan Worship</a></div>
 </header>
 
 <aside class="wgs-note">
@@ -48,19 +48,19 @@
 
   <article class="wgs-step"><div><h2>Copy the whole visible page</h2><p>Click anywhere on the song page, select everything, and copy it. Including the page heading and song details helps Faith Sparks detect the title, artist, original key, and section order.</p><div class="wgs-keys"><span class="wgs-key">Windows / Chromebook: Ctrl + A</span><span class="wgs-key">then Ctrl + C</span><span class="wgs-key">Mac: ⌘ + A</span><span class="wgs-key">then ⌘ + C</span></div></div></article>
 
-  <article class="wgs-step"><div><h2>Open “New song or slide”</h2><p>In Faith Sparks, open <strong>Worship</strong>, choose <strong>New song or slide</strong>, and scroll to <strong>Import with AI</strong>. Keep the <strong>Paste page</strong> tab selected.</p></div></article>
+  <article class="wgs-step"><div><h2>Choose “Import a song”</h2><p>In Faith Sparks, open <strong>Worship</strong>, choose <strong>Add to Worship</strong>, then <strong>Import a song</strong>. Keep the <strong>Paste text</strong> tab selected.</p></div></article>
 
   <article class="wgs-step"><div><h2>Paste the page</h2><p>Click the <strong>Paste lyrics or whole page</strong> field and paste what you copied.</p><div class="wgs-keys"><span class="wgs-key">Windows / Chromebook: Ctrl + V</span><span class="wgs-key">Mac: ⌘ + V</span></div><p>You can usually leave the optional title, artist, version, and key fields blank. Fill one in only when you want to override what the importer detects.</p></div></article>
 
-  <article class="wgs-step"><div><h2>Confirm permission and import</h2><p>Check the permission confirmation, then choose <strong>Import Song</strong>. Faith Sparks removes common page navigation and footer text, finds the song details, separates the sections, and builds the likely arrangement.</p></div></article>
+  <article class="wgs-step"><div><h2>Confirm permission and import</h2><p>Check the permission confirmation, then choose <strong>Continue to review</strong>. Faith Sparks removes common page navigation and footer text, finds the song details, separates the sections, and builds the likely arrangement.</p></div></article>
 
   <article class="wgs-step"><div><h2>Review before saving</h2><p>On the review page, check the detected title, artist, key, arrangement, every lyric section, and the slide-by-slide preview.</p><ul><li>If everything is correct, choose <strong>Confirm and Save Song</strong>.</li><li>If anything looks wrong, cancel the import and try a cleaner or more clearly labelled source.</li><li>AI can make mistakes, so always compare the result with your authorized source before presenting it.</li></ul></div></article>
 </section>
 
 <section class="wgs-grid">
   <article class="wgs-card"><h2>What Faith Sparks should detect</h2><ul><li>Song title and artist</li><li>Original key when the page includes it</li><li>Verses, choruses, bridges, tags, intros, and outros</li><li>The repeated section order</li><li>Readable lyric slide breaks</li></ul></article>
-  <article class="wgs-card"><h2>If the import is messy</h2><ul><li>Use the page’s Lyrics view instead of a chord-heavy view.</li><li>Try copying the whole page rather than only a few lines.</li><li>Prefer a source with visible section labels.</li><li>If link import is blocked, use Paste page.</li><li>Add a permitted second source for validation when available.</li></ul></article>
+  <article class="wgs-card"><h2>If the import is messy</h2><ul><li>Use the page’s Lyrics view instead of a chord-heavy view.</li><li>Try copying the whole page rather than only a few lines.</li><li>Prefer a source with visible section labels.</li><li>If link import is blocked, use Paste text.</li><li>Add a permitted second source for validation when available.</li></ul></article>
 </section>
 
-<div class="wgs-finish"><strong>Ready to try it?</strong><p>The importer will show a review before anything is saved to your worship library.</p><a class="wgs-primary" href="{{ url_for('worship_add') }}#import-with-ai">Open Import with AI</a></div>
+<div class="wgs-finish"><strong>Ready to try it?</strong><p>The importer will show a review before anything is saved to your worship library.</p><a class="wgs-primary" href="{{ url_for('worship_add', mode='import') }}">Import a song</a></div>
 {% endblock %}
