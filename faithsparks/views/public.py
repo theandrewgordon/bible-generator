@@ -251,6 +251,12 @@ def labs():
     )
 
 
+@bp.get("/labs/reading-quest")
+def reading_quest_lab():
+    """Standalone reading practice lab; no child profile or server-side data."""
+    return render_template("labs_reading_quest.html", noindex=True)
+
+
 _SAME_BRAIN_FILE = Path(__file__).resolve().parents[1] / "content" / "lab_games" / "same-brain.html"
 SAME_BRAIN_SHORT_COLLECTION = "same_brain_challenges"
 SAME_BRAIN_DAILY_COLLECTION = "same_brain_daily_stats"
