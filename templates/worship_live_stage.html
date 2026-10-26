@@ -16,7 +16,7 @@
     .st-clock{font-size:clamp(1.3rem,2.8vw,2.4rem);font-variant-numeric:tabular-nums;font-weight:850}
     .st-message{grid-row:2;display:none;padding:12px 18px;border:2px solid #f59e0b;border-radius:14px;background:#451a03;color:#fef3c7;text-align:center;font-size:clamp(1rem,2.3vw,1.8rem);font-weight:850}
     .st-message.is-visible{display:block}
-    .st-content{grid-row:3;display:grid;grid-template-columns:minmax(0,1.65fr) minmax(250px,.75fr);gap:clamp(12px,1.6vw,22px);min-height:0}
+    .st-content{grid-row:3;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(12px,1.6vw,22px);min-height:0}
     .st-card{border:1px solid #334155;border-radius:20px;background:#0f172a;padding:clamp(18px,3vw,42px);display:flex;flex-direction:column;justify-content:center;min-width:0;overflow:hidden}
     .st-label{color:#5eead4;font-size:clamp(.72rem,1.2vw,1rem);font-weight:900;letter-spacing:.1em;text-transform:uppercase;margin-bottom:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .st-cue{display:none;margin-top:1rem;padding:.65rem .8rem;border-left:4px solid #f59e0b;border-radius:6px;background:#451a03;color:#fef3c7;font-size:clamp(.78rem,1.35vw,1.05rem);line-height:1.25;font-weight:800}
@@ -39,9 +39,15 @@
       .st-footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-self:end}.st-status{order:3;flex:0 0 100%;text-align:left}.st-timer{order:2;margin-left:auto}.st-focus{order:1}
     }
     @media(orientation:landscape) and (max-height:600px){body{padding:10px 14px}.st-shell{gap:9px}.st-card{padding:16px 22px}.st-label{margin-bottom:.55rem}.st-footer{font-size:.72rem}.st-focus{padding:6px 10px}}
+    body[data-layout="current"] .st-content{grid-template-columns:minmax(0,1.65fr) minmax(0,.75fr)}
+    body[data-layout="next"] .st-content{grid-template-columns:minmax(0,.75fr) minmax(0,1.65fr)}
+    body[data-layout="next"] .st-next-lines{font-size:clamp(2rem,5.2vw,5.6rem)}
+    body[data-layout="next"] .st-current-lines{font-size:clamp(1.25rem,2.5vw,2.45rem)}
+    .st-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.st-layout{border:1px solid #475569;border-radius:8px;background:#111c2e;color:#fff;padding:8px;font:inherit;max-width:180px}.st-output{font-size:.8rem;color:#5eead4;font-weight:800}.st-output[data-state="black"],.st-output[data-state="clear"]{color:#fcd34d}.st-display{font-size:.75rem;color:#94a3b8}
+    @media(max-width:700px){body[data-layout] .st-content{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(0,1fr)}body[data-layout="current"] .st-content{grid-template-rows:minmax(0,1.65fr) minmax(0,.75fr)}body[data-layout="next"] .st-content{grid-template-rows:minmax(0,.75fr) minmax(0,1.65fr)}body[data-layout="next"] .st-next-lines{font-size:clamp(1.55rem,7.1vw,3rem)}.st-tools{max-width:100%}.st-layout{max-width:150px}.st-footer{font-size:.7rem}.st-output{font-size:.7rem}}
   </style>
 </head>
-<body>
+<body data-layout="balanced">
   <main class="st-shell">
     <header class="st-head"><div class="st-head-copy"><div class="st-title">{{ live.name }} · Stage View</div><div class="st-context" id="st-context"></div></div><time class="st-clock" id="st-clock"></time></header>
     <div class="st-message" id="st-message"></div>
@@ -49,8 +55,9 @@
       <article class="st-card" id="st-current-card"><div class="st-label" id="st-current-label">Current</div><h1 class="st-current-title" id="st-current-title"></h1><div class="st-current-lines" id="st-current-lines"></div><div class="st-cue" id="st-current-cue"></div></article>
       <article class="st-card st-next" id="st-next-card"><div class="st-label" id="st-next-label">Up next</div><h2 class="st-next-title" id="st-next-title"></h2><div class="st-next-lines" id="st-next-lines"></div></article>
     </section>
-    <footer class="st-footer"><button class="st-focus" id="st-focus">Full screen + stay awake</button><div class="st-status" id="st-status"></div><div class="st-timer" id="st-timer"></div></footer>
+    <footer class="st-footer"><div class="st-tools"><button class="st-focus" id="st-focus">Full screen + stay awake</button><select class="st-layout" id="st-layout" aria-label="Stage layout"><option value="balanced">Balanced</option><option value="current">Larger current</option><option value="next">Larger next</option></select></div><div><div class="st-output" id="st-output" role="status">LIVE</div><div class="st-status" id="st-status"></div><div class="st-display" id="st-display"></div></div><div class="st-timer" id="st-timer"></div></footer>
   </main>
+  <script src="{{ url_for('static', filename='js/worship-display-status.js') }}"></script>
   <script>
   (function(){
     var sessionId={{ session_id|tojson }},slides={{ slides|tojson }},current={{ live.current_index|int }},revision={{ live.revision|int }},deckRevision=Number({{ live.deck_revision|default(0)|tojson }})||0;
@@ -69,7 +76,8 @@
       var slide=slides[current]||{},upcoming=slides[current+1]||null;
       currentLabel.textContent=stageLabel('Current',slide);currentTitle.textContent=slide.kind==='lyric'?'':(slide.title||'');currentLines.textContent=slideText(slide);
       contextEl.textContent=itemContext(current);
-      currentCue.textContent=slide.note?'Saved cue · '+slide.note:'';currentCue.classList.toggle('is-visible',!!slide.note);
+      var cues=[];if(slide.note)cues.push('Saved cue · '+slide.note);if(Number(slide.repeat_count)>1)cues.push((slide.part_label||'Section')+' ×'+slide.repeat_count+' · hold this slide');if(upcoming&&upcoming.id!==slide.id)cues.push('Next item: '+(upcoming.title||'item'));else if(upcoming&&upcoming.part!==slide.part)cues.push('Next: '+(upcoming.part_label||upcoming.title||'slide'));currentCue.textContent=cues.join(' · ');currentCue.classList.toggle('is-visible',!!cues.length);
+      var output=document.getElementById('st-output');output.textContent=ended?'ENDED':blank?'BLACK SCREEN':clearWords?'WORDS CLEARED':'LIVE';output.dataset.state=blank?'black':clearWords?'clear':'live';
       nextLabel.textContent=upcoming?stageLabel('Up next',upcoming):'Up next';nextTitle.textContent=upcoming&&upcoming.kind!=='lyric'?(upcoming.title||''):'';nextLines.textContent=upcoming?slideText(upcoming):'End of set';
       messageEl.textContent=stageMessage;messageEl.classList.toggle('is-visible',!!stageMessage);
       statusEl.textContent=ended?'Session ended':pollFailures>=2?'Reconnecting…':blank?'Audience screen is black':clearWords?'Audience words are cleared':'';queueFit();
@@ -83,9 +91,9 @@
       timerEl.textContent=timerMode==='countdown'?(remaining<0?'Over '+formatSeconds(remaining):'Remaining '+formatSeconds(remaining)):'Elapsed '+formatSeconds(elapsed);
       timerEl.style.color=timerMode==='countdown'&&remaining<=30?'#fca5a5':'#fff';
     }
-    function applyState(data){var nextRevision=Number(data.revision)||0,needsDraw=nextRevision>revision||pollFailures>=2;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(nextRevision<revision){pollFailures=0;updateTime();return;}if(nextRevision>revision)activeUntil=Date.now()+1500;pollFailures=0;current=Math.max(0,Math.min(slides.length-1,Number(data.current_index)||0));revision=nextRevision;blank=!!data.blank;clearWords=!!data.clear_words;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(needsDraw)draw();updateTime();}
+    function applyState(data){WorshipDisplayStatus(document.getElementById('st-display'),data);var nextRevision=Number(data.revision)||0,needsDraw=nextRevision>revision||pollFailures>=2;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(nextRevision<revision){pollFailures=0;updateTime();return;}if(nextRevision>revision)activeUntil=Date.now()+1500;pollFailures=0;current=Math.max(0,Math.min(slides.length-1,Number(data.current_index)||0));revision=nextRevision;blank=!!data.blank;clearWords=!!data.clear_words;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(needsDraw)draw();updateTime();}
     function schedulePoll(delay){clearTimeout(pollTimer);if(!ended&&document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
-    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){var nextDeckRevision=Number(data.deck_revision)||0;if(nextDeckRevision>deckRevision){window.location.reload();return;}applyState(data);schedulePoll(Date.now()<activeUntil?250:{{ live_idle_poll(900) if live_idle_poll is defined else 900 }});}else{pollFailures++;if(pollFailures===2)draw();schedulePoll(1200);}}).catch(function(error){if(error.message==='ended'){ended=true;draw();return;}pollFailures++;if(pollFailures===2)draw();schedulePoll(1200);});}
+    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){var nextDeckRevision=Number(data.deck_revision)||0;if(nextDeckRevision>deckRevision){window.location.reload();return;}applyState(data);schedulePoll(Date.now()<activeUntil?250:{{ live_idle_poll(900) if live_idle_poll is defined else 900 }});}else{pollFailures++;if(pollFailures===2){draw();document.getElementById('st-display').textContent='Audience report unavailable while reconnecting';}schedulePoll(1200);}}).catch(function(error){if(error.message==='ended'){ended=true;draw();return;}pollFailures++;if(pollFailures===2){draw();document.getElementById('st-display').textContent='Audience report unavailable while reconnecting';}schedulePoll(1200);});}
     function updateFocusButton(){focusBtn.textContent=document.fullscreenElement?'Exit full screen':wakeLock?'Full screen · awake':'Full screen + stay awake';}
     function requestWakeLock(showFailure){if(wakeLock)return;if(!('wakeLock'in navigator)){if(showFailure&&!document.fullscreenElement)focusBtn.textContent='Full screen';return;}navigator.wakeLock.request('screen').then(function(lock){wakeLock=lock;updateFocusButton();lock.addEventListener('release',function(){wakeLock=null;updateFocusButton();});}).catch(function(){if(showFailure&&!document.fullscreenElement)focusBtn.textContent='Full screen unavailable';});}
     focusBtn.addEventListener('click',function(){
@@ -94,6 +102,10 @@
       requestWakeLock(true);
     });
     window.addEventListener('resize',queueFit);document.addEventListener('fullscreenchange',function(){updateFocusButton();queueFit();});document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){requestWakeLock(false);poll();}else clearTimeout(pollTimer);});
+    var layoutSelect=document.getElementById('st-layout');
+    function setLayout(value){if(['balanced','current','next'].indexOf(value)<0)value='balanced';document.body.dataset.layout=value;layoutSelect.value=value;queueFit();}
+    try{setLayout(localStorage.getItem('worship-stage-layout')||'balanced');}catch(e){setLayout('balanced');}
+    layoutSelect.addEventListener('change',function(){setLayout(this.value);try{localStorage.setItem('worship-stage-layout',this.value);}catch(e){}});
     draw();updateTime();setInterval(updateTime,250);poll();
   })();
   </script>

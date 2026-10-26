@@ -842,6 +842,7 @@ _CSRF_CAPABILITY_POST_PREFIXES = (
     "/family-bible-bee/controller/",
     "/worship/live/exchange/",
     "/worship/live/control/",
+    "/worship/live/display/",
 )
 
 @app.before_request
@@ -2726,7 +2727,7 @@ _WORSHIP_LIVE_STATE_FIELDS = (
     "id", "scope", "name", "slide_count", "current_index", "blank", "clear_words",
     "stage_message", "stage_timer_mode", "stage_timer_started_epoch", "stage_timer_duration",
     "video_action", "video_revision", "deck_revision", "revision", "created_by",
-    "created_at", "updated_at", "expires_epoch",
+    "created_at", "updated_at", "expires_epoch", "display_ack",
 )
 
 
@@ -2816,6 +2817,7 @@ def _active_worship_live_context() -> dict | None:
         "name": str(live.get("name") or "Live Worship"),
         "current_slide": int(live.get("current_index") or 0) + 1,
         "slide_count": int(live.get("slide_count") or 0),
+        "setup_url": url_for("worship_live_setup", session_id=session_id, _external=True) + f"#control={control_token}",
         "presenter_url": (
             url_for("worship_live_presenter", session_id=session_id, _external=True)
             + f"#view={view_token}&control={control_token}"
@@ -3136,6 +3138,7 @@ def _public_worship_live_state(data: dict, *, include_stage: bool = False) -> di
     }
     if include_stage:
         state.update({
+            "display_ack": dict(data.get("display_ack") or {}),
             "stage_message": str(data.get("stage_message") or "")[:160],
             "stage_timer_mode": str(data.get("stage_timer_mode") or ""),
             "stage_timer_started_epoch": float(data.get("stage_timer_started_epoch") or 0),
@@ -6602,6 +6605,7 @@ def _iter_worship_lyric_chunks(normalized: dict):
     parts = normalized.get("parts", {}) or {}
     arrangement = normalized.get("arrangement", []) or []
     previous_signature = None
+    emitted = []
     for part_name in arrangement:
         part_lines = parts.get(part_name, [])
         if not isinstance(part_lines, list):
@@ -6610,16 +6614,18 @@ def _iter_worship_lyric_chunks(normalized: dict):
         # One size per section, so a reading or verse doesn't jump 40pt -> 48pt mid-way.
         section_size = min((int(chunk.get("font_size", 48) or 48) for chunk in chunks), default=48)
         for chunk in chunks:
-            chunk = {**chunk, "font_size": section_size}
+            chunk = {**chunk, "font_size": section_size, "repeat_count": 1}
             signature = (
                 _worship_part_label(part_name),
                 tuple(chunk.get("lines", [])),
                 chunk.get("font_size", 48),
             )
             if signature == previous_signature:
+                emitted[-1][1]["repeat_count"] += 1
                 continue
             previous_signature = signature
-            yield part_name, chunk
+            emitted.append((part_name, chunk))
+    yield from emitted
 
 
 def _worship_visual_row_count(lines: list[str], font_size: int = 48) -> int:
@@ -6759,6 +6765,7 @@ def _build_worship_mobile_slides(selected_items: list[dict], notes: dict | None 
                     "key": normalized.get("key", ""),
                     "part": part_name,
                     "part_label": _worship_part_label(part_name),
+                    "repeat_count": chunk.get("repeat_count", 1),
                     "lines": chunk_lines,
                     "font_size": chunk_font_size,
                     "visual_row_count": _worship_visual_row_count(chunk_lines, chunk_font_size),
@@ -7046,6 +7053,7 @@ def worship_live_start():
         {
             "ok": True,
             "presenter_url": presenter_url,
+            "setup_url": url_for("worship_live_setup", session_id=session_id, _external=True) + f"#control={control_token}",
             "remote_url": (
                 url_for("worship_live_remote", session_id=session_id, _external=True)
                 + f"#control={control_token}"
@@ -7211,6 +7219,73 @@ def _slides_for_worship_live(live: dict, capability: dict, *, include_media: boo
     return slides
 
 
+@app.route("/worship/live/setup/<session_id>", methods=["GET"])
+def worship_live_setup(session_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
+        abort(404)
+    capability, live = _worship_live_capability_from_cookie(session_id, "control", include_slides=False)
+    if not live:
+        return _worship_live_bootstrap(session_id, "laptop setup")
+    scope = capability["scope"]
+    links = {}
+    for role, endpoint in (("view", "worship_live_presenter"), ("control", "worship_live_remote"), ("stage", "worship_live_stage")):
+        token = _make_worship_live_token(scope=scope, session_id=session_id, role=role)
+        params = {"audience": "1"} if role == "view" else {}
+        links[role] = url_for(endpoint, session_id=session_id, _external=True, **params) + f"#{role}={token}"
+    response = app.make_response(render_template(
+        "worship_live_setup.html", session_id=session_id, live=live, links=links,
+        follow_url=_worship_live_follow_url(scope, session_id),
+    ))
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@app.route("/worship/live/display/<session_id>", methods=["POST"])
+def worship_live_display_ack(session_id):
+    """A visible audience browser reports what it rendered, not TV connectivity."""
+    if request.headers.get("X-Worship-Live") != "1" or not request.is_json:
+        return jsonify({"ok": False, "error": "Invalid display report."}), 400
+    capability, live = _worship_live_capability_from_cookie(session_id, "view", include_slides=False)
+    if not live:
+        return jsonify({"ok": False, "error": "expired"}), 410
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"ok": False, "error": "Invalid display report."}), 400
+    index, revision, deck_revision = (payload.get(key) for key in ("current_index", "revision", "deck_revision"))
+    if (any(type(value) is not int for value in (index, revision, deck_revision))
+        or not 0 <= index < int(live.get("slide_count") or 0)
+        or not 0 <= revision <= int(live.get("revision") or 0)
+        or not 0 <= deck_revision <= int(live.get("deck_revision") or 0)
+        or any(type(payload.get(key)) is not bool for key in ("blank", "clear_words", "started"))):
+        return jsonify({"ok": False, "error": "Invalid display report."}), 400
+    rate = check_rate_limit("worship:display", f"{session_id}:{get_client_ip()}", limit=1800, window_seconds=3600)
+    if not rate.allowed:
+        return jsonify({"ok": False, "error": "Too many display reports."}), 429
+    ack = {key: payload[key] for key in ("current_index", "revision", "deck_revision", "blank", "clear_words", "started")}
+    ack["seen_epoch"] = time.time()
+    scope = capability["scope"]
+    try:
+        # Update only acknowledgement fields; never advance or rewind a slide.
+        with _worship_live_lock:
+            if db:
+                _worship_live_ref_for_scope(scope).document(session_id).update({"display_ack": ack})
+            elif _is_local_storage_allowed():
+                stored = _worship_live_memory.get((scope, session_id))
+                if not stored or float(stored.get("expires_epoch") or 0) <= time.time():
+                    return jsonify({"ok": False, "error": "expired"}), 410
+                stored["display_ack"] = ack
+            else:
+                raise RuntimeError("Shared storage unavailable")
+            cached = _worship_live_state_cache.get((scope, session_id))
+            if cached:
+                cached[1]["display_ack"] = ack
+    except Exception:
+        app.logger.warning("worship display report storage unavailable")
+        return jsonify({"ok": False, "error": "Display report unavailable."}), 503
+    return jsonify({"ok": True})
+
+
 @app.route("/worship/live/present/<session_id>", methods=["GET"])
 def worship_live_presenter(session_id):
     if not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
@@ -7235,7 +7310,7 @@ def worship_live_presenter(session_id):
 
     control_token = request.cookies.get(_WORSHIP_LIVE_CONTROL_COOKIE, "").strip()
     remote_url = ""
-    if control_token:
+    if control_token and request.args.get("audience") != "1":
         try:
             control = _load_worship_live_token(control_token, required_role="control")
             if control["scope"] == capability["scope"] and control["session_id"] == capability["session_id"]:
@@ -7254,6 +7329,7 @@ def worship_live_presenter(session_id):
             live=live,
             session_id=session_id,
             remote_url=remote_url,
+            audience_only=request.args.get("audience") == "1",
             stage_url=(
                 url_for("worship_live_stage", session_id=session_id, _external=True)
                 + "#stage="
@@ -7366,7 +7442,9 @@ def worship_live_follow_qr(session_id):
 
 @app.route("/worship/live/state/<session_id>", methods=["GET"])
 def worship_live_state(session_id):
-    capability, live = _worship_live_capability_from_cookie(session_id, include_slides=False)
+    capability, live = _worship_live_capability_from_cookie(
+        session_id, "view" if request.args.get("role") == "view" else None, include_slides=False
+    )
     if not live and not re.fullmatch(r"[A-Za-z0-9_-]{20,48}", session_id):
         capability, live = _load_worship_live_request(session_id, include_slides=False)
     if not live:

@@ -53,12 +53,15 @@
       .wr-shell{padding-bottom:calc(82px + env(safe-area-inset-bottom))}.wr-preview{min-height:210px}
       .wr-nav{padding:5px;border-radius:16px}.wr-nav-context{display:none}.wr-btn{min-height:58px;font-size:1rem}.wr-next{font-size:1.15rem}
     }
+    .wr-monitor{grid-column:1/-1;border:1px solid #334155;border-radius:12px;padding:10px 12px;background:#0b1322;display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px}.wr-screen-state{font-weight:900;color:#5eead4;font-size:.9rem}.wr-screen-state[data-state="black"],.wr-screen-state[data-state="clear"]{color:#fcd34d}.wr-display-status{color:#94a3b8;font-size:.75rem;flex:1;min-width:180px}.wr-mode{border:1px solid #475569;border-radius:8px;background:#172235;color:#fff;padding:8px 10px;cursor:pointer;font-weight:700}.is-simple .wr-song-map,.is-simple .wr-follow,.is-simple .wr-help,.is-simple .wr-previous-preview{display:none}.is-simple .wr-neighbors{grid-template-columns:1fr}.is-simple .wr-nav{grid-template-columns:minmax(90px,.65fr) minmax(0,1.35fr)}
+    @media(min-width:900px){.wr-shell{grid-template-rows:auto auto minmax(0,1fr)}.wr-monitor{grid-row:2}.wr-output,.wr-controls{grid-row:3}.wr-offline{grid-column:1/-1}}
   </style>
 </head>
-<body>
+<body class="is-simple">
   <main class="wr-shell">
     <header class="wr-head"><h1 class="wr-title">{{ live.name }}</h1><span class="wr-status" id="wr-status">Connected</span></header>
-    <div class="wr-offline" id="wr-offline" role="alert" hidden>Audience not responding. Controls are paused on the last confirmed slide.</div>
+    <section class="wr-monitor" aria-label="Audience display status"><span class="wr-screen-state" id="wr-screen-state" role="status">LIVE</span><span class="wr-display-status" id="wr-display-status">Audience window not yet connected</span><button type="button" class="wr-mode" id="wr-mode" aria-pressed="false">Full controls</button></section>
+    <div class="wr-offline" id="wr-offline" role="alert" hidden>Session connection lost. Controls are paused on the last confirmed slide.</div>
     <div class="wr-output" aria-label="Audience output previews">
     <section class="wr-preview{% if live.blank %} is-blank{% endif %}" id="wr-preview" aria-live="polite" aria-label="Current slide. Swipe left for next or right for previous.">
       <div><div class="wr-kind" id="wr-kind"></div><div class="wr-audience-state" id="wr-audience-state"></div><h2 class="wr-song" id="wr-song"></h2><div class="wr-lines" id="wr-lines"></div><p class="wr-slide-meta" id="wr-slide-meta"></p><p class="wr-note" id="wr-note"></p></div>
@@ -70,7 +73,7 @@
     </div>
     </div>
     <div class="wr-controls" aria-label="Live worship controls">
-    <div class="wr-nav"><div class="wr-nav-context" id="wr-nav-context"></div><button class="wr-btn wr-prev" id="wr-previous" data-action="previous">← Previous</button><button class="wr-btn wr-next" id="wr-next" data-action="next">Next →</button></div>
+    <div class="wr-nav"><div class="wr-nav-context" id="wr-nav-context"></div><button class="wr-btn wr-prev" id="wr-previous" data-action="previous">← Back</button><button class="wr-btn wr-next" id="wr-next" data-action="next">Next →</button></div>
     <div class="wr-video-tools" id="wr-video-tools" aria-label="Video controls"><button class="wr-video-btn" data-video-action="video_play">▶ Play</button><button class="wr-video-btn" data-video-action="video_pause">Pause</button><button class="wr-video-btn" data-video-action="video_restart">Restart</button><button class="wr-video-btn" data-video-action="video_mute">Mute</button><button class="wr-video-btn" data-video-action="video_unmute">Sound</button></div>
     <section class="wr-song-map" aria-label="This song's sections"><div class="wr-sections" id="wr-sections" aria-label="Song sections"></div>
     <div class="wr-smart" aria-label="Quick live controls"><button class="wr-smart-btn" id="wr-chorus" data-smart="chorus">↩ Repeat chorus</button><button class="wr-smart-btn" id="wr-next-item" data-smart="next-item">Next item ⏭</button><button class="wr-smart-btn" id="wr-undo" disabled>↶ Undo jump</button></div></section>
@@ -101,6 +104,7 @@
     <p class="wr-help">Tap the previous or next slide preview, swipe the live slide, or use arrows, Page Up/Down, or Space. This remote expires automatically.</p>
     </div>
   </main>
+  <script src="{{ url_for('static', filename='js/worship-display-status.js') }}"></script>
   <script>
   (function(){
     var sessionId={{ session_id|tojson }};
@@ -147,7 +151,7 @@
     function updateNavigation(){
       var atStart=current<=0,atEnd=current>=slides.length-1;
       previousBtn.disabled=ended||offlineLocked||atStart;nextBtn.disabled=ended||offlineLocked||atEnd;previousPreview.disabled=ended||offlineLocked||atStart;nextPreview.disabled=ended||offlineLocked||atEnd;
-      previousBtn.textContent=atStart?'Start of set':'← Previous';nextBtn.textContent=atEnd?'End of set':'Next →';
+      previousBtn.textContent=atStart?'Start of set':'← Back';nextBtn.textContent=atEnd?'End of set':'Next →';
       previousPreview.setAttribute('aria-label',atStart?'Start of set':'Show previous slide');
       nextPreview.setAttribute('aria-label',atEnd?'End of set':'Show next slide');
     }
@@ -194,14 +198,15 @@
       document.getElementById('wr-song').textContent=slide.kind==='lyric'?'':(slide.title||'');
       document.getElementById('wr-lines').textContent=(slide.lines||[]).join('\n');
       slideMeta.textContent=slideMetaText(slide);slideMeta.style.display=slideMeta.textContent?'block':'none';applySlideVisual(preview,slide);
-      var note=slide.note||'';document.getElementById('wr-note').textContent=note;document.getElementById('wr-note').style.display=note?'block':'none';
+      var screenState=document.getElementById('wr-screen-state');screenState.textContent=blank?'BLACK SCREEN':clearWords?'WORDS CLEARED':'LIVE';screenState.dataset.state=blank?'black':clearWords?'clear':'live';
+      var note=slide.note||'';if(Number(slide.repeat_count)>1)note+=(note?' · ':'')+(slide.part_label||'Section')+' ×'+slide.repeat_count+' · hold this slide';document.getElementById('wr-note').textContent=note;document.getElementById('wr-note').style.display=note?'block':'none';
       videoTools.classList.toggle('is-visible',slide.kind==='video');
       navContext.textContent=itemContext(current)+' · '+(slide.title||'Slide')+(slide.kind==='lyric'&&slide.part_label?' · '+slide.part_label:'');
       progress.textContent=(current+1)+' / '+slides.length+' · '+(slide.title||'');jump.value=String(current);
       var prior=slides[current-1],upcoming=slides[current+1];previousPreview.classList.toggle('is-boundary',!prior);previousTitle.textContent=neighborTitle(prior);previousLines.textContent=neighborLines(prior,'Start of set');applySlideVisual(previousPreview,prior);nextPreview.classList.toggle('is-boundary',!upcoming);nextTitle.textContent=neighborTitle(upcoming);nextLines.textContent=neighborLines(upcoming,'End of set');applySlideVisual(nextPreview,upcoming);
       updateNavigation();updateSections();updateSmartButtons();updateStageStatus();syncEditForm();
     }
-    function connected(ok){offlineLocked=!ok;lockControls();statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?(pendingCommands?'Sending…':'Connected'):'Audience not responding';offlineAlert.hidden=ok;updateNavigation();updateSections();updateSmartButtons();syncEditForm();}
+    function connected(ok){offlineLocked=!ok;lockControls();if(!ok)document.getElementById('wr-display-status').textContent='Audience report unavailable while reconnecting';statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?(pendingCommands?'Sending…':'Session connected'):'Session reconnecting';offlineAlert.hidden=ok;updateNavigation();updateSections();updateSmartButtons();syncEditForm();}
     function requestWakeLock(showFailure){
       if(wakeLock)return;if(!('wakeLock'in navigator)){if(showFailure)awakeBtn.textContent='Not supported';return;}
       navigator.wakeLock.request('screen').then(function(lock){wakeLock=lock;awakeBtn.textContent='Screen stays awake';lock.addEventListener('release',function(){wakeLock=null;awakeBtn.textContent='Keep screen awake';});}).catch(function(){wakeLock=null;if(showFailure)awakeBtn.textContent='Could not enable';});
@@ -255,10 +260,14 @@
     document.getElementById('wr-split-slide').addEventListener('click',function(){send('split_slide',current,{split_after:Number(splitAfter.value)||0});});
     document.getElementById('wr-insert-scripture').addEventListener('click',function(){var title=document.getElementById('wr-scripture-title').value.trim(),version=document.getElementById('wr-scripture-version').value.trim(),text=document.getElementById('wr-scripture-text').value;if(!text.trim()){editStatus.textContent='Paste the authorized Scripture text first.';return;}send('insert_scripture',current,{title:title||'Scripture',version:version,lines:text.split(/\r?\n/)});});
     function schedulePoll(delay){clearTimeout(pollTimer);if(!ended&&document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
-    function endLocally(){ended=true;clearTimeout(pollTimer);if(wakeLock){var lock=wakeLock;wakeLock=null;lock.release().catch(function(){});}draw(current,true,clearWords);offlineAlert.hidden=true;statusEl.classList.add('is-offline');statusEl.textContent='Session ended';document.querySelectorAll('button,select,input,textarea').forEach(function(el){el.disabled=true;});}
-    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){var nextDeckRevision=Number(data.deck_revision)||0;if(nextDeckRevision>deckRevision){window.location.reload();return;}var nextRevision=Number(data.revision)||0;if(!sending&&nextRevision>=revision){revision=nextRevision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(!messageDirty&&document.activeElement!==stageMessageInput)stageMessageInput.value=stageMessage;confirmed={current:Number(data.current_index)||0,blank:!!data.blank,clearWords:!!data.clear_words};draw(confirmed.current,confirmed.blank,confirmed.clearWords);}connected(true);}else connected(false);schedulePoll(3000);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(3000);});}
+    function endLocally(){ended=true;clearTimeout(pollTimer);if(wakeLock){var lock=wakeLock;wakeLock=null;lock.release().catch(function(){});}draw(current,true,clearWords);document.getElementById('wr-screen-state').textContent='ENDED';offlineAlert.hidden=true;statusEl.classList.add('is-offline');statusEl.textContent='Session ended';document.querySelectorAll('button,select,input,textarea').forEach(function(el){el.disabled=true;});}
+    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){WorshipDisplayStatus(document.getElementById('wr-display-status'),data);var nextDeckRevision=Number(data.deck_revision)||0;if(nextDeckRevision>deckRevision){window.location.reload();return;}var nextRevision=Number(data.revision)||0;if(!sending&&nextRevision>=revision){revision=nextRevision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(!messageDirty&&document.activeElement!==stageMessageInput)stageMessageInput.value=stageMessage;confirmed={current:Number(data.current_index)||0,blank:!!data.blank,clearWords:!!data.clear_words};draw(confirmed.current,confirmed.blank,confirmed.clearWords);}connected(true);}else connected(false);schedulePoll(3000);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(3000);});}
     document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){requestWakeLock(false);poll();}else clearTimeout(pollTimer);});
     document.getElementById('wr-end').addEventListener('click',function(){if(ended||!window.confirm('End this Live Worship session for everyone?'))return;fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},credentials:'same-origin',body:JSON.stringify({action:'end'})}).then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error();endLocally();}).catch(function(){connected(false);});});
+    var modeButton=document.getElementById('wr-mode');
+    function setSimple(simple){document.body.classList.toggle('is-simple',simple);modeButton.textContent=simple?'Full controls':'Simple controls';modeButton.setAttribute('aria-pressed',simple?'false':'true');}
+    try{setSimple(localStorage.getItem('worship-remote-mode')!=='full');}catch(e){setSimple(true);}
+    modeButton.addEventListener('click',function(){var simple=!document.body.classList.contains('is-simple');setSimple(simple);try{localStorage.setItem('worship-remote-mode',simple?'simple':'full');}catch(e){}});
     stageMessageInput.value=stageMessage;draw(current,blank,clearWords);setInterval(updateStageStatus,500);poll();
     (function(){
       var copyBtn=document.getElementById('wr-follow-copy'),shareBtn=document.getElementById('wr-follow-share');
