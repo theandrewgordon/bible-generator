@@ -2027,6 +2027,25 @@ def normalize_worship_song(song: dict) -> dict:
 
     normalized["parts"] = parts
     normalized["arrangement"] = arrangement
+    # Manual slide breaks live beside the lyrics, so the lyric sheet, chord charts and
+    # validation keep reading clean parts. Out-of-range indices (lines edited elsewhere) drop.
+    raw_breaks = normalized.get("slide_breaks") if isinstance(normalized.get("slide_breaks"), dict) else {}
+    slide_breaks: dict[str, list[int]] = {}
+    for raw_name, raw_indices in raw_breaks.items():
+        part_name = _canonical_part_key(raw_name)
+        if part_name not in parts or not isinstance(raw_indices, list):
+            continue
+        valid = set()
+        for raw_index in raw_indices:
+            try:
+                index = int(raw_index)
+            except (TypeError, ValueError):
+                continue
+            if 0 < index < len(parts[part_name]):
+                valid.add(index)
+        if valid:
+            slide_breaks[part_name] = sorted(valid)
+    normalized["slide_breaks"] = slide_breaks
     raw_sources = normalized.get("sources") if isinstance(normalized.get("sources"), dict) else {}
     normalized["sources"] = {
         key: str(raw_sources.get(key) or "").strip()
@@ -3390,30 +3409,72 @@ def _is_causal_bridge_conclusion(lines: list[str]) -> bool:
     return normalized[0].startswith("because i know") and normalized[1].startswith(("he ", "you ", "god "))
 
 
+def _lyric_heuristic_width_units(text: str) -> float:
+    """Rough em-width estimate; only used for characters outside the Arial metric table."""
+    total = 0.0
+    for char in text:
+        if char == " ":
+            total += 0.30
+        elif char in "ilIjtfr.,'!:;|\"":
+            total += 0.28
+        elif char in "mwMW@%&":
+            total += 0.88
+        elif char.isupper():
+            total += 0.66
+        else:
+            total += 0.54
+    return total
+
+
+def _lyric_width_units(text: str) -> float:
+    """Bold Arial width in ems. Helvetica-Bold metrics (bundled with reportlab) match Arial Bold."""
+    try:
+        text.encode("cp1252")
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+        return stringWidth(text, "Helvetica-Bold", 1)
+    except Exception:
+        return _lyric_heuristic_width_units(text)
+
+
 def _lyric_font_size_for_width(lines: list[str], preferred_size: int) -> int:
     """Reduce type just enough to preserve authored lyric line breaks."""
-    def width_units(text: str) -> float:
-        total = 0.0
-        for char in text:
-            if char == " ":
-                total += 0.30
-            elif char in "ilIjtfr.,'!:;|\"":
-                total += 0.28
-            elif char in "mwMW@%&":
-                total += 0.88
-            elif char.isupper():
-                total += 0.66
-            else:
-                total += 0.54
-        return total
-
-    widest = max((width_units(line) for line in lines), default=0.0)
+    widest = max((_lyric_width_units(line) for line in lines), default=0.0)
     if not widest:
         return preferred_size
-    # The lyric box has roughly 860 usable points after its inner margins.
-    # A small safety factor accounts for PowerPoint/LibreOffice font metrics.
-    width_limited = int(860 / (widest * 1.08))
+    # The 12.333in lyric box has ~874pt inside its default insets. Metrics are exact,
+    # so keep only a small margin for renderer differences (PowerPoint/LibreOffice/Slides).
+    width_limited = int(860 / (widest * 1.04))
     return max(32, min(preferred_size, width_limited))
+
+
+def _part_text_to_lines_and_breaks(text: str) -> tuple[list[str], list[int]]:
+    """Editor textarea -> (lyric lines, slide-break indices). A blank line means "new slide"."""
+    lines: list[str] = []
+    breaks: list[int] = []
+    pending_break = False
+    for raw in str(text or "").splitlines():
+        line = raw.strip()
+        if not line:
+            pending_break = bool(lines)
+            continue
+        if pending_break:
+            breaks.append(len(lines))
+            pending_break = False
+        lines.append(line)
+    return lines, breaks
+
+
+def _part_lines_with_breaks(lines: list[str], breaks: list[int] | None) -> list[str]:
+    """Re-insert blank lines so chunk_lines() starts a new slide at each saved break."""
+    if not breaks:
+        return list(lines)
+    break_set = set(breaks)
+    out: list[str] = []
+    for index, line in enumerate(lines):
+        if index in break_set:
+            out.append("")
+        out.append(line)
+    return out
 
 
 def chunk_lines(lines: list[str]) -> list[dict]:
@@ -3744,6 +3805,29 @@ def _add_part_label(slide, label: str, font_color: RGBColor) -> None:
     if not label:
         return
     slide.notes_slide.notes_text_frame.text = label.upper()
+
+
+def add_worship_lyric_slides(prs: Presentation, normalized: dict, item_type: str = "song", song_bg: str | None = None) -> int:
+    """Add a song's lyric slides to a PPTX deck; returns the number added.
+
+    Live/Stage collapse adjacent repeats into one "x2 · hold" cue. A plain PowerPoint
+    has no cue, so emit one slide per repeat: the clicker just works.
+    """
+    added = 0
+    for part_name, slide in _iter_worship_lyric_chunks(normalized):
+        label = _worship_part_label(part_name)
+        repeats = max(1, int(slide.get("repeat_count", 1) or 1))
+        for repeat_index in range(1, repeats + 1):
+            create_content_slide(
+                prs,
+                slide["lines"],
+                item_type,
+                song_bg,
+                font_size=slide.get("font_size", 48),
+                part_label=f"{label} ({repeat_index} of {repeats})" if repeats > 1 else label,
+            )
+            added += 1
+    return added
 
 
 def create_content_slide(prs: Presentation, lines: list[str], item_type: str = "song", song_bg: str = None, font_size: int = 48, part_label: str = ""):
@@ -6610,7 +6694,8 @@ def _iter_worship_lyric_chunks(normalized: dict):
         part_lines = parts.get(part_name, [])
         if not isinstance(part_lines, list):
             continue
-        chunks = list(chunk_lines(part_lines))
+        breaks = (normalized.get("slide_breaks") or {}).get(part_name)
+        chunks = list(chunk_lines(_part_lines_with_breaks(part_lines, breaks)))
         # One size per section, so a reading or verse doesn't jump 40pt -> 48pt mid-way.
         section_size = min((int(chunk.get("font_size", 48) or 48) for chunk in chunks), default=48)
         for chunk in chunks:
@@ -7833,15 +7918,7 @@ def worship_build():
                 prs, normalized.get("title", ""), " | ".join(artist_bits), normalized.get("key", ""), item_type, song_bg,
                 credit=_worship_credit_line(normalized, ccli_license),
             )
-            for part_name, slide in _iter_worship_lyric_chunks(normalized):
-                create_content_slide(
-                    prs,
-                    slide["lines"],
-                    item_type,
-                    song_bg,
-                    font_size=slide.get("font_size", 48),
-                    part_label=_worship_part_label(part_name),
-                )
+            add_worship_lyric_slides(prs, normalized, item_type, song_bg)
 
         scripture_versions = [
             normalize_worship_song(item).get("version", "")
@@ -9089,14 +9166,20 @@ def worship_add():
             return redirect(url_for("worship_add", mode="manual"))
 
         parts = {}
+        slide_breaks = {}
         for name, lines_text in zip(part_names, part_lines_raw):
             name = _canonical_part_key(name)
             if not name:
                 continue
-            lines = [l.strip() for l in lines_text.splitlines() if l.strip()]
-            if lines:
-                existing = parts.setdefault(name, [])
-                existing.extend(line for line in lines if line not in existing)
+            lines, breaks = _part_text_to_lines_and_breaks(lines_text)
+            if not lines:
+                continue
+            if name not in parts:
+                parts[name] = lines
+                slide_breaks[name] = breaks
+            else:
+                # Same part typed twice: merge new lines only.
+                parts[name].extend(line for line in lines if line not in parts[name])
 
         arrangement = [a.strip() for a in arrangement_raw.split(",") if a.strip()]
 
@@ -9116,6 +9199,7 @@ def worship_add():
             "import_rights_confirmed_by": str(session.get("user_email") or ""),
             "import_rights_confirmed_church": str(session.get("worship_church_id") or ""),
             "parts": parts,
+            "slide_breaks": slide_breaks,
             "arrangement": arrangement,
         })
 
@@ -9616,7 +9700,8 @@ def worship_import_resource_chart(token, resource_id):
 def worship_preview_slides():
     """Return slide chunks for a block of lyric lines as JSON (used by live preview UI)."""
     lines_text = request.json.get("lines", "") if request.is_json else request.form.get("lines", "")
-    lines = [l for l in str(lines_text).splitlines() if l.strip()]
+    # Keep blank lines: chunk_lines() treats them as manual slide breaks.
+    lines = str(lines_text).splitlines()
     slides = chunk_lines(lines)
     return jsonify({"slides": slides})
 
@@ -9792,13 +9877,15 @@ def worship_edit(song_id):
             return redirect(url_for("worship_edit", song_id=song_id))
 
         parts = {}
+        slide_breaks = {}
         for name, lines_text in zip(part_names, part_lines_raw):
             name = name.strip()
             if not name:
                 continue
-            lines = [l.strip() for l in lines_text.splitlines() if l.strip()]
+            lines, breaks = _part_text_to_lines_and_breaks(lines_text)
             if lines:
                 parts[name] = lines
+                slide_breaks[name] = breaks
 
         arrangement = [a.strip() for a in arrangement_raw.split(",") if a.strip()]
 
@@ -9810,6 +9897,7 @@ def worship_edit(song_id):
             "type": song_type,
             "background": background,
             "parts": parts,
+            "slide_breaks": slide_breaks,
             "arrangement": arrangement,
         })
         # Only overwrite credit fields when the form sends them (older forms don't).

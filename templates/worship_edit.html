@@ -137,6 +137,7 @@
     </div>
 
     <p class="wa-section-label">Parts</p>
+    <p class="small muted">Slide breaks are automatic. To force a new slide, leave a blank line between lyric lines.</p>
     <div id="parts-list"></div>
     <button type="button" id="add-part-btn" class="wa-btn-ghost">+ Add Part</button>
 
@@ -388,7 +389,7 @@ var SONG_DATA = {{ song | tojson }};
     var textarea = document.createElement('textarea');
     textarea.name = 'part_lines';
     textarea.rows = 4;
-    textarea.placeholder = 'One lyric line per line';
+    textarea.placeholder = 'One lyric line per line. Blank line = new slide.';
     textarea.className = 'wa-input';
     if (defaultLines) textarea.value = defaultLines;
 
@@ -476,20 +477,28 @@ var SONG_DATA = {{ song | tojson }};
 
   // Seed from SONG_DATA
   var parts = SONG_DATA.parts || {};
+  var slideBreaks = SONG_DATA.slide_breaks || {};
+  // Saved manual slide breaks show as blank lines in the editor.
+  function partText(name) {
+    var breaks = slideBreaks[name] || [];
+    return (parts[name] || []).map(function (line, i) {
+      return (breaks.indexOf(i) >= 0 ? '\n' : '') + line;
+    }).join('\n');
+  }
   var arrangement = SONG_DATA.arrangement || [];
   var seeded = {};
 
   // Parts in arrangement order first
   arrangement.forEach(function (name) {
     if (parts[name] && !seeded[name]) {
-      addPart(name, (parts[name] || []).join('\n'));
+      addPart(name, partText(name));
       seeded[name] = true;
     }
   });
   // Any orphan parts not in arrangement
   Object.keys(parts).forEach(function (name) {
     if (!seeded[name]) {
-      addPart(name, (parts[name] || []).join('\n'));
+      addPart(name, partText(name));
     }
   });
   // Seed arrangement order chips
