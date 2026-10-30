@@ -10,6 +10,7 @@ can keep Scripture separate from any optional creative assistance:
   * Public-domain translations (KJV, WEB, ASV, ...) -> bible-api.com (no key,
     free to reproduce).
   * ESV -> api.esv.org when ESV_API_KEY is set (licensed; attribution required).
+  * NLT -> api.nlt.to (Tyndale) when NLT_API_KEY is set (licensed; 500 verses/request).
   * Other translations (NLT, CSB, ...) -> scripture.api.bible when API_BIBLE_KEY
     and a version->bibleId mapping (API_BIBLE_IDS) are set (licensed).
 
@@ -21,6 +22,7 @@ from __future__ import annotations
 
 import json
 import os
+from html.parser import HTMLParser
 import re
 import time
 from urllib.parse import quote
@@ -59,7 +61,7 @@ TRANSLATIONS = {
     "nlt": {
         "code": "NLT",
         "name": "New Living Translation",
-        "source": "API.Bible",
+        "source": "NLT API or API.Bible",
         "licensed": True,
     },
 }
@@ -86,7 +88,7 @@ def available_translation_ids() -> set[str]:
     api_ids = _api_bible_ids()
     if os.getenv("ESV_API_KEY", "").strip() or (api_key and api_ids.get("esv")):
         available.add("esv")
-    if api_key and api_ids.get("nlt"):
+    if os.getenv("NLT_API_KEY", "").strip() or (api_key and api_ids.get("nlt")):
         available.add("nlt")
     return available
 
@@ -215,6 +217,62 @@ def _fetch_esv(reference: str) -> str | None:
     return passages[0] if passages else None
 
 
+class _NltVerseText(HTMLParser):
+    """Collect verse words from api.nlt.to HTML, skipping verse numbers, footnotes and headings."""
+
+    _SKIP_CLASSES = {"vn", "tn", "a-tn", "subhead", "chapter-number", "bk_ch_vs_header"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self.verses = 0
+        self._in_verse = 0
+        self._stack: list[bool] = []  # per open tag: does it start a skipped region?
+        self._skipping = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "verse_export":
+            self._in_verse += 1
+            self.verses += 1
+        classes = set((dict(attrs).get("class") or "").split())
+        skip = tag in {"h1", "h2", "h3", "h4"} or bool(classes & self._SKIP_CLASSES)
+        if tag in {"br", "img", "hr", "meta", "link"}:
+            return  # void elements never close
+        self._stack.append(skip)
+        if skip:
+            self._skipping += 1
+
+    def handle_endtag(self, tag):
+        if tag == "verse_export":
+            self._in_verse = max(0, self._in_verse - 1)
+            self.parts.append(" ")
+        if self._stack and self._stack.pop():
+            self._skipping = max(0, self._skipping - 1)
+
+    def handle_data(self, data):
+        if self._in_verse and not self._skipping:
+            self.parts.append(data)
+
+
+def _parse_nlt_html(html: str) -> str | None:
+    parser = _NltVerseText()
+    parser.feed(html or "")
+    parser.close()
+    text = _clean("".join(parser.parts))
+    return text if parser.verses and text else None
+
+
+def _fetch_nlt(reference: str) -> str | None:
+    """Tyndale's NLT API (https://api.nlt.to). HTML response; we keep only the verse words."""
+    key = os.getenv("NLT_API_KEY", "").strip()
+    if not key:
+        return None
+    url = "https://api.nlt.to/api/passages?version=NLT&ref=" + quote(reference) + "&key=" + quote(key)
+    req = Request(url, headers={"User-Agent": "FaithSparksPrintables/1.0"})
+    with urlopen(req, timeout=_TIMEOUT) as resp:
+        return _parse_nlt_html(resp.read(600_000).decode("utf-8", errors="replace"))
+
+
 def _fetch_api_bible(reference: str, bible_id: str) -> str | None:
     key = os.getenv("API_BIBLE_KEY", "").strip()
     if not key:
@@ -263,9 +321,12 @@ def fetch_verse_text(reference: str, version: str) -> str | None:
                 if bible_id:
                     text = _fetch_api_bible(reference, bible_id)
         else:
-            bible_id = _api_bible_ids().get(version)
-            if bible_id:
-                text = _fetch_api_bible(reference, bible_id)
+            if version == "nlt":
+                text = _fetch_nlt(reference)
+            if not text:
+                bible_id = _api_bible_ids().get(version)
+                if bible_id:
+                    text = _fetch_api_bible(reference, bible_id)
     except Exception:
         text = None
 

@@ -157,7 +157,42 @@ def fetch_checked_text(reference: str, version: str) -> str | None:
     cached = _cached(reference, version)
     if cached:
         return cached
+    verse_refs = _single_chapter_verses(reference)
+    if verse_refs:
+        return _fetch_by_verse(verse_refs, version)
+    return _fetch_one(reference, version, code)
 
+
+# A long passage in one AI reply gets cut off mid-quote (truncated JSON).
+# Quote ranges verse by verse instead: each verse is short, cached on its own,
+# and cross-checked against the same WEB/KJV verse, which is a stricter check.
+MAX_VERSES_PER_PASSAGE = 40
+_RANGE_RE = re.compile(r"^(?P<book>.+?)\s+(?P<chapter>\d+):(?P<start>\d+)-(?P<end>\d+)$")
+
+
+def _single_chapter_verses(reference: str) -> list[str]:
+    """'Philippians 4:1-9' -> ['Philippians 4:1', ..., 'Philippians 4:9']; [] for anything else."""
+    match = _RANGE_RE.match(reference)
+    if not match:
+        return []
+    start, end = int(match["start"]), int(match["end"])
+    if not 1 <= start < end or end - start + 1 > MAX_VERSES_PER_PASSAGE:
+        return []
+    return [f"{match['book']} {match['chapter']}:{verse}" for verse in range(start, end + 1)]
+
+
+def _fetch_by_verse(verse_refs: list[str], version: str) -> str | None:
+    code = CHECKED_VERSIONS[version]
+    quotes = []
+    for verse_ref in verse_refs:
+        quote = _cached(verse_ref, version) or _fetch_one(verse_ref, version, code)
+        if not quote:
+            return None  # one unverified verse fails the whole passage
+        quotes.append(quote)
+    return " ".join(quotes)
+
+
+def _fetch_one(reference: str, version: str, code: str) -> str | None:
     from faithsparks.services.scripture import fetch_verse_text
 
     web, kjv = fetch_verse_text(reference, "web"), fetch_verse_text(reference, "kjv")

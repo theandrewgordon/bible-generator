@@ -23,6 +23,8 @@ services:
         sync: false
       - key: ESV_API_KEY
         sync: false
+      - key: NLT_API_KEY
+        sync: false
       - key: API_BIBLE_KEY
         sync: false
       - key: API_BIBLE_IDS
