@@ -118,8 +118,21 @@ def _store(reference: str, version: str, text: str, overlap: float, model: str) 
         log.warning("scripture_checked cache write failed", exc_info=True)
 
 
+_WRAPPING_QUOTES = (('"', '"'), ("“", "”"))
+
+
 def _clean_quote(text: str) -> str:
-    text = re.sub(r"\s+", " ", str(text or "")).strip().strip('"“”')
+    """Tidy an AI quote without changing Scripture's own punctuation.
+
+    Only a matched pair of quotation marks wrapping the whole reply is removed;
+    a lone opening mark (ESV John 3:16 begins “For God so loved…) is the text's own.
+    """
+    text = re.sub(r"\s+", " ", str(text or "")).strip()
+    for opening, closing in _WRAPPING_QUOTES:
+        inner = text[len(opening):-len(closing)] if len(text) > 1 else ""
+        if text.startswith(opening) and text.endswith(closing) and opening not in inner and closing not in inner:
+            text = inner.strip()
+            break
     return re.sub(r"^\d{1,3}\s+", "", text)  # a leading verse number
 
 

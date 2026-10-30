@@ -803,6 +803,18 @@ def _compact_cookie_session() -> tuple[int, int, list[str]]:
 
 
 @app.after_request
+def clear_worship_caches_after_write(response):
+    """Any worship change (songs, services, members, churches) clears the Plan page caches.
+
+    Live remote taps are excluded: they never change the library and must stay fast.
+    """
+    path = request.path or ""
+    if request.method == "POST" and path.startswith("/worship") and not path.startswith("/worship/live/"):
+        _clear_all_worship_caches()
+    return response
+
+
+@app.after_request
 def compact_oversized_cookie_session(response):
     before, after, removed = _compact_cookie_session()
     if removed:
@@ -1229,7 +1241,35 @@ _DEFAULT_WORSHIP_SCOPE = "default"
 _worship_seeded = False
 # Per-scope cache: {scope_id: {"data": list[dict], "ts": float}}
 _worship_songs_cache: dict[str, dict] = {}
-_WORSHIP_CACHE_TTL = 10.0  # seconds; short because each gunicorn worker caches separately
+_WORSHIP_CACHE_TTL = 10.0  # seconds when several workers each keep their own copy
+_WORSHIP_SINGLE_PROCESS_CACHE_TTL = 300.0  # one worker: every write clears it, so it can't go stale
+_worship_page_cache: dict[tuple, tuple[float, object]] = {}
+
+
+def _worship_cache_ttl() -> float:
+    """Long cache only when one process serves everything (render.yaml: WEB_CONCURRENCY=1)."""
+    if os.getenv("WEB_CONCURRENCY", "").strip() == "1":
+        return _WORSHIP_SINGLE_PROCESS_CACHE_TTL
+    return _WORSHIP_CACHE_TTL
+
+
+def _worship_cached(kind: str, key: str, loader):
+    """Per-process read cache for the Plan page. Returns a copy so callers can't mutate it."""
+    import copy
+
+    now = time.monotonic()
+    entry = _worship_page_cache.get((kind, key))
+    if entry and now - entry[0] < _worship_cache_ttl():
+        return copy.deepcopy(entry[1])
+    value = loader()
+    _worship_page_cache[(kind, key)] = (now, value)
+    return copy.deepcopy(value)
+
+
+def _clear_all_worship_caches() -> None:
+    global _worship_songs_cache
+    _worship_songs_cache = {}
+    _worship_page_cache.clear()
 _WORSHIP_MOBILE_TOKEN_TTL = 24 * 60 * 60
 _WORSHIP_MOBILE_TOKEN_SALT = "worship-mobile-v1"
 _WORSHIP_MUSICIAN_TOKEN_TTL = 8 * 60 * 60
@@ -1446,6 +1486,12 @@ def legal_accept():
 def _load_worship_churches() -> list[dict]:
     if not (db and session.get("user_email")):
         return []
+    return _worship_cached("churches", str(session["user_email"]).casefold(), _load_worship_churches_uncached)
+
+
+def _load_worship_churches_uncached() -> list[dict]:
+    if not (db and session.get("user_email")):
+        return []
     email = session["user_email"]
     memberships: list[dict] = []
     try:
@@ -1604,6 +1650,7 @@ def _seed_worship_from_files() -> None:
 def _invalidate_worship_cache(scope: str | None = None) -> None:
     """Drop the cached song list for one scope (default: the current one)."""
     global _worship_songs_cache
+    _worship_page_cache.clear()
     if scope is None:
         try:
             scope = _current_worship_scope()
@@ -1631,7 +1678,7 @@ def list_worship_songs() -> list[dict]:
     now = time.monotonic()
     scope = _current_worship_scope()
     entry = _worship_songs_cache.get(scope)
-    if entry and (now - entry["ts"]) < _WORSHIP_CACHE_TTL:
+    if entry and (now - entry["ts"]) < _worship_cache_ttl():
         return entry["data"]
 
     if db:
@@ -2755,6 +2802,7 @@ _WORSHIP_LIVE_STATE_FIELDS = (
     "stage_message", "stage_timer_mode", "stage_timer_started_epoch", "stage_timer_duration",
     "video_action", "video_revision", "deck_revision", "revision", "created_by",
     "created_at", "updated_at", "expires_epoch", "display_ack",
+    "audience_timer", "loop_seconds", "loop_started_epoch", "loop_indices",
 )
 
 
@@ -2882,6 +2930,25 @@ def _normalize_worship_live_lines(value, *, max_lines: int) -> list[str]:
     return cleaned
 
 
+_WORSHIP_LOOP_DEFAULT_SECONDS = 8
+_WORSHIP_LOOP_NAV_ACTIONS = {"next", "previous", "first", "last", "index"}
+
+
+def _worship_loop_slide(data: dict, now: float | None = None) -> int | None:
+    """Slide the announcement loop is showing right now, or None when no loop runs.
+
+    Every screen computes this from the same three fields and the clock, so a
+    running loop costs no writes and stays in step without polling faster.
+    """
+    indices = [int(i) for i in (data.get("loop_indices") or []) if isinstance(i, (int, float))]
+    seconds = int(data.get("loop_seconds") or 0)
+    started = float(data.get("loop_started_epoch") or 0)
+    if seconds <= 0 or not indices or started <= 0:
+        return None
+    elapsed = max(0.0, (time.time() if now is None else now) - started)
+    return indices[int(elapsed // seconds) % len(indices)]
+
+
 def _next_worship_live_state(
     data: dict,
     action: str,
@@ -2906,7 +2973,32 @@ def _next_worship_live_state(
     video_action = str(data.get("video_action") or "")
     video_revision = max(0, int(data.get("video_revision") or 0))
     deck_revision = max(0, int(data.get("deck_revision") or 0))
-    if action == "next":
+    audience_timer = bool(data.get("audience_timer"))
+    loop_seconds = int(data.get("loop_seconds") or 0)
+    loop_started_epoch = float(data.get("loop_started_epoch") or 0)
+    loop_indices = [int(i) for i in (data.get("loop_indices") or []) if isinstance(i, (int, float))]
+    looping_at = _worship_loop_slide(data)
+    if looping_at is not None and action in _WORSHIP_LOOP_NAV_ACTIONS | {"loop_stop"}:
+        # Taking control stops the loop where it is, so Next continues from what people see.
+        index = max(0, min(slide_count - 1, looping_at))
+        loop_seconds, loop_started_epoch, loop_indices = 0, 0.0, []
+    if action == "loop_start":
+        loop_indices = [
+            i for i, slide in enumerate(slides)
+            if slide.get("kind") == "service" and slide.get("type") != "scripture"
+        ]
+        if len(loop_indices) < 2:
+            raise ValueError("Add at least two welcome or announcement slides to loop them.")
+        loop_seconds = max(3, min(120, int(duration or _WORSHIP_LOOP_DEFAULT_SECONDS)))
+        loop_started_epoch = time.time()
+        index = loop_indices[0]
+        blank = False
+        clear_words = False
+    elif action == "loop_stop":
+        pass  # handled above
+    elif action == "toggle_audience_timer":
+        audience_timer = not audience_timer
+    elif action == "next":
         index = min(slide_count - 1, index + 1)
     elif action == "previous":
         index = max(0, index - 1)
@@ -3028,6 +3120,10 @@ def _next_worship_live_state(
         "video_action": video_action,
         "video_revision": video_revision,
         "deck_revision": deck_revision,
+        "audience_timer": audience_timer,
+        "loop_seconds": loop_seconds,
+        "loop_started_epoch": loop_started_epoch,
+        "loop_indices": loop_indices,
         "revision": int(data.get("revision") or 0) + 1,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -3045,8 +3141,18 @@ def _worship_live_state_write(updated: dict) -> dict:
         "video_action": updated["video_action"],
         "video_revision": updated["video_revision"],
         "deck_revision": updated["deck_revision"],
+        **_worship_live_extra_fields(updated),
         "revision": updated["revision"],
         "updated_at": firestore.SERVER_TIMESTAMP,
+    }
+
+
+def _worship_live_extra_fields(updated: dict) -> dict:
+    return {
+        "audience_timer": bool(updated.get("audience_timer")),
+        "loop_seconds": int(updated.get("loop_seconds") or 0),
+        "loop_started_epoch": float(updated.get("loop_started_epoch") or 0),
+        "loop_indices": list(updated.get("loop_indices") or []),
     }
 
 
@@ -3089,7 +3195,7 @@ def _update_worship_live_session(
 ) -> dict:
     if db:
         ref = _worship_live_ref_for_scope(scope).document(session_id)
-        deck_action = action in {"edit_slide", "split_slide", "insert_scripture"}
+        deck_action = action in {"edit_slide", "split_slide", "insert_scripture", "loop_start"}
         if _worship_live_hot() and not deck_action:
             return _update_worship_live_session_hot(
                 scope, session_id, ref, action, requested_index,
@@ -3123,6 +3229,7 @@ def _update_worship_live_session(
                 "video_action": updated["video_action"],
                 "video_revision": updated["video_revision"],
                 "deck_revision": updated["deck_revision"],
+                **_worship_live_extra_fields(updated),
                 "revision": updated["revision"],
                 "updated_at": firestore.SERVER_TIMESTAMP,
             }
@@ -3162,7 +3269,18 @@ def _public_worship_live_state(data: dict, *, include_stage: bool = False) -> di
         "video_action": str(data.get("video_action") or ""),
         "video_revision": max(0, int(data.get("video_revision") or 0)),
         "deck_revision": max(0, int(data.get("deck_revision") or 0)),
+        "audience_timer": bool(data.get("audience_timer")),
+        "loop_seconds": int(data.get("loop_seconds") or 0),
+        "loop_started_epoch": float(data.get("loop_started_epoch") or 0),
+        "loop_indices": [int(i) for i in (data.get("loop_indices") or []) if isinstance(i, (int, float))],
     }
+    if include_stage or state["audience_timer"]:
+        # The audience screen gets the timer only when the leader chose to show it.
+        state.update({
+            "stage_timer_mode": str(data.get("stage_timer_mode") or ""),
+            "stage_timer_started_epoch": float(data.get("stage_timer_started_epoch") or 0),
+            "stage_timer_duration": max(0, int(data.get("stage_timer_duration") or 0)),
+        })
     if include_stage:
         state.update({
             "display_ack": dict(data.get("display_ack") or {}),
@@ -3296,6 +3414,11 @@ def _touch_worship_songs_last_used(song_ids: list[str], date_label: str) -> None
 
 
 def _load_recent_setlists() -> list[dict]:
+    """Return all setlists, newest first (cached; any worship POST clears it)."""
+    return _worship_cached("setlists", _current_worship_scope(), _load_recent_setlists_uncached)
+
+
+def _load_recent_setlists_uncached() -> list[dict]:
     """Return all setlists, newest first."""
     if db:
         try:
@@ -4299,6 +4422,14 @@ def worship_church_ccli():
 
 def _worship_church_members() -> list[dict]:
     """Members of the current church library (owner view only)."""
+    scope = _current_worship_scope()
+    # The owner check stays outside the cache so a member is never served the owner's list.
+    if not db or scope == _DEFAULT_WORSHIP_SCOPE or not _worship_can_edit(owner_only=True):
+        return []
+    return _worship_cached("members", scope, _worship_church_members_uncached)
+
+
+def _worship_church_members_uncached() -> list[dict]:
     scope = _current_worship_scope()
     if not db or scope == _DEFAULT_WORSHIP_SCOPE or not _worship_can_edit(owner_only=True):
         return []
@@ -7614,9 +7745,9 @@ def worship_live_control(session_id):
             return jsonify({"ok": False, "error": "Invalid slide index."}), 400
     message = str((payload or {}).get("message") or "") if action == "set_message" else None
     duration = None
-    if action == "timer_countdown":
+    if action in {"timer_countdown", "loop_start"}:
         try:
-            duration = int((payload or {}).get("duration") or 300)
+            duration = int((payload or {}).get("duration") or (300 if action == "timer_countdown" else _WORSHIP_LOOP_DEFAULT_SECONDS))
         except (TypeError, ValueError):
             return jsonify({"ok": False, "error": "Invalid timer duration."}), 400
     lines = (payload or {}).get("lines") if action in {"edit_slide", "insert_scripture"} else None

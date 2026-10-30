@@ -72,6 +72,8 @@
       else if(upcoming&&upcoming.title){next.appendChild(el('b','','Up next'));next.appendChild(document.createTextNode(upcoming.title));}
     }
     function setStatus(ok){statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ended?'Ended':ok?'Following':'Reconnecting…';}
+    var followLoop={seconds:0,started:0,indices:[],offset:0};
+    setInterval(function(){var l=followLoop;if(ended||!l.seconds||!l.indices.length||!l.started)return;var looped=l.indices[Math.floor(Math.max(0,Date.now()/1000+l.offset-l.started)/l.seconds)%l.indices.length];if(looped!==current&&looped<slides.length){current=looped;render();}},500);
     function schedule(delay){clearTimeout(pollTimer);if(!ended&&document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
     function poll(){
       fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'})
@@ -80,6 +82,7 @@
           if(!data.ok)throw new Error('offline');
           if((Number(data.deck_revision)||0)>deckRevision){window.location.reload();return;}
           var nextRevision=Number(data.revision)||0;
+          followLoop={seconds:Number(data.loop_seconds)||0,started:Number(data.loop_started_epoch)||0,indices:(data.loop_indices||[]).map(Number),offset:data.server_epoch?Number(data.server_epoch)-Date.now()/1000:0};
           if(nextRevision>=revision){revision=nextRevision;var changed=current!==data.current_index||blank!==data.blank||clearWords!==data.clear_words;current=Math.max(0,Math.min(slides.length-1,Number(data.current_index)||0));blank=!!data.blank;clearWords=!!data.clear_words;if(changed)render();}
           failures=0;setStatus(true);schedule(1500);
         })
