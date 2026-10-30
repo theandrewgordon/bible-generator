@@ -83,3 +83,13 @@ def test_song_without_breaks_is_unchanged():
     assert song["slide_breaks"] == {}
     chunks = [chunk["lines"] for _, chunk in app._iter_worship_lyric_chunks(song)]
     assert chunks == [["Line one", "Line two", "Line three", "Line four"]]
+
+
+def test_video_times_accept_seconds_or_minutes():
+    assert app._parse_video_seconds("90") == 90
+    assert app._parse_video_seconds("1:30") == 90
+    assert app._parse_video_seconds("1:02:03") == 3723
+    assert app._parse_video_seconds("") == 0
+    assert app._parse_video_seconds("abc") == 0
+    assert app._parse_video_seconds("-5") == 0
+

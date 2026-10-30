@@ -8113,16 +8113,26 @@ _WORSHIP_SCRIPTURE_VERSIONS = {
 }
 
 
-def _worship_scripture_version_options() -> list[dict[str, str]]:
-    """Only advertise translations backed by an authoritative live source.
+def _parse_video_seconds(value) -> int:
+    """'90', '1:30' or '1:02:03' -> seconds; anything else -> 0."""
+    text = str(value or "").strip()
+    if not text:
+        return 0
+    try:
+        total = 0
+        for part in text.split(":")[-3:]:
+            total = total * 60 + int(float(part or 0))
+        return max(0, total)
+    except ValueError:
+        return 0
 
-    Permission/attribution language does not provide verse text. Public-domain
-    WEB/KJV are always available; copyrighted translations appear only when
-    their configured provider credentials are present.
-    """
+
+def _worship_scripture_version_options() -> list[dict[str, str]]:
+    """Same translations Copywork offers: WEB/KJV always; ESV/NLT via a licensed key
+    or, without one, the checked-AI path (SCRIPTURE_AI_CHECKED=0 turns that off)."""
     return [
         {"id": option["id"], "label": option["code"]}
-        for option in scripture_translation_options(include_unavailable=False)
+        for option in scripture_translation_options(include_unavailable=False, include_checked=True)
     ]
 
 
@@ -8157,19 +8167,13 @@ def _build_quick_worship_scripture(reference: str, version: str) -> dict:
         raise ValueError("Choose WEB, KJV, ESV, or NLT. Enter other translations manually.")
     if not reference or not re.search(r"\d+\s*:\s*\d+", reference):
         raise ValueError("Enter a Bible reference such as John 3:16–17.")
-    from faithsparks.services.scripture import fetch_verse_text
+    from faithsparks.services.scripture import fetch_copywork_verse_text
 
-    text = fetch_verse_text(reference, version)
+    text = fetch_copywork_verse_text(reference, version)
     if not text:
-        if version in {"esv", "nlt"} and version not in {
-            option["id"] for option in _worship_scripture_version_options()
-        }:
-            raise RuntimeError(
-                f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} is temporarily unavailable. "
-                "Paste the exact text your church is permitted to use with Manual Entry instead."
-            )
         raise RuntimeError(
-            f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} is temporarily unavailable. Try WEB or KJV."
+            f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} text for {reference} couldn't be found or verified right now. "
+            "Try WEB or KJV, or use Paste your own text with the exact wording your church is permitted to use."
         )
     text = re.sub(r"\s+", " ", str(text)).strip()[:6000]
     lines = _worship_scripture_lines(text)
@@ -8394,8 +8398,8 @@ def worship_video_add():
         flash("Give the video a title for the service order.", "warning")
         return redirect(url_for("worship_add", mode="video"))
     try:
-        start = max(0, int(request.form.get("video_start") or 0))
-        end = max(0, int(request.form.get("video_end") or 0))
+        start = _parse_video_seconds(request.form.get("video_start"))
+        end = _parse_video_seconds(request.form.get("video_end"))
     except (TypeError, ValueError):
         flash("Video start and end must be seconds.", "warning")
         return redirect(url_for("worship_add", mode="video"))
@@ -8437,8 +8441,8 @@ def worship_video_edit(video_item_id):
             flash("A title and valid HTTPS YouTube link are required.", "warning")
             return redirect(url_for("worship_video_edit", video_item_id=video_item_id))
         try:
-            start = max(0, int(request.form.get("video_start") or 0))
-            end = max(0, int(request.form.get("video_end") or 0))
+            start = _parse_video_seconds(request.form.get("video_start"))
+            end = _parse_video_seconds(request.form.get("video_end"))
         except (TypeError, ValueError):
             flash("Video start and end must be seconds.", "warning")
             return redirect(url_for("worship_video_edit", video_item_id=video_item_id))

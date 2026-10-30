@@ -169,6 +169,18 @@ class WorshipBuilderUiTests(unittest.TestCase):
         self.assertNotIn('name="rights_confirmed"', html)
         self.assertIn('aria-label="Choose what to add"', self._render_add("unknown"))
 
+    def test_add_chooser_also_offers_scripture_and_presentation(self):
+        html = self._render_add()
+        self.assertIn("/worship?add=scripture", html)
+        self.assertIn("/worship/presentation/import", html)
+
+    def test_import_help_link_only_on_chooser_and_import(self):
+        link = "How to import a song from a webpage"
+        self.assertIn(link, self._render_add())
+        self.assertIn(link, self._render_add("import"))
+        for mode in ("manual", "slide", "video"):
+            self.assertNotIn(link, self._render_add(mode))
+
     def test_add_forms_are_isolated_and_keep_rights_acknowledgments(self):
         expected = {
             "import": ('action="/worship/add/parse"', "Faith Sparks does not grant lyric or chart rights"),

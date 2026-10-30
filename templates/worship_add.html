@@ -75,7 +75,7 @@
 {% block content %}
 <div class="wa-workspace">
 <h1>{{ page_titles.get(add_mode, 'Add to Worship') }}</h1>
-<p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a> · <a href="{{ url_for('worship_song_import_getting_started') }}">How to import a song from a webpage</a></p>
+<p class="muted small"><a href="{{ url_for('worship') }}">← Back to Worship</a>{% if add_mode in (none, '', 'import') %} · <a href="{{ url_for('worship_song_import_getting_started') }}">How to import a song from a webpage</a>{% endif %}</p>
 
 {% if not add_mode %}
 <p class="muted">What would you like to add?</p>
@@ -84,6 +84,8 @@
   <a class="wa-choice" href="{{ url_for('worship_add', mode='manual') }}"><strong>Write a song manually</strong><p>Enter lyric parts and arrange their order.</p></a>
   <a class="wa-choice" href="{{ url_for('worship_add', mode='slide') }}"><strong>Add a service slide</strong><p>Create a welcome, announcement, or photo slide.</p></a>
   <a class="wa-choice" href="{{ url_for('worship_add', mode='video') }}"><strong>Add a YouTube video</strong><p>Add a video with optional start and stop times.</p></a>
+  <a class="wa-choice" href="{{ url_for('worship', add='scripture') }}"><strong>Add Scripture</strong><p>Find a passage or paste your own text, then add it to this service.</p></a>
+  <a class="wa-choice" href="{{ url_for('worship_presentation_import') }}"><strong>Import a presentation</strong><p>Bring in a pastor's PowerPoint or PDF slides.</p></a>
 </nav>
 {% endif %}
 
@@ -143,7 +145,7 @@
   <form method="post" action="{{ url_for('worship_video_add') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="wa-row"><div class="wa-field"><label class="wa-label" for="worship-add-title-2">Service title *</label><input id="worship-add-title-2" class="wa-input" name="title" required placeholder="Mission trip video"></div><div class="wa-field"><label class="wa-label" for="worship-add-video-url">YouTube link *</label><input id="worship-add-video-url" class="wa-input" type="url" name="video_url" required placeholder="https://youtu.be/..."></div></div>
-    <div class="wa-row"><div class="wa-field"><label class="wa-label" for="worship-add-video-start">Start at (seconds)</label><input id="worship-add-video-start" class="wa-input" type="number" min="0" name="video_start" value="0"></div><div class="wa-field"><label class="wa-label" for="worship-add-video-end">Stop at (seconds, optional)</label><input id="worship-add-video-end" class="wa-input" type="number" min="0" name="video_end"></div></div>
+    <div class="wa-row"><div class="wa-field"><label class="wa-label" for="worship-add-video-start">Start at (seconds or m:ss)</label><input id="worship-add-video-start" class="wa-input" type="text" inputmode="numeric" placeholder="90 or 1:30" name="video_start" value="0"></div><div class="wa-field"><label class="wa-label" for="worship-add-video-end">Stop at (optional)</label><input id="worship-add-video-end" class="wa-input" type="text" inputmode="numeric" placeholder="90 or 1:30" name="video_end"></div></div>
     <button class="wa-btn-primary" type="submit">Save Video Item</button>
   </form>
 </div>

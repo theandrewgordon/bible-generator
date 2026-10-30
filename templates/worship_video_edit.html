@@ -9,8 +9,8 @@
     <label><strong>Service title</strong><input name="title" required value="{{ item.title }}" style="display:block;width:100%;box-sizing:border-box;padding:.7rem;margin-top:.3rem"></label>
     <label><strong>YouTube link</strong><input type="url" name="video_url" required value="{{ item.video_url }}" style="display:block;width:100%;box-sizing:border-box;padding:.7rem;margin-top:.3rem"></label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-      <label><strong>Start (seconds)</strong><input type="number" min="0" name="video_start" value="{{ item.video_start }}" style="display:block;width:100%;box-sizing:border-box;padding:.7rem;margin-top:.3rem"></label>
-      <label><strong>End (seconds)</strong><input type="number" min="0" name="video_end" value="{{ item.video_end or '' }}" style="display:block;width:100%;box-sizing:border-box;padding:.7rem;margin-top:.3rem"></label>
+      <label><strong>Start (seconds or m:ss)</strong><input type="text" inputmode="numeric" placeholder="90 or 1:30" name="video_start" value="{{ item.video_start }}" style="display:block;width:100%;box-sizing:border-box;padding:.7rem;margin-top:.3rem"></label>
+      <label><strong>End (optional)</strong><input type="text" inputmode="numeric" placeholder="90 or 1:30" name="video_end" value="{{ item.video_end or '' }}" style="display:block;width:100%;box-sizing:border-box;padding:.7rem;margin-top:.3rem"></label>
     </div>
     <button type="submit" style="padding:.75rem;background:var(--primary);color:#fff;border:0;border-radius:9px;font-weight:800">Save video</button>
   </form>
