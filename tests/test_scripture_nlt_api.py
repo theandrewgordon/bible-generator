@@ -88,3 +88,21 @@ def test_old_ai_checked_worksheet_cache_upgrades_to_licensed_text(monkeypatch):
     assert payload["fullVerse"] == "Licensed NLT words."
     assert payload["verseSource"] == "authoritative"
     store.assert_called_once()
+
+
+def test_esv_notice_matches_crossway_permission_exactly():
+    """Crossway permission #19964 (Feb 2026) specifies this notice verbatim."""
+    from faithsparks.pdf_notices import scripture_notice_texts
+    [(code, text)] = scripture_notice_texts(["ESV"])
+    assert text == (
+        "Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), © 2001 by "
+        "Crossway, a publishing ministry of Good News Publishers. ESV Text Edition: 2025. The ESV text may not "
+        "be quoted in any publication made available to the public by a Creative Commons license. The ESV may "
+        "not be translated in whole or in part into any other language. Used by permission. All rights reserved."
+    )
+
+
+def test_nlt_notice_uses_copyright_symbol():
+    from faithsparks.pdf_notices import scripture_notice_texts
+    [(code, text)] = scripture_notice_texts(["NLT"])
+    assert "copyright ©1996, 2004, 2015 by Tyndale House Foundation" in text
