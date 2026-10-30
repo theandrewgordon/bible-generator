@@ -164,6 +164,17 @@ def _clean(text) -> str:
     return re.sub(r"\s+", " ", str(text or "")).strip()
 
 
+_DASHES = re.compile(r"\s*[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D-]\s*")
+
+
+def lookup_reference(reference: str) -> str:
+    """Reference as Bible APIs expect it: en/em dashes and minus signs become '-'.
+
+    Mac and iOS auto-replace "1-9" with "1–9"; bible-api.com answers 404 for that.
+    """
+    return _DASHES.sub("-", _clean(reference))
+
+
 def _has_letter_suffix(reference: str) -> bool:
     # e.g. "John 3:16a" / "Romans 8:28b" — a clause split an API can't do reliably.
     return bool(re.search(r":\d+\s*[ab]\b", reference) or re.search(r"\b\d+[ab]\b", reference))
@@ -229,7 +240,7 @@ def _fetch_api_bible(reference: str, bible_id: str) -> str | None:
 def fetch_verse_text(reference: str, version: str) -> str | None:
     """Authoritative verse text for reference+version, or None. Never raises."""
     version = (version or "").strip().lower()
-    reference = _clean(reference)
+    reference = lookup_reference(reference)
     if not reference or not version or _has_letter_suffix(reference):
         return None
 

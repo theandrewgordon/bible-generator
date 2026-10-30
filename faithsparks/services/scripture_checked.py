@@ -149,7 +149,9 @@ def fetch_checked_text(reference: str, version: str) -> str | None:
     """Checked AI quote for ESV/NLT, or None (fail closed). Never raises."""
     version = (version or "").strip().lower()
     code = CHECKED_VERSIONS.get(version)
-    reference = re.sub(r"\s+", " ", reference or "").strip()
+    from faithsparks.services.scripture import lookup_reference
+
+    reference = lookup_reference(reference)  # same cache key and lookup for "1–9" and "1-9"
     if not code or not reference or not enabled():
         return None
     cached = _cached(reference, version)
