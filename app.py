@@ -703,6 +703,8 @@ def load_user_info():
         if "user_info" not in session:
             try:
                 resp = google.get("/oauth2/v1/userinfo")
+                if not resp.ok:
+                    app.logger.warning("auth: userinfo refresh failed path=%s status=%s", request.path, resp.status_code)
                 if resp.ok:
                     raw_google_info = resp.json()
                     google_info = raw_google_info if isinstance(raw_google_info, dict) else {}
@@ -722,6 +724,7 @@ def load_user_info():
                     _refresh_owned_packs(session["user_email"])
             except Exception:
                 # Token expired or revoked — clear session so user is prompted to re-auth
+                app.logger.warning("auth: dropped identity path=%s reason=userinfo_error", request.path, exc_info=True)
                 session.pop("user_info", None)
                 session.pop("user_email", None)
                 session.pop("user_owned_packs", None)
@@ -735,6 +738,11 @@ def load_user_info():
                 if session["user_info"].get(key)
             }
     else:
+        if session.get("user_email"):
+            app.logger.warning(
+                "auth: dropped identity path=%s reason=token_unavailable has_handle=%s",
+                request.path, bool(session.get(_GOOGLE_SIGNIN_TOKEN_SESSION_KEY)),
+            )
         session.pop("user_info", None)
         session.pop("user_email", None)
         session.pop("user_owned_packs", None)
@@ -3242,6 +3250,21 @@ def _delete_worship_setlist(setlist_id: str) -> bool:
             except Exception:
                 pass
     return deleted
+
+
+def _worship_local_today() -> str:
+    """Today's date in the planner's time zone (``fs_tz`` cookie from the browser), else UTC.
+
+    Render runs in UTC, so a Saturday-evening build in the US would otherwise be dated Sunday.
+    """
+    from zoneinfo import ZoneInfo
+
+    tz_name = (request.cookies.get("fs_tz", "") if has_request_context() else "").strip()[:64]
+    try:
+        zone = ZoneInfo(tz_name) if re.fullmatch(r"[A-Za-z0-9_+\-/]{1,64}", tz_name) else timezone.utc
+    except Exception:
+        zone = timezone.utc
+    return datetime.now(zone).date().isoformat()
 
 
 def _touch_worship_songs_last_used(song_ids: list[str], date_label: str) -> None:
@@ -7808,7 +7831,7 @@ def worship_export_lyric_sheet():
         return redirect(url_for("worship"))
 
     mobile_url = _worship_mobile_url(selected_items)
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = _worship_local_today()
     pdf = _build_worship_lyric_sheet_pdf(selected_items, mobile_url)
     return send_file(
         pdf,
@@ -7951,7 +7974,7 @@ def worship_build():
         flash("The slides could not be built. Check imported presentations and photos, then try again.", "error")
         return redirect(url_for("worship"))
 
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = _worship_local_today()
     if _worship_can_edit():
         try:
             _record_worship_deck_build(selected_items)
@@ -8160,23 +8183,80 @@ def _worship_scripture_lines(text: str, max_chars: int = 58) -> list[str]:
     return lines
 
 
+_SCRIPTURE_SLIDE_MAX_CHARS = 170  # about four 42-character lines
+_SCRIPTURE_LINE_CHARS = 42  # fits the slide at ~36pt bold, no re-wrapping in PowerPoint
+
+
+def _worship_scripture_slide_lines(text: str) -> tuple[list[str], list[int]]:
+    """Scripture -> (wrapped lines, slide-break indices).
+
+    Packs whole sentences onto each slide so a slide never ends mid-sentence,
+    then wraps each slide's text. A sentence too long for one slide splits at
+    ; : or , and only then at a word boundary.
+    """
+    text = re.sub(r"\s+", " ", str(text or "")).strip()
+    if not text:
+        return [], []
+    pieces: list[str] = []
+    for sentence in (c for c in re.split(r"(?<=[.!?])\s+", text) if c):
+        clauses = [sentence] if len(sentence) <= _SCRIPTURE_SLIDE_MAX_CHARS else re.split(r"(?<=[;:,])\s+", sentence)
+        for clause in clauses:
+            _split_long_scripture_clause(clause, pieces)
+    slides: list[str] = []
+    current = ""
+    for piece in pieces:
+        candidate = f"{current} {piece}".strip()
+        if current and len(candidate) > _SCRIPTURE_SLIDE_MAX_CHARS:
+            slides.append(current)
+            current = piece
+        else:
+            current = candidate
+    if current:
+        slides.append(current)
+    lines: list[str] = []
+    breaks: list[int] = []
+    for slide_text in slides:
+        if lines:
+            breaks.append(len(lines))
+        lines.extend(_worship_scripture_lines(slide_text, _SCRIPTURE_LINE_CHARS))
+    return lines, breaks
+
+
+def _split_long_scripture_clause(clause: str, pieces: list[str]) -> None:
+    """Append a clause, cutting at word boundaries only if it can't fit one slide."""
+    clause = clause.strip()
+    while len(clause) > _SCRIPTURE_SLIDE_MAX_CHARS:
+        cut = clause.rfind(" ", 0, _SCRIPTURE_SLIDE_MAX_CHARS)
+        cut = cut if cut > 0 else _SCRIPTURE_SLIDE_MAX_CHARS
+        pieces.append(clause[:cut].strip())
+        clause = clause[cut:].strip()
+    if clause:
+        pieces.append(clause)
+
+
 def _build_quick_worship_scripture(reference: str, version: str) -> dict:
     reference = normalize_reference_title(re.sub(r"\s+", " ", str(reference or "")).strip())[:80]
     version = str(version or "web").strip().lower()
     if version not in _WORSHIP_SCRIPTURE_VERSIONS:
         raise ValueError("Choose WEB, KJV, ESV, or NLT. Enter other translations manually.")
-    if not reference or not re.search(r"\d+\s*:\s*\d+", reference):
-        raise ValueError("Enter a Bible reference such as John 3:16–17.")
+    if not reference or not re.search(r"[A-Za-z]\.?\s*\d+", reference):
+        raise ValueError("Enter a Bible reference such as John 3:16–17 or Psalm 23.")
     from faithsparks.services.scripture import fetch_copywork_verse_text
 
     text = fetch_copywork_verse_text(reference, version)
     if not text:
+        code = _WORSHIP_SCRIPTURE_VERSIONS[version]
+        if version in {"web", "kjv"}:
+            raise RuntimeError(f"{code} text for {reference} couldn't be found. Check the reference and try again.")
         raise RuntimeError(
-            f"{_WORSHIP_SCRIPTURE_VERSIONS[version]} text for {reference} couldn't be found or verified right now. "
+            f"{code} text for {reference} couldn't be found or verified right now. "
             "Try WEB or KJV, or use Paste your own text with the exact wording your church is permitted to use."
         )
-    text = re.sub(r"\s+", " ", str(text)).strip()[:6000]
-    lines = _worship_scripture_lines(text)
+    text = re.sub(r"\s+", " ", str(text)).strip()
+    if len(text) > 6000:
+        # Never cut Scripture off mid-passage on a projector.
+        raise ValueError("That passage is too long for one reading. Choose a shorter range, such as Psalm 119:1–16.")
+    lines, breaks = _worship_scripture_slide_lines(text)
     if not lines:
         raise RuntimeError("That passage did not return any displayable text.")
     return normalize_worship_song({
@@ -8185,6 +8265,7 @@ def _build_quick_worship_scripture(reference: str, version: str) -> dict:
         "version": _WORSHIP_SCRIPTURE_VERSIONS[version],
         "type": "scripture",
         "parts": {"reading": lines},
+        "slide_breaks": {"reading": breaks},
         "arrangement": ["reading"],
     })
 
@@ -8204,7 +8285,7 @@ def _build_manual_worship_scripture(reference: str, version_label: str, text: st
         raise ValueError("That Scripture text is too long. Keep it under 6,000 characters.")
     if not _boolish(rights_confirmed):
         raise ValueError("Confirm that you may use this text and that you checked its wording.")
-    lines = _worship_scripture_lines(text)
+    lines, breaks = _worship_scripture_slide_lines(text)
     if not lines:
         raise ValueError("That text did not contain any displayable Scripture.")
     digest = hashlib.sha256(f"{reference}|{version_label}|{text}".encode("utf-8")).hexdigest()[:10]
@@ -8214,6 +8295,7 @@ def _build_manual_worship_scripture(reference: str, version_label: str, text: st
         "version": version_label,
         "type": "scripture",
         "parts": {"reading": lines},
+        "slide_breaks": {"reading": breaks},
         "arrangement": ["reading"],
         "scripture_text_source": "user_supplied",
         "import_rights_confirmed": True,
@@ -8303,7 +8385,12 @@ def worship_scripture_preview():
         return jsonify({"ok": False, "error": str(exc)}), 400
     except RuntimeError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 503
-    slides = [chunk["lines"] for chunk in chunk_lines(item["parts"]["reading"])]
+    slides = [
+        chunk["lines"]
+        for chunk in chunk_lines(_part_lines_with_breaks(
+            item["parts"]["reading"], (item.get("slide_breaks") or {}).get("reading")
+        ))
+    ]
     return jsonify({
         "ok": True,
         "title": item["title"],
@@ -10196,7 +10283,7 @@ def worship_setlist_save():
             "conflict": True,
             "error": "This service changed in another tab. Reload it before saving your changes.",
         }), 409
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = _worship_local_today()
     date_label = existing.get("date") if existing else today
     setlist_id = existing_id if existing else _worship_setlist_id(today, setlist_name)
     created_at = existing.get("created_at") if existing else ""
@@ -10269,7 +10356,7 @@ def worship_setlist_duplicate():
     existing = _get_worship_setlist(setlist_id)
     if not existing:
         return jsonify({"ok": False, "error": "Setlist not found"}), 404
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = _worship_local_today()
     base_name = existing.get("name") or existing.get("date") or setlist_id
     duplicate_name = duplicate_name or f"Copy of {base_name}"
     new_id = _make_unique_worship_setlist_id(today, duplicate_name)
