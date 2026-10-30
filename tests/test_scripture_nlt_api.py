@@ -56,3 +56,35 @@ def test_nlt_key_enables_nlt_and_is_used_first(monkeypatch):
 def test_without_nlt_key_nothing_is_called(monkeypatch):
     monkeypatch.delenv("NLT_API_KEY", raising=False)
     assert scripture._fetch_nlt("John 3:16") is None
+
+
+def test_copywork_worksheet_uses_nlt_api_before_ai_check(monkeypatch):
+    import verse_helpers
+    from faithsparks.services import scripture_checked
+
+    monkeypatch.setenv("NLT_API_KEY", "k")
+    scripture._cache.clear(); scripture._recent_misses.clear()
+    with mock.patch.object(scripture, "_fetch_nlt", return_value="Licensed NLT words.") as nlt, \
+            mock.patch.object(scripture_checked, "fetch_checked_text") as checked:
+        data = verse_helpers._apply_authoritative_text({"fullVerse": "AI words"}, "Romans 8:28", "nlt")
+    nlt.assert_called_once_with("Romans 8:28")
+    checked.assert_not_called()
+    assert data["fullVerse"] == "Licensed NLT words."
+    assert data["verseSource"] == "authoritative"
+
+
+def test_old_ai_checked_worksheet_cache_upgrades_to_licensed_text(monkeypatch):
+    """Worksheets cached before the key existed are re-sourced from the NLT API on next use."""
+    import json
+    import verse_helpers
+
+    monkeypatch.setenv("NLT_API_KEY", "k")
+    scripture._cache.clear(); scripture._recent_misses.clear()
+    old = {"verse": "Romans 8:28", "fullVerse": "Checked AI words", "verseSource": "ai_checked"}
+    with mock.patch.object(verse_helpers, "_load_cached_verse_data", return_value=old), \
+            mock.patch.object(verse_helpers, "_store_cached_verse_data") as store, \
+            mock.patch.object(scripture, "_fetch_nlt", return_value="Licensed NLT words."):
+        payload = json.loads(verse_helpers.request_verse_data("Romans 8:28", "nlt"))
+    assert payload["fullVerse"] == "Licensed NLT words."
+    assert payload["verseSource"] == "authoritative"
+    store.assert_called_once()
