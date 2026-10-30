@@ -174,3 +174,19 @@ class CheckedVerseByVerseTests(unittest.TestCase):
         ) as fetch_one:
             self.assertEqual(sc.fetch_checked_text("Philippians 4:1-2", "nlt"), "one two")
         fetch_one.assert_not_called()
+
+
+class CleanQuoteTests(unittest.TestCase):
+    def test_keeps_scriptures_own_opening_quote(self):
+        from faithsparks.services.scripture_checked import _clean_quote
+        self.assertEqual(_clean_quote("“For God so loved the world,"), "“For God so loved the world,")
+
+    def test_removes_quotes_wrapping_the_whole_reply(self):
+        from faithsparks.services.scripture_checked import _clean_quote
+        self.assertEqual(_clean_quote('"The Lord is my shepherd."'), "The Lord is my shepherd.")
+        self.assertEqual(_clean_quote("“The Lord is my shepherd.”"), "The Lord is my shepherd.")
+
+    def test_keeps_inner_quotes_and_strips_verse_number(self):
+        from faithsparks.services.scripture_checked import _clean_quote
+        self.assertEqual(_clean_quote('16 Jesus said, “Follow me.”'), "Jesus said, “Follow me.”")
+        self.assertEqual(_clean_quote('"Jesus said, “Follow me.”"'), "Jesus said, “Follow me.”")
