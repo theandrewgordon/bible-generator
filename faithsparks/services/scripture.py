@@ -95,7 +95,7 @@ def copywork_translation_ids() -> set[str]:
     """Translations printable on worksheets, games and lesson packs.
 
     Adds ESV/NLT through the AI-quote-plus-cross-check path when no licensed
-    key is set (see scripture_checked). Worship display stays authoritative-only.
+    key is set (see scripture_checked). Worship Quick Scripture uses the same rule.
     """
     from faithsparks.services import scripture_checked
 
@@ -118,6 +118,18 @@ def translation_options(*, include_unavailable: bool = True, include_checked: bo
             "available": version in available,
         })
     return options
+
+
+def fetch_copywork_verse_text(reference: str, version: str) -> str | None:
+    """Verse text only, under Copywork's licensing rule: licensed/public-domain source
+    first, then (ESV/NLT with no key) the AI quote cross-checked against WEB/KJV.
+    Fails closed (None). One cached AI call per verse ever; no worksheet generation."""
+    text = fetch_verse_text(reference, version)
+    if text:
+        return text
+    from faithsparks.services import scripture_checked
+
+    return scripture_checked.fetch_checked_text(reference, version)
 
 
 def fetch_copywork_text(reference: str, version: str, *, authoritative_fetch=None) -> str | None:

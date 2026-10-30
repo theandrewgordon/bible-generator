@@ -34,37 +34,40 @@ class WorshipQuickScriptureTests(unittest.TestCase):
                 item = app._build_quick_worship_scripture("John 3:16", version)
                 self.assertEqual(item["version"], label)
 
-    def test_reports_when_authoritative_text_is_unavailable(self):
-        with mock.patch("faithsparks.services.scripture.fetch_verse_text", return_value=None), mock.patch.dict(
-            "os.environ", {"ESV_API_KEY": "configured"}
+    def test_reports_when_no_verified_text_is_available(self):
+        with mock.patch("faithsparks.services.scripture.fetch_verse_text", return_value=None), mock.patch(
+            "faithsparks.services.scripture_checked.fetch_checked_text", return_value=None
         ):
-            with self.assertRaisesRegex(RuntimeError, "Try WEB or KJV"):
+            with self.assertRaisesRegex(RuntimeError, "Try WEB or KJV.*Paste your own text"):
                 app._build_quick_worship_scripture("John 3:16", "esv")
 
-    def test_picker_hides_copyrighted_versions_without_a_provider(self):
-        with mock.patch.dict("os.environ", {"ESV_API_KEY": "", "API_BIBLE_KEY": "", "API_BIBLE_IDS": ""}):
+    def test_esv_nlt_without_key_use_copywork_checked_text(self):
+        checked = "For God so loved the world, that he gave his only Son."
+        with mock.patch("faithsparks.services.scripture.fetch_verse_text", return_value=None), mock.patch(
+            "faithsparks.services.scripture_checked.fetch_checked_text", return_value=checked
+        ) as fetch_checked:
+            item = app._build_quick_worship_scripture("John 3:16", "esv")
+        fetch_checked.assert_called_once_with("John 3:16", "esv")
+        self.assertEqual(" ".join(item["parts"]["reading"]), checked)
+        self.assertEqual(item["version"], "ESV")
+
+    def test_licensed_key_takes_priority_over_checked_text(self):
+        with mock.patch("faithsparks.services.scripture.fetch_verse_text", return_value="Licensed text."), mock.patch(
+            "faithsparks.services.scripture_checked.fetch_checked_text"
+        ) as fetch_checked:
+            app._build_quick_worship_scripture("John 3:16", "nlt")
+        fetch_checked.assert_not_called()
+
+    def test_picker_matches_copywork_versions(self):
+        with mock.patch.dict("os.environ", {"ESV_API_KEY": "", "API_BIBLE_KEY": "", "API_BIBLE_IDS": "", "SCRIPTURE_AI_CHECKED": "1"}):
+            self.assertEqual([item["id"] for item in app._worship_scripture_version_options()], ["web", "kjv", "esv", "nlt"])
+
+    def test_picker_hides_esv_nlt_when_checked_path_is_off_and_no_key(self):
+        with mock.patch.dict("os.environ", {"ESV_API_KEY": "", "API_BIBLE_KEY": "", "API_BIBLE_IDS": "", "SCRIPTURE_AI_CHECKED": "0"}):
             self.assertEqual(app._worship_scripture_version_options(), [
                 {"id": "web", "label": "WEB"},
                 {"id": "kjv", "label": "KJV"},
             ])
-
-    def test_picker_enables_configured_authoritative_versions(self):
-        env = {
-            "ESV_API_KEY": "esv-key",
-            "API_BIBLE_KEY": "api-bible-key",
-            "API_BIBLE_IDS": "nlt:nlt-bible-id",
-        }
-        with mock.patch.dict("os.environ", env):
-            self.assertEqual([item["id"] for item in app._worship_scripture_version_options()], [
-                "web", "kjv", "esv", "nlt"
-            ])
-
-    def test_unconfigured_nlt_direct_request_explains_manual_entry(self):
-        with mock.patch("faithsparks.services.scripture.fetch_verse_text", return_value=None), mock.patch.dict(
-            "os.environ", {"API_BIBLE_KEY": "", "API_BIBLE_IDS": ""}
-        ):
-            with self.assertRaisesRegex(RuntimeError, "Manual Entry"):
-                app._build_quick_worship_scripture("John 1:1-2", "nlt")
 
     def test_builds_manual_scripture_without_changing_words(self):
         text = "In the beginning was the Word, and the Word was with God."

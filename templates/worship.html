@@ -340,7 +340,7 @@
         {% if song.key %} <span class="muted small">({{ song.key }})</span>{% endif %}
         {% if song.type and song.type != 'song' %} <span class="muted small">[{{ song.type }}]</span>{% endif %}
         {% if song.type == 'presentation' %}{% set visible_slide_count = song.presentation_slides|rejectattr('hidden')|list|length %}{% set enabled_point_count = song.highlight_suggestions|selectattr('enabled')|list|length %} <span class="muted small">· {{ visible_slide_count }} slide{% if visible_slide_count != 1 %}s{% endif %}{% if enabled_point_count %} + {{ enabled_point_count }} key point{% if enabled_point_count != 1 %}s{% endif %}{% endif %}</span>{% endif %}
-        {% if song.last_used %} <span class="muted small" style="margin-left:.25rem">· {{ song.last_used }}</span>{% endif %}
+        {% if song.last_used %} <span class="muted small" style="margin-left:.25rem;white-space:nowrap">· Last used {{ song.last_used }}</span>{% endif %}
         {% if worship_simple_mode or song.type == 'presentation' or song.type in ['welcome', 'announcement', 'photo', 'video'] %}
         {% elif song.validation is mapping and song.validation.status == 'verified' %}
         {% elif song.validation is mapping and song.validation.status in ['needs_review', 'unable', 'stale'] %}
@@ -824,6 +824,13 @@
     });
   }
   if (firstScriptureBtn && quickScriptureBtn) firstScriptureBtn.addEventListener('click', function () { quickScriptureBtn.click(); });
+  // Arriving from the Add menu: open Quick Scripture once, then drop the query so a refresh doesn't reopen it.
+  try {
+    if (quickScriptureBtn && new URLSearchParams(location.search).get('add') === 'scripture') {
+      history.replaceState(null, '', location.pathname);
+      quickScriptureBtn.click();
+    }
+  } catch (e) {}
 
   // ── Set draft persistence (per-library, per-tab session storage) ─────────
 
@@ -1611,7 +1618,8 @@
       var delBtn = e.target.closest('.setlist-chip-del');
       if (!delBtn) return;
       var setlistId = delBtn.dataset.id || delBtn.dataset.date;
-      var label = (delBtn.closest('.setlist-chip-wrap') || {}).textContent || delBtn.dataset.date;
+      var chip = (delBtn.closest('.setlist-chip-wrap') || document).querySelector('.setlist-chip');
+      var label = (chip && chip.textContent) || delBtn.dataset.date;
       if (!confirm('Delete setlist "' + label.trim() + '"?')) return;
       var fd = new FormData();
       fd.append('csrf_token', csrfToken);
