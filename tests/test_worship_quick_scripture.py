@@ -136,3 +136,41 @@ class ScriptureDashTests(unittest.TestCase):
         with mock.patch.object(scripture_checked, "_cached", return_value="Cached NLT.") as cached:
             self.assertEqual(scripture_checked.fetch_checked_text("Philippians 4:1–9", "nlt"), "Cached NLT.")
         cached.assert_called_once_with("Philippians 4:1-9", "nlt")
+
+
+class CheckedVerseByVerseTests(unittest.TestCase):
+    def test_range_is_split_into_single_verses(self):
+        from faithsparks.services import scripture_checked as sc
+        self.assertEqual(sc._single_chapter_verses("Philippians 4:6-8"),
+                         ["Philippians 4:6", "Philippians 4:7", "Philippians 4:8"])
+        self.assertEqual(sc._single_chapter_verses("John 3:16"), [])
+        self.assertEqual(sc._single_chapter_verses("Psalm 23"), [])
+        self.assertEqual(sc._single_chapter_verses("John 3:16-4:2"), [])
+        self.assertEqual(sc._single_chapter_verses("Psalm 119:1-176"), [])  # too long: not split
+
+    def test_range_quotes_each_verse_and_joins(self):
+        from faithsparks.services import scripture_checked as sc
+        seen = []
+        def one(ref, version, code):
+            seen.append(ref)
+            return f"[{ref}]"
+        with mock.patch.object(sc, "_cached", return_value=None), mock.patch.object(sc, "_fetch_one", side_effect=one):
+            text = sc.fetch_checked_text("Philippians 4:1–3", "nlt")
+        self.assertEqual(seen, ["Philippians 4:1", "Philippians 4:2", "Philippians 4:3"])
+        self.assertEqual(text, "[Philippians 4:1] [Philippians 4:2] [Philippians 4:3]")
+
+    def test_one_failed_verse_refuses_the_passage(self):
+        from faithsparks.services import scripture_checked as sc
+        with mock.patch.object(sc, "_cached", return_value=None), mock.patch.object(
+            sc, "_fetch_one", side_effect=["a", None, "c"]
+        ):
+            self.assertIsNone(sc.fetch_checked_text("Philippians 4:1-3", "nlt"))
+
+    def test_cached_verses_skip_the_ai(self):
+        from faithsparks.services import scripture_checked as sc
+        cache = {("Philippians 4:1", "nlt"): "one", ("Philippians 4:2", "nlt"): "two"}
+        with mock.patch.object(sc, "_cached", side_effect=lambda r, v: cache.get((r, v))), mock.patch.object(
+            sc, "_fetch_one"
+        ) as fetch_one:
+            self.assertEqual(sc.fetch_checked_text("Philippians 4:1-2", "nlt"), "one two")
+        fetch_one.assert_not_called()
