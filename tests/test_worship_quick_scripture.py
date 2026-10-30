@@ -116,3 +116,23 @@ Copyright © Publisher
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ScriptureDashTests(unittest.TestCase):
+    def test_lookup_reference_normalizes_dashes(self):
+        from faithsparks.services.scripture import lookup_reference
+        for ref in ("Philippians 4:1–9", "Philippians 4:1—9", "Philippians 4:1 – 9", "Philippians 4:1−9", "Philippians 4:1-9"):
+            self.assertEqual(lookup_reference(ref), "Philippians 4:1-9")
+
+    def test_fetch_uses_hyphen_for_en_dash_reference(self):
+        from faithsparks.services import scripture
+        scripture._cache.clear(); scripture._recent_misses.clear()
+        with mock.patch.object(scripture, "_fetch_bible_api", return_value="Text.") as api:
+            self.assertEqual(scripture.fetch_verse_text("Philippians 4:1–9", "web"), "Text.")
+        api.assert_called_once_with("Philippians 4:1-9", "web")
+
+    def test_checked_path_receives_normalized_reference(self):
+        from faithsparks.services import scripture_checked
+        with mock.patch.object(scripture_checked, "_cached", return_value="Cached NLT.") as cached:
+            self.assertEqual(scripture_checked.fetch_checked_text("Philippians 4:1–9", "nlt"), "Cached NLT.")
+        cached.assert_called_once_with("Philippians 4:1-9", "nlt")
