@@ -824,6 +824,11 @@
     });
   }
   if (firstScriptureBtn && quickScriptureBtn) firstScriptureBtn.addEventListener('click', function () { quickScriptureBtn.click(); });
+  // Dates like "Last used" follow the planner's clock, not the server's UTC day.
+  try {
+    var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) document.cookie = 'fs_tz=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; samesite=lax' + (location.protocol === 'https:' ? '; secure' : '');
+  } catch (e) {}
   // Arriving from the Add menu: open Quick Scripture once, then drop the query so a refresh doesn't reopen it.
   try {
     if (quickScriptureBtn && new URLSearchParams(location.search).get('add') === 'scripture') {
