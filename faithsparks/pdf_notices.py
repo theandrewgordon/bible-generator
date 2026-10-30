@@ -30,17 +30,17 @@ _NOTICE_TEXT = {
     "WEB": "Scripture quotations marked (WEB) are from the World English Bible (public domain).",
     "NLT": (
         "Scripture quotations marked (NLT) are taken from the Holy Bible, New Living Translation, "
-        "copyright (c)1996, 2004, 2015 by Tyndale House Foundation. Used by permission of Tyndale House "
+        "copyright ©1996, 2004, 2015 by Tyndale House Foundation. Used by permission of Tyndale House "
         "Publishers, Carol Stream, Illinois 60188. All rights reserved."
     ),
     "CSB": (
-        "Scripture quotations marked (CSB) have been taken from the Christian Standard Bible (R), "
-        "Copyright (c) 2017 by Holman Bible Publishers. Used by permission. Christian Standard Bible (R) "
-        "and CSB (R) are federally registered trademarks of Holman Bible Publishers."
+        "Scripture quotations marked (CSB) have been taken from the Christian Standard Bible®, "
+        "Copyright © 2017 by Holman Bible Publishers. Used by permission. Christian Standard Bible® "
+        "and CSB® are federally registered trademarks of Holman Bible Publishers."
     ),
     "ESV": (
-        "Scripture quotations are from the ESV (R) Bible (The Holy Bible, English Standard Version (R)), "
-        "(c) 2001 by Crossway, a publishing ministry of Good News Publishers. ESV Text Edition: 2025. "
+        "Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), "
+        "© 2001 by Crossway, a publishing ministry of Good News Publishers. ESV Text Edition: 2025. "
         "The ESV text may not be quoted in any publication made available to the public by a Creative "
         "Commons license. The ESV may not be translated in whole or in part into any other language. "
         "Used by permission. All rights reserved."
