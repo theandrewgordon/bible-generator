@@ -17,7 +17,7 @@
     .wl-title{margin:0;font-size:clamp(3.2rem,7.2vw,7.8rem);line-height:1.02;font-weight:800;max-width:16ch}
     .wl-meta{font-size:clamp(1.35rem,2.6vw,3rem);margin:1.2rem 0 0;font-weight:500}
     .wl-part{position:absolute;left:3.2vw;top:8vh;font-size:clamp(.9rem,1.25vw,1.35rem);font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#d1d5db;text-shadow:0 1px 8px #000;z-index:2}
-    .wl-lines{font-size:clamp(2.8rem,5.2vw,6.3rem);line-height:1.15;font-weight:800;white-space:pre-line;max-width:20ch;text-wrap:balance}
+    .wl-lines{font-size:clamp(2.8rem,5.2vw,6.3rem);line-height:1.15;font-weight:800;white-space:pre;max-width:100%;text-wrap:balance}.wl-lines.is-wrapped{white-space:pre-line}
     .wl-service-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
     .wl-service-split{position:absolute;inset:0;z-index:1;display:grid;grid-template-columns:1.15fr .85fr;background:#0f172a}.wl-service-split .wl-service-photo{position:relative;height:100%;min-width:0}.wl-service-split .wl-content{padding:5vh 3vw}
     .wl-presentation-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1}
@@ -138,12 +138,14 @@
       fitFrame=null;var slide=slides[current];if(!slide)return;
       var content=slide.querySelector('.wl-content');if(!content)return;
       var elements=Array.from(content.querySelectorAll('.wl-lines,.wl-title,.wl-service-lines'));
-      elements.forEach(function(el){el.style.removeProperty('font-size');});
+      elements.forEach(function(el){el.style.removeProperty('font-size');el.classList.remove('is-wrapped');});
       var sizes=elements.map(function(el){return parseFloat(getComputedStyle(el).fontSize)||32;});
       var style=getComputedStyle(slide),availableHeight=slide.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom),availableWidth=slide.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
       for(var tries=0;(content.scrollHeight>availableHeight+1||content.scrollWidth>availableWidth+1)&&tries<60;tries++){
         var changed=false;elements.forEach(function(el,index){var minimum=18;if(el.textContent&&sizes[index]>minimum){sizes[index]=Math.max(minimum,sizes[index]-2);el.style.fontSize=sizes[index]+'px';changed=true;}});if(!changed)break;
       }
+      // Authored lyric lines stay whole; only a line too long even at the smallest size may wrap.
+      if(content.scrollWidth>availableWidth+1)elements.forEach(function(el){if(el.classList.contains('wl-lines'))el.classList.add('is-wrapped');});
     }
     function queueFit(){if(fitFrame)cancelAnimationFrame(fitFrame);fitFrame=requestAnimationFrame(fitActiveSlide);}
 
