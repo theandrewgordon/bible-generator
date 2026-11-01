@@ -27,6 +27,14 @@
   .setlist-chip-wrap{border:1px solid #e2e8f0;border-radius:10px;padding:6px;background:var(--background);gap:3px;flex-wrap:wrap}
   .setlist-chip{border-radius:8px;text-align:left}
   .setlist-meta{flex-basis:100%;font-size:.74rem;color:var(--text-secondary);padding:0 7px}
+  .ws-saved-shared{font-weight:500;color:var(--text-secondary);font-size:.85rem}
+  .setlist-share-panel{flex-basis:100%;display:grid;gap:.6rem;margin:.1rem 0 .5rem;padding:.8rem .9rem;border:1px solid var(--border,#cbd5e1);border-radius:12px;background:var(--box)}
+  .setlist-share-panel .ssp-row{display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap}
+  .setlist-share-panel .ssp-row span{display:block;color:var(--text-secondary);font-size:.8rem}
+  .setlist-share-panel .ssp-btns{display:flex;gap:.4rem}
+  .setlist-share-panel button{border:1px solid var(--primary);background:none;color:var(--primary);border-radius:8px;padding:.35rem .7rem;font-weight:700;cursor:pointer}
+  .setlist-share-panel .ssp-url{width:100%;box-sizing:border-box;padding:.4rem;border:1px solid var(--border,#cbd5e1);border-radius:8px;font-size:.8rem}
+  .setlist-share-panel .ssp-status{margin:0;font-size:.8rem;color:var(--text-secondary);min-height:1em}
   .setlist-action{background:none;border:none;cursor:pointer;color:var(--text-secondary);font-size:.78rem;font-weight:700;padding:4px 6px;border-radius:6px}
   .setlist-action:hover{background:color-mix(in srgb, var(--primary) 8%, transparent);color:var(--primary)}
   .ws-reset-library{border:none;background:transparent;color:#b91c1c;cursor:pointer;font-size:.78rem;font-weight:800;padding:4px 0;white-space:nowrap}
@@ -375,7 +383,7 @@
 
 <!-- ── Saved Setlists ── -->
 <details class="ws-saved-sets">
-  <summary>Saved services <span class="ws-saved-count">{{ setlists|length }}</span></summary>
+  <summary>Saved services <span class="ws-saved-count">{{ setlists|length }}</span> <span class="ws-saved-shared">· shared with everyone in {{ worship_church.name or 'your church' }}</span></summary>
   <div style="margin-top:.75rem">
   <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
     <p class="ws-section-label" style="margin:0">Find a saved service</p>
@@ -386,7 +394,7 @@
     {% for sl in setlists %}
     <span class="setlist-chip-wrap">
       <button class="setlist-chip" data-id="{{ sl.id }}" data-date="{{ sl.date }}" data-name="{{ sl.name }}" data-updated="{{ sl.updated_at }}" data-count="{{ sl.song_count }}" data-songs='{{ sl.songs | tojson }}' data-notes='{{ sl.notes | tojson }}'>{{ sl.name or sl.date }}</button>
-      <button class="setlist-action setlist-mobile" data-id="{{ sl.id }}" title="Open mobile link">Mobile</button>
+      <button class="setlist-action setlist-mobile" data-id="{{ sl.id }}" title="Share this service">Share</button>
       {% if worship_church.role in ['owner', 'editor', 'member'] %}
       <button class="setlist-action setlist-rename" data-id="{{ sl.id }}" title="Rename setlist">Rename</button>
       <button class="setlist-action setlist-copy" data-id="{{ sl.id }}" title="Duplicate setlist">Copy</button>
@@ -967,6 +975,64 @@
     return false;
   }
 
+  // Share a saved service: lyrics for anyone (no sign-in), chord charts for church members.
+  var WORSHIP_CHURCH_NAME = {{ (worship_church.name or 'your church') | tojson }};
+  function requestMusicianUrl(setlistId) {
+    var fd = new FormData();
+    fd.append('csrf_token', csrfToken);
+    fd.append('worship_scope', WORSHIP_SCOPE);
+    fd.append('setlist_id', setlistId);
+    return fetch('/worship/musician-link', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          if (!response.ok || !data.ok) throw new Error(data.error || 'Could not create the chord chart link.');
+          return data.url;
+        });
+      });
+  }
+  function toggleSharePanel(wrap, setlistId) {
+    if (!wrap) return;
+    var open = wrap.nextElementSibling && wrap.nextElementSibling.classList.contains('setlist-share-panel') ? wrap.nextElementSibling : null;
+    document.querySelectorAll('.setlist-share-panel').forEach(function (panel) { panel.remove(); });
+    if (open) return;
+    var panel = document.createElement('div');
+    panel.className = 'setlist-share-panel';
+    panel.innerHTML =
+      '<div class="ssp-row"><div><strong>Lyrics</strong><span>Anyone with the link · no sign-in · works for 24 hours</span></div>' +
+      '<div class="ssp-btns"><button type="button" data-share="lyrics-copy">Copy link</button><button type="button" data-share="lyrics-open">Open</button></div></div>' +
+      '<div class="ssp-row"><div><strong>Chord charts</strong><span></span></div>' +
+      '<div class="ssp-btns"><button type="button" data-share="musician-copy">Copy link</button></div></div>' +
+      '<input class="ssp-url" readonly aria-label="Share link" hidden><p class="ssp-status" aria-live="polite"></p>';
+    panel.querySelectorAll('.ssp-row span')[1].textContent = WORSHIP_CHURCH_NAME + ' members only · sign-in required · works for 8 hours';
+    wrap.after(panel);
+    var urlBox = panel.querySelector('.ssp-url'), status = panel.querySelector('.ssp-status');
+    function show(url, message) {
+      urlBox.hidden = false; urlBox.value = url; status.textContent = message;
+    }
+    function copy(url, label) {
+      var done = function () { show(url, label + ' link copied. Paste it in a text or email.'); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(function () { show(url, 'Copy the link below.'); urlBox.select(); });
+      } else { show(url, 'Copy the link below.'); urlBox.select(); }
+    }
+    panel.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-share]');
+      if (!button) return;
+      var kind = button.dataset.share;
+      status.textContent = 'Making link…';
+      if (kind === 'musician-copy') {
+        requestMusicianUrl(setlistId).then(function (url) { copy(url, 'Chord chart'); })
+          .catch(function (error) { status.textContent = error.message; });
+        return;
+      }
+      var popup = kind === 'lyrics-open' ? window.open('about:blank', '_blank') : null;
+      requestMobileUrl([], setlistId).then(function (url) {
+        if (kind === 'lyrics-open') { if (popup) popup.location = url; else window.location.href = url; status.textContent = ''; }
+        else copy(url, 'Lyrics');
+      }).catch(function (error) { if (popup) popup.close(); status.textContent = error.message; });
+    });
+  }
+
   function requestMobileUrl(ids, setlistId) {
     var fd = new FormData();
     fd.append('csrf_token', csrfToken);
@@ -1526,7 +1592,8 @@
     var mobileBtn = wrap.querySelector('.setlist-mobile') || document.createElement('button');
     mobileBtn.type = 'button';
     mobileBtn.className = 'setlist-action setlist-mobile';
-    mobileBtn.textContent = 'Mobile';
+    mobileBtn.textContent = 'Share';
+    mobileBtn.title = 'Share this service';
     mobileBtn.dataset.id = id;
     var renameBtn = wrap.querySelector('.setlist-rename') || document.createElement('button');
     renameBtn.type = 'button';
@@ -1567,14 +1634,7 @@
       }
       var mobileBtn = e.target.closest('.setlist-mobile');
       if (mobileBtn) {
-        var popup = window.open('about:blank', '_blank');
-        requestMobileUrl([], mobileBtn.dataset.id).then(function (url) {
-          if (popup) popup.location = url;
-          else window.location.href = url;
-        }).catch(function () {
-          if (popup) popup.close();
-          alert('Could not create the mobile link.');
-        });
+        toggleSharePanel(mobileBtn.closest('.setlist-chip-wrap'), mobileBtn.dataset.id);
         return;
       }
       var renameBtn = e.target.closest('.setlist-rename');

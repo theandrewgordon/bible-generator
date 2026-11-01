@@ -42,3 +42,13 @@ def test_walkthrough_screenshots_are_real_1280x720_pngs_in_tour_order():
         data = (ROOT / "static" / "tutorials" / name).read_bytes()
         assert data.startswith(b"\x89PNG\r\n\x1a\n")
         assert struct.unpack(">II", data[16:24]) == (1280, 720)
+
+
+def test_saved_services_say_they_are_shared_and_offer_a_share_panel():
+    assert "shared with everyone in {{ worship_church.name" in TEMPLATE
+    assert 'title="Share this service">Share</button>' in TEMPLATE
+    assert "function toggleSharePanel" in TEMPLATE
+    # Lyrics go to anyone; chord charts stay church-private (the musician route requires sign-in).
+    assert "Anyone with the link · no sign-in · works for 24 hours" in TEMPLATE
+    assert "members only · sign-in required · works for 8 hours" in TEMPLATE
+    assert "/worship/musician-link" in TEMPLATE
