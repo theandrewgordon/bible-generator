@@ -690,6 +690,22 @@ def is_safe_url(target: str) -> bool:
     test = urlparse(urljoin(request.host_url, target))
     return (test.scheme in ("http", "https")) and (ref.netloc == test.netloc)
 
+def _drop_stale_google_signin(reason: str) -> None:
+    """Never leave someone half signed in (Google token kept, name and email gone).
+
+    That state shows the wrong worship library and refuses edits instead of
+    asking them to sign in. Deleting the stale token turns it into a normal
+    signed-out visit; Google remembers the account, so signing in is one click.
+    """
+    app.logger.warning("auth: signed out stale Google token path=%s reason=%s", request.path, reason)
+    try:
+        del google_bp.token
+    except Exception:
+        google_signin_token_storage.delete(google_bp)
+    for key in ("user_info", "user_email", "user_owned_packs"):
+        session.pop(key, None)
+
+
 @app.before_request
 def load_user_info():
     # When Flask-Dance blueprint handles /login/google*, capture ?next=...
@@ -705,6 +721,8 @@ def load_user_info():
                 resp = google.get("/oauth2/v1/userinfo")
                 if not resp.ok:
                     app.logger.warning("auth: userinfo refresh failed path=%s status=%s", request.path, resp.status_code)
+                    if resp.status_code in {400, 401, 403}:
+                        _drop_stale_google_signin("userinfo_rejected")
                 if resp.ok:
                     raw_google_info = resp.json()
                     google_info = raw_google_info if isinstance(raw_google_info, dict) else {}
@@ -722,9 +740,11 @@ def load_user_info():
                     session["user_email"] = session["user_info"].get("email")
                     session["clear_storage"] = True
                     _refresh_owned_packs(session["user_email"])
-            except Exception:
+            except Exception as exc:
                 # Token expired or revoked — clear session so user is prompted to re-auth
                 app.logger.warning("auth: dropped identity path=%s reason=userinfo_error", request.path, exc_info=True)
+                if type(exc).__name__ in {"TokenExpiredError", "InvalidGrantError", "InvalidTokenError"}:
+                    _drop_stale_google_signin("token_expired")
                 session.pop("user_info", None)
                 session.pop("user_email", None)
                 session.pop("user_owned_packs", None)
@@ -1616,35 +1636,63 @@ def _local_songs_dir() -> "Path":
     return folder
 
 
+# The default demo library (people who are not in a church yet) holds only
+# public-domain material, so nothing licensed is shown to everyone.
+_WORSHIP_DEMO_SONG_FILES = (
+    "holy-holy-holy-demo.json",
+    "come-thou-fount-demo.json",
+    "amazing-grace-demo.json",
+    "fairest-lord-jesus-demo.json",
+    "psalm-23-kjv-demo.json",
+)
+# Earlier demo items: two copyrighted songs and an unlabelled ESV reading.
+# Removed from the default demo library only, never from a church library.
+_WORSHIP_RETIRED_DEMO_IDS = ("holy-forever", "lord-of-hosts", "matthew-26-last-supper")
+
+
+def _load_worship_demo_songs() -> list[dict]:
+    folder = Path(app.root_path) / "songs"
+    songs = []
+    for name in _WORSHIP_DEMO_SONG_FILES:
+        try:
+            data = json.loads((folder / name).read_text(encoding="utf-8"))
+        except Exception as exc:
+            app.logger.warning("Worship demo song skipped %s: %s", name, exc)
+            continue
+        data["id"] = data.get("id") or Path(name).stem
+        songs.append(data)
+    return songs
+
+
 def _seed_worship_from_files() -> None:
-    """One-time per-process seed: load /songs/*.json into Firestore if collection is empty."""
+    """Once per process: keep the default demo library equal to the public-domain demo set."""
     global _worship_seeded
     if _worship_seeded:
         return
-    if not db or _current_worship_scope() != _DEFAULT_WORSHIP_SCOPE or not _worship_can_edit():
+    if not db or _current_worship_scope() != _DEFAULT_WORSHIP_SCOPE:
         return
     try:
-        if list(_worship_songs_ref().limit(1).stream()) or (
-            _current_worship_scope() == _DEFAULT_WORSHIP_SCOPE and list(_legacy_worship_songs_ref().limit(1).stream())
-        ):
-            _worship_seeded = True
-            return  # already has documents
-        songs_folder = Path(app.root_path) / "songs"
-        if not songs_folder.is_dir():
-            return
-        for fp in sorted(songs_folder.glob("*.json")):
-            try:
-                with open(fp, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                song_id = data.get("id") or fp.stem
-                data["id"] = song_id
-                _worship_songs_ref().document(song_id).set(data)
-                app.logger.info("Seeded worship song: %s", song_id)
-            except Exception as exc:
-                app.logger.warning("Worship seed skip %s: %s", fp.name, exc)
+        current_ref = _worship_songs_ref()
+        changed = False
+        for data in _load_worship_demo_songs():
+            doc = current_ref.document(data["id"])
+            snap = doc.get()
+            if not snap.exists or (snap.to_dict() or {}) != data:
+                doc.set(data)
+                changed = True
+                app.logger.info("Worship demo song synced: %s", data["id"])
+        for ref in (current_ref, _legacy_worship_songs_ref()):
+            for song_id in _WORSHIP_RETIRED_DEMO_IDS:
+                doc = ref.document(song_id)
+                if doc.get().exists:
+                    doc.delete()
+                    changed = True
+                    app.logger.info("Retired worship demo song removed: %s", song_id)
         _worship_seeded = True
+        if changed:
+            _invalidate_worship_cache(_DEFAULT_WORSHIP_SCOPE)
     except Exception as exc:
-        app.logger.warning("Worship seed failed: %s", exc)
+        app.logger.warning("Worship demo sync failed: %s", exc)
 
 
 def _invalidate_worship_cache(scope: str | None = None) -> None:
