@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>{% if reason == 'private' %}Private controller needed{% else %}Room not found{% endif %} · Faith Sparks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='bible_bee.css') }}?v={{ static_v|default(1) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='act_it_out.css') }}?v={{ static_v|default(1) }}">
+  </head>
+  <body class="bee-body join-body">
+    <main class="join-screen">
+      <a class="bee-brand centered" href="{{ url_for('act_it_out.family_game_night') }}">
+        <span class="faithsparks-wordmark">Faith<span>Sparks</span></span>
+        <strong>Family Game Night</strong>
+      </a>
+      <section class="join-card">
+        {% if reason == 'private' %}
+          <p class="room-label">Room {{ code }}</p>
+          <h1>Ask the host for the private phone invite</h1>
+          <p>This Family Game Night uses private controllers. The room code alone is not enough to join. Couch Play and Team Play pair from the host's screen with a one-time code.</p>
+          <p><a class="bee-button primary large full" href="/family-game-night/controller/{{ code }}">Enter the private pairing code</a></p>
+          <p>Have a different room code? Try it below.</p>
+        {% else %}
+          <h1>Room not found</h1>
+          <p>{% if code %}{{ code }} is not an open game room.{% else %}That code is not an open game room.{% endif %} Check the four characters with the host and try again. Rooms close when the game ends.</p>
+        {% endif %}
+        {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+        <form method="get" action="{{ join_lookup_path }}">
+          <label for="room-code">Room code</label>
+          <input id="room-code" name="code" maxlength="4" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" pattern="[A-Za-z0-9]{4}" placeholder="PLAY" required>
+          <button class="bee-button {% if reason == 'private' %}secondary{% else %}primary{% endif %}" type="submit">Try again</button>
+        </form>
+        <p><a href="{{ url_for('act_it_out.family_game_night') }}">Back to Family Game Night</a></p>
+      </section>
+    </main>
+  </body>
+</html>

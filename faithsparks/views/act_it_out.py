@@ -1747,6 +1747,47 @@ def player_avatar(code: str, player_id: str):
     abort(404)
 
 
+_JOIN_SLUGS = {"act-it-out", "draw-it"}
+
+
+def _join_slug_from_request() -> str:
+    return "draw-it" if "/draw-it/" in request.path else "act-it-out"
+
+
+def _join_prefix_from_request() -> str:
+    return "/church-games" if request.path.startswith("/church-games/") else "/group-games"
+
+
+def _render_join_status(code: str, reason: str, status: int, error: str | None = None):
+    slug = _join_slug_from_request()
+    if slug not in _JOIN_SLUGS:
+        slug = "act-it-out"
+    prefix = _join_prefix_from_request()
+    display_code = code if re.fullmatch(r"[A-Z0-9]{4}", code or "") else ""
+    return render_template(
+        "group_game_join_status.html",
+        code=display_code,
+        reason=reason,
+        error=error,
+        game_slug=slug,
+        join_lookup_path=f"{prefix}/{slug}/join",
+        noindex=True,
+    ), status
+
+
+def _unknown_room_response(code: str):
+    misses = check_rate_limit(
+        "room-code-miss",
+        get_client_ip(),
+        limit=120,
+        window_seconds=10 * 60,
+        local_only=True,
+    )
+    if not misses.allowed:
+        abort(429)
+    return _render_join_status(code, "missing", 404)
+
+
 def _render_join_page(code: str, error: str | None = None):
     room = _get_room(code)
     return render_template(
@@ -1761,14 +1802,27 @@ def _render_join_page(code: str, error: str | None = None):
     )
 
 
+@bp.get("/church-games/<game>/join")
+@bp.get("/group-games/<game>/join")
+def join_room_lookup(game: str):
+    if game not in _JOIN_SLUGS or (game == "draw-it" and request.path.startswith("/church-games/")):
+        abort(404)
+    code = re.sub(r"[^A-Za-z0-9]", "", request.args.get("code") or "").upper()
+    if len(code) == 4:
+        return redirect(f"{_join_prefix_from_request()}/{game}/join/{code}")
+    return _render_join_status("", "missing", 400, error="Enter the 4-character room code.")
+
+
 @bp.route("/church-games/act-it-out/join/<code>", methods=["GET", "POST"])
 @bp.route("/group-games/act-it-out/join/<code>", methods=["GET", "POST"])
 @bp.route("/group-games/draw-it/join/<code>", methods=["GET", "POST"])
 def join_room(code: str):
     code = code.upper()
-    room = _require_room(code)
+    room = _get_room(code)
+    if not room:
+        return _unknown_room_response(code)
     if room.get("game_type") == "family_game_night" and room.get("control_mode") in {"couch", "team_auto"}:
-        return "This room uses private controllers. Ask the host for the matching controller invite.", 403
+        return _render_join_status(code, "private", 403)
     existing_id = _player_id(code)
     if request.method == "POST":
         rate = check_rate_limit(
@@ -1829,7 +1883,7 @@ def join_room(code: str):
         except ValueError as exc:
             return _render_join_page(code, str(exc)), 409
         if result is None:
-            abort(404)
+            return _unknown_room_response(code)
         joined_room = result[1] if result else None
         if joined_room and len(joined_room.get("players", {})) == 1:
             _record_family_funnel_event("first_player_joined", joined_room, code)

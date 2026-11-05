@@ -367,6 +367,22 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
     font-size: 1.05rem;
   }
 
+  .how-offer {
+    margin: 0.35rem 0 0.75rem;
+  }
+
+  .how-step-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0 0 0.75rem;
+  }
+
+  .how-step-actions .button {
+    padding: 0.55rem 0.9rem;
+    text-decoration: none;
+  }
+
   /* About band */
   .about-band {
     display: grid;
@@ -614,8 +630,13 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
     </article>
     <article class="how-step">
       <h3>Play</h3>
-      <p>Start a hosted or printable Bible game that welcomes mixed ages.</p>
-      <a href="{{ url_for('public.play') }}">Choose a game</a>
+      <p>Family Game Night is a free 10-round try, or the complete game for $19 once.</p>
+      <p class="how-offer"><strong>Free try · $19 unlock</strong></p>
+      <div class="how-step-actions">
+        <a class="button primary" href="{{ url_for('act_it_out.family_game_night') }}">Play free</a>
+        <a class="button ghost" href="{{ url_for('act_it_out.family_game_night') }}#complete-game">Unlock Complete · $19</a>
+      </div>
+      <a href="{{ url_for('public.play') }}">Other games</a>
     </article>
   </div>
   <p class="muted small" style="margin-top: 0.6rem">
