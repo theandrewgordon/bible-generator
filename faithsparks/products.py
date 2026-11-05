@@ -50,6 +50,11 @@ PRODUCTS = (
         "id": "family-game-night", "name": "Family Game Night", "area": "play",
         "maturity": "core", "path": "/family-game-night", "accent": "gold",
         "description": "Low-prep, room-friendly play for families and small gatherings.",
+        "offer_line": "Free try · $19 unlock",
+        "primary_cta": "Play free",
+        "primary_path": "/family-game-night",
+        "secondary_cta": "Unlock Complete · $19",
+        "secondary_path": "/family-game-night#complete-game",
     },
     {
         "id": "bible-bee", "name": "Family Bible Bee", "area": "play",

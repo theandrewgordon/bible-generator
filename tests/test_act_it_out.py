@@ -115,6 +115,9 @@ def test_family_game_night_sales_page_explains_product_and_join_flow():
     assert b"Guess It!" in page.data
     assert b"Play a free game" in page.data
     assert b"Players join free" in page.data
+    assert b"Unlock Complete" in page.data
+    assert b"Free try" in page.data
+    assert b"private phone invite" in page.data
     assert b"a $19 one-time purchase with no recurring fee" in page.data
     assert b"planned as a one-time purchase" not in page.data
     assert b"How many devices do we need?" in page.data
@@ -122,6 +125,57 @@ def test_family_game_night_sales_page_explains_product_and_join_flow():
     assert b"Is it denominational?" in page.data
     assert b'id="fgn-code-form"' in page.data
     assert b"noindex" not in page.data
+
+
+def test_unknown_group_game_code_says_room_not_found_and_offers_retry():
+    reset_memory_limits()
+    client = app.test_client()
+
+    page = client.get("/group-games/act-it-out/join/ZZZZ")
+    church = client.get("/church-games/act-it-out/join/NOPE")
+    draw = client.get("/group-games/draw-it/join/DRAW")
+    retry = client.get("/group-games/act-it-out/join", query_string={"code": "zzzz"})
+    short = client.get("/group-games/act-it-out/join", query_string={"code": "ab"})
+    api = client.get("/api/group-games/act-it-out/rooms/ZZZZ")
+
+    assert page.status_code == 404
+    assert b"Room not found" in page.data
+    assert b"Try again" in page.data
+    assert b"that link" not in page.data.lower()
+    assert church.status_code == 404
+    assert b"Room not found" in church.data
+    assert b"/church-games/act-it-out/join" in church.data
+    assert draw.status_code == 404
+    assert b"/group-games/draw-it/join" in draw.data
+    assert retry.status_code == 302
+    assert retry.headers["Location"].endswith("/group-games/act-it-out/join/ZZZZ")
+    assert short.status_code == 400
+    assert b"Enter the 4-character room code." in short.data
+    assert api.status_code == 404
+    assert b"Room not found" not in api.data
+
+
+def test_private_controller_join_asks_for_the_host_invite():
+    host = app.test_client()
+    player = app.test_client()
+    _prime(host, "private-join@example.com")
+    _prime(player)
+    created, code = _create_family_room(host, control_mode="team_auto")
+    assert created.status_code == 302
+
+    page = player.get(f"/group-games/act-it-out/join/{code}")
+    posted = _post(
+        player,
+        f"/group-games/act-it-out/join/{code}",
+        data={"csrf_token": CSRF, "player_name": "Ada"},
+    )
+
+    assert page.status_code == 403
+    assert b"private phone invite" in page.data
+    assert b"Room not found" not in page.data
+    assert f"/family-game-night/controller/{code}".encode() in page.data
+    assert posted.status_code == 403
+    assert b"private pairing code" in posted.data
 
 
 def test_family_game_night_records_page_views_once_per_session(monkeypatch):
