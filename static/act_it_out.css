@@ -578,6 +578,10 @@
     display: none;
   }
 
+  .drawing-controller-layout.drawing-has-controls .score-rail {
+    display: block;
+  }
+
   .game-pick-grid,
   .act-theme-picker > div {
     grid-template-columns: 1fr;

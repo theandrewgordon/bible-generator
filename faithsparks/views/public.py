@@ -199,6 +199,12 @@ def start_here():
     )
 
 
+@bp.get('/library')
+def library_alias():
+    """Older public name for My Library. Nav already sends people to /prints."""
+    return redirect(url_for('prints'))
+
+
 @bp.get('/families')
 def families():
     return render_template(

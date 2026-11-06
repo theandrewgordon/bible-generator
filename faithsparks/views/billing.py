@@ -303,6 +303,20 @@ def _cached_price_meta(pid: Optional[str]) -> Optional[dict]:
     return meta
 
 
+def _subscription_price_label(amount: float, interval: str) -> str:
+    """Format a Stripe list price already loaded for /plus. Do not invent amounts."""
+    value = float(amount)
+    shown = f"${int(value)}" if value.is_integer() else f"${value:.2f}"
+    suffix = {"month": "/mo", "year": "/yr"}.get(interval, "")
+    return f"{shown}{suffix}"
+
+
+def _label_price(info: Optional[dict], interval: str) -> None:
+    if not info or info.get("amount") is None:
+        return
+    info["label"] = _subscription_price_label(info["amount"], interval)
+
+
 def plus_pricing():
     # Capture share link parameters and persist for checkout + analytics.
     incoming_params = {}
@@ -368,6 +382,9 @@ def plus_pricing():
             meta["classroom"]["save_pct"] = round(save * 100)
     except Exception:
         pass
+    for plan_name in ("family", "classroom"):
+        _label_price(meta[plan_name].get("monthly"), "month")
+        _label_price(meta[plan_name].get("annual"), "year")
     trial_code = (request.args.get("trial") or incoming_params.get("invite") or session.get("invite") or "").strip()
     trial_kind = _trial_kind(trial_code)
     trial_unlocked = bool(trial_kind)
@@ -384,7 +401,6 @@ def plus_pricing():
         has_subscription=_has_paid_subscription(member),
         prices=prices,
         meta=meta,
-        promo_hint="SAVE25FOREVER",
         trial_unlocked=trial_unlocked,
         trial_code=trial_code,
         trial_error=trial_error,

@@ -99,7 +99,7 @@
         </form>
         </details>
       {% else %}
-        <section class="setup-sign-in"><h2>Ready to host?</h2><p>Only the host needs a Faith Sparks account. Everyone else joins free with the room code.</p><a class="bee-button primary large" href="{{ url_for('google.login', next=url_for('act_it_out.family_game_night_setup')) }}">Sign in to create a room</a></section>
+        <section class="setup-sign-in"><h2>Ready to host?</h2><p>Only the host needs a Faith Sparks account. Players join free. Couch Play and Team Play use a private phone invite from your screen. Hosted Play uses the room code.</p><a class="bee-button primary large" href="{{ url_for('google.login', next=url_for('act_it_out.family_game_night_setup')) }}">Sign in to create a room</a></section>
       {% endif %}
 
       {% if active_rooms %}<section class="active-rooms"><h2>Continue a recent Family Game Night</h2>{% for room in active_rooms %}<div class="active-room-row"><a href="/group-games/act-it-out/host/{{ room.code }}"><span><strong>Room {{ room.code }}</strong><small>{{ room.players }} players · {{ room.phase|capitalize }}</small></span><b>Resume →</b></a></div>{% endfor %}</section>{% endif %}

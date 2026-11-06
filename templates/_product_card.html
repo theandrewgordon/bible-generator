@@ -1,0 +1,18 @@
+<article class="product-card product-card--{{ product.accent }}">
+  <span class="status-badge status-badge--{{ product.maturity }}">{{ product.maturity|title }}</span>
+  <h2>{{ product.name }}</h2>
+  <p>{{ product.description }}</p>
+  {% if product.offer_line %}
+  <p class="product-offer"><strong>{{ product.offer_line }}</strong></p>
+  {% endif %}
+  {% if product.primary_cta %}
+  <div class="product-card-actions">
+    <a class="button primary" href="{{ product.primary_path or product.path }}">{{ product.primary_cta }}</a>
+    {% if product.secondary_cta %}
+    <a class="button ghost" href="{{ product.secondary_path or product.path }}">{{ product.secondary_cta }}</a>
+    {% endif %}
+  </div>
+  {% else %}
+  <a class="button ghost" href="{{ product.path }}">Open {{ product.name }}</a>
+  {% endif %}
+</article>
