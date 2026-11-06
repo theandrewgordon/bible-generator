@@ -577,7 +577,7 @@ function renderRound(state) {
       : adaptiveTeamTurn
         ? `${escapeHTML(state.active_team_name || "Team")}: choose someone to ${isDraw ? "draw" : isClue ? "give clues" : "act"}`
         : isDraw ? `${escapeHTML(state.active_player_name || "Player")} draws` : `${escapeHTML(state.active_player_name || "Player")} is up`;
-  app.innerHTML = `<div class="game-layout ${isPreparing ? "prepare-layout" : ""} ${canEditDrawing(state) ? "drawing-controller-layout" : ""}">
+  app.innerHTML = `<div class="game-layout ${isPreparing ? "prepare-layout" : ""} ${canEditDrawing(state) ? "drawing-controller-layout" : ""} ${canEditDrawing(state) && controls ? "drawing-has-controls" : ""}">
     <section class="game-stage act-round-stage">
       <p class="round-meta">Round ${state.round_index + 1} of ${state.round_total}</p>
       <h1>${roundHeading}</h1>
