@@ -72,10 +72,16 @@ def _effective_membership(data: dict) -> dict:
     return data
 
 
-def has_family_game_night_access(user_data: dict | None) -> bool:
+def family_game_night_access_source(user_data: dict | None) -> str:
     data = user_data or {}
     owns_standalone = bool((data.get("purchases") or {}).get("family_game_night"))
-    return owns_standalone or has_active_plus(data)
+    if owns_standalone:
+        return "purchase"
+    return "plus" if has_active_plus(data) else "free"
+
+
+def has_family_game_night_access(user_data: dict | None) -> bool:
+    return family_game_night_access_source(user_data) != "free"
 
 
 def get_user_doc(email: str | None, *, force: bool = False) -> dict:
