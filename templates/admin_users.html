@@ -97,6 +97,20 @@
               </select>
               <button class="button ghost" type="submit">Save</button>
             </form>
+            <div class="small" style="margin-top:.5rem">
+              <strong>Game Night Complete:</strong>
+              {% if u.get('_game_night_access_source') == 'purchase' %}
+                One-time checkout unlock. Membership changes do not remove it.
+                {% set game_purchase = (u.get('purchaseDetails') or {}).get('family_game_night') or {} %}
+                {% if game_purchase.get('purchasedAt') %}
+                  <div>Unlocked: {{ game_purchase.get('purchasedAt') }}</div>
+                {% endif %}
+              {% elif u.get('_game_night_access_source') == 'plus' %}
+                Included through active Plus; ends when Plus access ends.
+              {% else %}
+                Free sampler only.
+              {% endif %}
+            </div>
           </td>
 
           <td class="small" data-iso="{{ renew_iso }}">

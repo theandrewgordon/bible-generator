@@ -5,6 +5,7 @@ from firebase_admin import firestore
 
 from faithsparks.services.firestore import db
 from faithsparks.services.usage import _month_key
+from faithsparks.services.users import family_game_night_access_source
 
 
 def plan_norm(p: str) -> str:
@@ -38,6 +39,7 @@ def admin_users():
     for d in docs:
         u = d.to_dict() or {}
         u["id"] = d.id
+        u["_game_night_access_source"] = family_game_night_access_source(u)
         renew_at = u.get("renewAt")
         if isinstance(renew_at, datetime):
             try:
