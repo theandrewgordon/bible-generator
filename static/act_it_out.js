@@ -618,7 +618,11 @@ function renderReveal(state) {
     skip: ["Card skipped", "This card was skipped without scoring."],
   }[result.outcome] || ["Passed", "No points for this card. Deal the next card when ready."];
   const drawSummary = isDraw
-    ? `${result.correct_guesses || 0} of ${result.guesser_count || result.guess_count || 0} guessed correctly${result.drawer_bonus ? ` · ${escapeHTML(state.active_player_name || "Drawer")} earned a ${result.drawer_bonus}-point drawing bonus` : ""}.`
+    ? state.control_mode === "hosted"
+      ? `${result.correct_guesses || 0} of ${result.guesser_count || result.guess_count || 0} guessed correctly${result.drawer_bonus ? ` · ${escapeHTML(state.active_player_name || "Drawer")} earned a ${result.drawer_bonus}-point drawing bonus` : ""}.`
+      : isCorrect
+        ? `${state.active_team_name || state.active_player_name || "Team"} earned ${result.points || 0} points. Deal the next card when ready.`
+        : outcomeCopy[1]
     : "";
   const controls = state.viewer.can_control
     ? `<button id="next-round" class="bee-button primary full" type="button">${state.round_index + 1 >= state.round_total ? "See winner" : "Next card"}</button>`
