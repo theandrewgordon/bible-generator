@@ -7,6 +7,21 @@ from app import app
 from faithsparks.views import billing
 
 
+def test_checkout_login_return_opens_offer_without_starting_payment(monkeypatch):
+    from unittest.mock import Mock
+
+    start_checkout = Mock()
+    monkeypatch.setattr(billing, "buy_family_game_night", start_checkout)
+    with app.test_client() as client:
+        response = client.get("/family-game-night/checkout")
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/family-game-night#complete-game")
+        offer = client.get(response.headers["Location"])
+        assert offer.status_code == 200
+        assert b"Buy once for $19" in offer.data or b"checkout is temporarily unavailable" in offer.data
+    start_checkout.assert_not_called()
+
+
 def test_public_pages_show_free_try_and_nineteen_dollar_complete():
     app.config.update(TESTING=True)
     with app.test_client() as client:
