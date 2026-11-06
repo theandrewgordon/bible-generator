@@ -11103,6 +11103,12 @@ def buy_success(slug):
     from faithsparks.views.billing import buy_success as _impl
     return _impl(slug)
 
+@app.get('/family-game-night/checkout')
+def resume_family_game_night_checkout():
+    # OAuth returns with GET; never create a payment session on a page load.
+    return redirect(url_for('act_it_out.family_game_night', _anchor='complete-game'))
+
+
 @app.route('/family-game-night/checkout', methods=['POST'])
 @login_required
 def buy_family_game_night():
