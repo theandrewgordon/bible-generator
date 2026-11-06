@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Admin · Printable products{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block content %}
+<h1 class="page-title">Printable products</h1>
+<p class="muted">Private drafts for card sets. Nothing here is public, and nothing is sent to checkout.</p>
+<p class="small">Editions: NLT, ESV, and KJV, plus WEB when the wording you import is World English Bible. Each edition keeps its own Scripture text.</p>
+{% if not logo_ready %}<p class="error">The Faith Sparks logo file is missing, so PDF covers cannot use the site mark.</p>{% endif %}
+
+<div class="admin-shortcuts">
+  <a class="button ghost tiny" href="{{ url_for('admin_collections') }}">Bundles</a>
+  <a class="button ghost tiny" href="{{ url_for('admin_help') }}">Help</a>
+</div>
+
+<h2>Start</h2>
+<form method="post" action="{{ url_for('admin_printables_new') }}" style="margin-bottom: 1rem">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="button primary" name="action" value="load_advent" type="submit">Load Family Advent draft (checked WEB text)</button>
+</form>
+<form method="post" action="{{ url_for('admin_printables_new') }}" style="display: grid; gap: 8px; max-width: 640px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Title <input name="title" required maxlength="180"></label>
+  <label>Slug <input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="80" placeholder="memory-verses-nlt"></label>
+  <label>Kind
+    <select name="product_kind">
+      <option value="advent">Advent cards</option>
+      <option value="memory">Memory verses</option>
+      <option value="game">Game cards</option>
+    </select>
+  </label>
+  <fieldset>
+    <legend>Scripture edition</legend>
+    {% for edition in editions %}
+    <label><input type="radio" name="translation" value="{{ edition.id }}" {% if edition.id == 'nlt' %}checked{% endif %}> {{ edition.code }} · {{ edition.name }}</label>
+    {% endfor %}
+  </fieldset>
+  <button class="button" name="action" value="create" type="submit">Create empty draft</button>
+</form>
+
+<h2>Drafts</h2>
+{% if products %}
+<table class="admin-table">
+  <thead><tr><th>Title</th><th>Edition</th><th>Cards</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for product in products %}
+    <tr>
+      <td>{{ product.title }}</td>
+      <td>{{ product.translation|upper }}</td>
+      <td>{{ product.cards }}</td>
+      <td>{{ product.status }}</td>
+      <td><a href="{{ url_for('admin_printable_edit', slug=product.id) }}">Edit</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">No drafts stored yet.</p>
+{% endif %}
+{% endblock %}
