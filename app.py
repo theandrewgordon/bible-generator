@@ -11043,6 +11043,48 @@ def admin_content():
     from faithsparks.views.admin.content import admin_content as _impl
     return _impl()
 
+@app.route('/admin/printables', methods=['GET'])
+@admin_required
+def admin_printables():
+    from faithsparks.views.admin.printables import admin_printables as _impl
+    return _impl()
+
+@app.route('/admin/printables/new', methods=['GET', 'POST'])
+@admin_required
+def admin_printables_new():
+    from faithsparks.views.admin.printables import admin_printables_new as _impl
+    return _impl()
+
+@app.route('/admin/printables/<slug>', methods=['GET', 'POST'])
+@admin_required
+def admin_printable_edit(slug):
+    from faithsparks.views.admin.printables import admin_printable_edit as _impl
+    return _impl(slug)
+
+@app.route('/admin/printables/<slug>/preview.pdf', methods=['GET'])
+@admin_required
+def admin_printable_preview(slug):
+    from faithsparks.views.admin.printables import admin_printable_preview as _impl
+    return _impl(slug)
+
+@app.route('/admin/printables/<slug>/export.pdf', methods=['GET'])
+@admin_required
+def admin_printable_export_pdf(slug):
+    from faithsparks.views.admin.printables import admin_printable_export_pdf as _impl
+    return _impl(slug)
+
+@app.route('/admin/printables/<slug>/export.json', methods=['GET'])
+@admin_required
+def admin_printable_export_json(slug):
+    from faithsparks.views.admin.printables import admin_printable_export_json as _impl
+    return _impl(slug)
+
+@app.route('/admin/printables/<slug>/listing.md', methods=['GET'])
+@admin_required
+def admin_printable_listing(slug):
+    from faithsparks.views.admin.printables import admin_printable_listing as _impl
+    return _impl(slug)
+
 @app.route('/admin/help')
 @admin_required
 def admin_help():
