@@ -12,7 +12,7 @@ site_content.plus_banner_text %}
 {% if selected_plan %}{% set _ = _q.update({'plan': selected_plan}) %}{% endif %}
 {% if selected_interval %}{% set _ = _q.update({'interval': selected_interval}) %}{% endif %}
 {% set plus_target = url_for('plus_pricing', **_q) %}
-{% set promo_label = promo_code or promo_hint %}
+{% set promo_label = promo_code %}
 {% set trial_badge_family_text = none %}
 {% if trial_unlocked %}
   {% if trial_kind == 'year' %}
@@ -84,21 +84,13 @@ site_content.plus_banner_text %}
   </aside>
 </header>
 
-<div class="promo-callout" role="note">
-  <strong>Step 1:</strong>
-  <span>Use invite <code>FreeSparkMonth</code> for a $0 first month.</span>
-  <span class="divider">•</span>
-  <strong>Step 2:</strong>
-  <span>
-    Lifetime discount <code>{{ promo_label }}</code> is automatically applied at
-    checkout.
-  </span>
-</div>
-
-<div class="referral-callout" role="note">
-  Share <strong>FreeSparkMonth</strong> with 3 friends → we’ll add a bonus month
-  to your account after your first paid renewal.
-</div>
+<p class="plan-price-clarity" role="note">
+  <strong>Free</strong> is $0.
+  <strong>Plus Family</strong> and <strong>Plus Classroom</strong> are subscriptions at the prices on each plan.
+  Those amounts are the subscription prices and do not include a discount.
+  Enter an invite or promo code only if you were given one.
+  Family Game Night Complete is a separate $19 one-time purchase; Plus Family and Plus Classroom include it.
+</p>
 
 <section class="plans">
   <form class="invite-form" method="get" action="{{ url_for('plus_pricing') }}">
@@ -119,15 +111,9 @@ site_content.plus_banner_text %}
     {% elif trial_error %}
     <p class="small error-note">Invite code not recognized.</p>
     {% endif %}
-    {% if promo_label %}
+    {% if promo_code %}
     <p class="small success-note">
-      Lifetime discount {{ promo_label }} will kick in after your free period—no
-      extra typing at checkout.
-    </p>
-    {% endif %}
-    {% if not trial_unlocked %}
-    <p class="small helper-note">
-      Need a free month? Enter <strong>FreeSparkMonth</strong> above.
+      Your discount code will be applied at checkout. The prices on this page are the regular subscription prices before that code.
     </p>
     {% endif %}
   </form>
@@ -168,10 +154,13 @@ site_content.plus_banner_text %}
       <div class="badge-row">
         {% if trial_badge_family_text %}
         <span class="pill alt">{{ trial_badge_family_text }}</span>
-        {% endif %} {% if promo_label %}
-        <span class="pill">25% off for life</span>
         {% endif %}
       </div>
+      {% if meta.family.monthly or meta.family.annual %}
+      <div class="plan-price">
+        {% if meta.family.monthly %}{{ meta.family.monthly.label }}{% endif %}{% if meta.family.monthly and meta.family.annual %} · {% endif %}{% if meta.family.annual %}{{ meta.family.annual.label }}{% endif %}
+      </div>
+      {% endif %}
 
       <ul class="plan-points">
         <li>15 generates per month</li>
@@ -284,10 +273,13 @@ site_content.plus_banner_text %}
       <div class="badge-row">
         {% if trial_badge_classroom_text %}
         <span class="pill alt">{{ trial_badge_classroom_text }}</span>
-        {% endif %} {% if promo_label %}
-        <span class="pill">25% off for life</span>
         {% endif %}
       </div>
+      {% if meta.classroom.monthly or meta.classroom.annual %}
+      <div class="plan-price">
+        {% if meta.classroom.monthly %}{{ meta.classroom.monthly.label }}{% endif %}{% if meta.classroom.monthly and meta.classroom.annual %} · {% endif %}{% if meta.classroom.annual %}{{ meta.classroom.annual.label }}{% endif %}
+      </div>
+      {% endif %}
 
       <ul class="plan-points">
         <li>100 generates per month</li>
@@ -395,8 +387,8 @@ site_content.plus_banner_text %}
   <p class="small muted legal-note">
     By starting a trial you authorize Faith Sparks to charge after
     the free period unless you cancel. Prices shown in USD; taxes may apply.
-    Lifetime discounts stay active on future invoices and can’t be combined with
-    other recurring discounts.
+    A promo code, if you apply one, is added at checkout and can’t be combined with
+    another recurring discount.
   </p>
   <p class="small muted support-note">
     Need help? DM me or email
@@ -414,6 +406,23 @@ site_content.plus_banner_text %}
       <div>Free</div>
       <div>Plus Family</div>
       <div>Plus Classroom</div>
+    </div>
+
+    <div class="cmp-row">
+      <div class="label">Price</div>
+      <div>$0</div>
+      <div>
+        {% if meta.family.monthly %}{{ meta.family.monthly.label }}{% endif %}
+        {% if meta.family.monthly and meta.family.annual %}<br>{% endif %}
+        {% if meta.family.annual %}{{ meta.family.annual.label }}{% endif %}
+        {% if not meta.family.monthly and not meta.family.annual %}Shown at checkout{% endif %}
+      </div>
+      <div>
+        {% if meta.classroom.monthly %}{{ meta.classroom.monthly.label }}{% endif %}
+        {% if meta.classroom.monthly and meta.classroom.annual %}<br>{% endif %}
+        {% if meta.classroom.annual %}{{ meta.classroom.annual.label }}{% endif %}
+        {% if not meta.classroom.monthly and not meta.classroom.annual %}Shown at checkout{% endif %}
+      </div>
     </div>
 
     <div class="cmp-row">
@@ -499,6 +508,15 @@ site_content.plus_banner_text %}
 
 {% endblock %} {% block extra_scripts %}
 <style>
+  .plan-price-clarity {
+    margin: 0.75rem 0 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: var(--box, #fff);
+    line-height: 1.45;
+  }
+
   .announcement {
     margin-bottom: 0.6rem;
     padding: 0.5rem 0.75rem;

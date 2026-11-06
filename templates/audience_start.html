@@ -20,12 +20,7 @@
 
 <section class="product-grid audience-product-grid" aria-label="Recommended Faith Sparks tools">
   {% for product in products %}
-  <article class="product-card product-card--{{ product.accent }}">
-    <span class="status-badge status-badge--{{ product.maturity }}">{{ product.maturity|title }}</span>
-    <h2>{{ product.name }}</h2>
-    <p>{{ product.description }}</p>
-    <a class="button ghost" href="{{ product.path }}">Open {{ product.name }}</a>
-  </article>
+  {% include "_product_card.html" %}
   {% endfor %}
 </section>
 
