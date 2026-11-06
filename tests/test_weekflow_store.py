@@ -546,17 +546,21 @@ def test_household_state_round_trip_is_validated_and_revision_protected(monkeypa
 
 
 def test_meals_state_round_trip_is_validated_and_revision_protected(monkeypatch):
+    from datetime import date, timedelta
+
     database = _FakeDatabase()
     monkeypatch.setattr(weekflow_store, "db", database)
     monkeypatch.setattr(
         weekflow_store.firestore, "transactional", lambda function: function
     )
     family = default_beta_state()["family"]
-    timestamp = "2026-09-14T12:00:00+00:00"
+    today = date.today()
+    meal_date = (today + timedelta(days=1)).isoformat()
+    timestamp = f"{today.isoformat()}T12:00:00+00:00"
     payload = {
         "revision": 0,
-        "meals": [{"id": "tacos", "date": "2026-09-15", "slot": "dinner", "title": "Tacos", "lead_person_id": "parent", "note": None, "created_at": timestamp, "updated_at": timestamp}],
-        "handoffs": [{"id": "shop-tacos", "title": "Buy taco ingredients", "kind": "shopping", "due_date": "2026-09-14", "time_of_day": "afternoon", "assigned_person_id": "student-2", "meal_id": "tacos", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
+        "meals": [{"id": "tacos", "date": meal_date, "slot": "dinner", "title": "Tacos", "lead_person_id": "parent", "note": None, "created_at": timestamp, "updated_at": timestamp}],
+        "handoffs": [{"id": "shop-tacos", "title": "Buy taco ingredients", "kind": "shopping", "due_date": today.isoformat(), "time_of_day": "afternoon", "assigned_person_id": "student-2", "meal_id": "tacos", "status": "open", "created_at": timestamp, "updated_at": timestamp, "completed_at": None}],
     }
 
     assert load_meals_state("parent@example.com", family=family)["revision"] == 0
