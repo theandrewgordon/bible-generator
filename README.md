@@ -103,3 +103,49 @@ Do not encode phoneme demonstrations as comma-separated letter names: a speech
 model can pronounce `s, a, t` as ess/ay/tee even when told to produce sounds.
 The voice models whole words; adult prompts explicitly distinguish sounds from
 letter names. Dedicated phoneme audio must be listening-reviewed before use.
+
+### Latin Quest Lab
+
+`/labs/latin-quest` offers five- and ten-question Latin practice: Latin → English
+(the default), English → Latin, noun declension/gender/case forms, verb
+conjugations/principal parts, grammar cards, and mixed sessions. Vocabulary prompts
+can announce part of speech and noun declension/gender or verb conjugation.
+The bank comes only from the supplied 140 photographed cards in
+`faithsparks/content/latin_quest/cards.json`; the additional unresolved card is
+retained as provenance but never quizzed. The Quizlet verification list is not used.
+
+One listed English meaning or a reviewed equivalent is sufficient. Answers are
+checked in the browser; no learner answers or recordings are stored by the server
+or sent to OpenAI. Conservative checking avoids fuzzy Latin matches. The teacher
+can explicitly accept an equivalent using “My answer was also correct.” Practice
+counts are shared within one browser profile and stored in localStorage. They do
+not sync with Jarvis/Home Assistant or across devices. Review missed cards uses
+the selected practice mode. Microphone input uses the browser's speech-recognition
+service; typed input remains available when voice recognition is unsupported.
+
+#### Reusable OpenAI audio
+
+Only fixed server-owned cue IDs can request audio. `gpt-4o-mini-tts` uses the existing
+`OPENAI_API_KEY`, with coral/marin voices and Classical/church pronunciation
+instructions. Pronunciation is an AI approximation and needs teacher review.
+Audio is labeled AI-generated. Cache identity includes model, voice, pronunciation,
+instructions, speed and text. Generated MP3s persist in the existing private
+Firebase/Google Cloud Storage bucket under `latin_quest/audio/v1/`, and are reused
+across sessions and deploys. The browser also caches clips in Cache Storage when
+available, falling back to page memory. It never substitutes a device voice.
+
+Generation requires a configured durable bucket. A shared cache hit makes no paid
+call and needs no API key. Cache misses require CSRF, a 512-byte fixed-schema body,
+per-IP request limits, per-IP/global daily generation caps, a per-clip generation
+throttle, and the app-wide AI budget. Striped process locks coalesce concurrent
+cold misses on the current single-process deployment; the shared per-clip throttle
+bounds duplicate calls across processes. Generation has a 20-second timeout and
+no retries. Storage write failures return the generated clip marked `UNCACHED`;
+client reuse and generation throttles still apply, but shared persistence is not
+claimed. `LATIN_QUEST_TTS_DISABLED=1` or `AI_DISABLED=1` disables new generation;
+saved clips remain playable. No broad pre-generation is performed at deployment.
+
+Validation: `python -m pytest tests/test_latin_quest.py tests/test_product_system.py -q`
+and `node tests/latin_quest_core.cjs`. Tests mock OpenAI/storage; they verify cache
+hits do not call OpenAI, cache variants, fixed-cue validation, cost/error boundaries,
+accepted meanings, wrong meanings, five/ten-question selection, hints and review.

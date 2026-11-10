@@ -4122,6 +4122,13 @@ try:
 except Exception:
     app.logger.exception("WeekFlow Labs routes could not be registered")
 
+# Latin Quest uses fixed curriculum audio and browser-local practice records.
+try:
+    from faithsparks.views.latin_quest import bp as latin_quest_bp
+    app.register_blueprint(latin_quest_bp)
+except Exception:
+    app.logger.exception("Latin Quest Labs routes could not be registered")
+
 # Interactive browser-game prototypes live under the Labs namespace.
 try:
     from faithsparks.views.lab_games import bp as lab_games_bp

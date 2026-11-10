@@ -1,0 +1,1223 @@
+{
+  "title": "Jarvis Latin Quest",
+  "version": "2026-11-09",
+  "counts": {
+    "nouns_and_pronouns": 62,
+    "verbs": 52,
+    "conjunctions": 6,
+    "grammar_cards": 20,
+    "unresolved": 1,
+    "total_identified": 140
+  },
+  "format": {
+    "nouns_and_pronouns": [
+      "id",
+      "part_of_speech",
+      "first_form",
+      "second_form",
+      "definition",
+      "declension",
+      "gender"
+    ],
+    "verbs": [
+      "id",
+      "principal_part_1",
+      "principal_part_2",
+      "principal_part_3",
+      "principal_part_4",
+      "definition",
+      "conjugation"
+    ],
+    "conjunctions": [
+      "id",
+      "latin",
+      "definition"
+    ],
+    "grammar": [
+      "id",
+      "question",
+      "answer"
+    ]
+  },
+  "case_notes": [
+    "For nouns, first and second forms are nominative singular and genitive singular.",
+    "For personal pronouns nos and vos, forms are nominative plural and genitive plural.",
+    "Verbs use conjugations and principal parts rather than noun declension, gender or case.",
+    "Do not quiz or grade the unresolved card."
+  ],
+  "nouns_and_pronouns": [
+    [
+      "noun-001",
+      "noun",
+      "lignum",
+      "lignī",
+      "wood",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "noun-002",
+      "noun",
+      "pater",
+      "patris",
+      "father",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "noun-003",
+      "pronoun",
+      "nēmō",
+      "nēminis",
+      "no one; nobody",
+      "irregular pronoun (3rd-type)",
+      "masculine on card"
+    ],
+    [
+      "noun-004",
+      "noun",
+      "agricola",
+      "agricolae",
+      "farmer",
+      "1st",
+      "masculine"
+    ],
+    [
+      "noun-005",
+      "noun",
+      "regnum",
+      "regnī",
+      "kingdom",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "noun-006",
+      "noun",
+      "costa",
+      "costae",
+      "rib",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-007",
+      "noun",
+      "esca",
+      "escae",
+      "food; bait",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-008",
+      "noun",
+      "fenestra",
+      "fenestrae",
+      "window",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-009",
+      "noun",
+      "ostium",
+      "ostiī",
+      "door; entrance",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "noun-010",
+      "noun",
+      "herba",
+      "herbae",
+      "grass; herb",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-011",
+      "noun",
+      "puella",
+      "puellae",
+      "girl",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-012",
+      "noun",
+      "spēlunca",
+      "spēluncae",
+      "cave",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-013",
+      "noun",
+      "caelum",
+      "caelī",
+      "sky; heaven",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "noun-014",
+      "noun",
+      "terra",
+      "terrae",
+      "earth; land",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-015",
+      "noun",
+      "vīta",
+      "vītae",
+      "life",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-016",
+      "noun",
+      "annus",
+      "annī",
+      "year",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-017",
+      "noun",
+      "servus",
+      "servī",
+      "servant; slave",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-018",
+      "noun",
+      "dominus",
+      "dominī",
+      "lord; master",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-019",
+      "noun",
+      "fīlius",
+      "fīliī",
+      "son",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-020",
+      "noun",
+      "magister",
+      "magistrī",
+      "teacher; master",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-021",
+      "noun",
+      "oculus",
+      "oculī",
+      "eye",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-022",
+      "noun",
+      "puer",
+      "puerī",
+      "boy",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-023",
+      "noun",
+      "vir",
+      "virī",
+      "man",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-024",
+      "noun",
+      "gaudium",
+      "gaudiī",
+      "joy; delight",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "noun-025",
+      "noun",
+      "manus",
+      "manūs",
+      "hand",
+      "4th",
+      "feminine"
+    ],
+    [
+      "noun-026",
+      "noun",
+      "uxor",
+      "uxōris",
+      "wife",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "noun-027",
+      "noun",
+      "māter",
+      "mātris",
+      "mother",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "noun-028",
+      "noun",
+      "pēs",
+      "pedis",
+      "foot",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "noun-029",
+      "pronoun",
+      "ego",
+      "meī",
+      "I; me",
+      "pronoun",
+      "not inherent"
+    ],
+    [
+      "noun-030",
+      "noun",
+      "aqua",
+      "aquae",
+      "water",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-031",
+      "noun",
+      "frāter",
+      "frātris",
+      "brother",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "noun-032",
+      "noun",
+      "pastor",
+      "pastōris",
+      "shepherd",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "noun-033",
+      "noun",
+      "fidēs",
+      "fideī",
+      "faith; trust",
+      "5th",
+      "feminine"
+    ],
+    [
+      "noun-034",
+      "noun",
+      "hōra",
+      "hōrae",
+      "hour",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-035",
+      "noun",
+      "sinistra",
+      "sinistrae",
+      "left hand; left side",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-036",
+      "noun",
+      "fīlia",
+      "fīliae",
+      "daughter",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-037",
+      "noun",
+      "domus",
+      "domūs",
+      "house; home",
+      "4th (mixed forms)",
+      "feminine"
+    ],
+    [
+      "noun-038",
+      "noun",
+      "via",
+      "viae",
+      "road; way",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-039",
+      "noun",
+      "stēlla",
+      "stēllae",
+      "star",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-040",
+      "noun",
+      "fēmina",
+      "fēminae",
+      "woman",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-041",
+      "noun",
+      "tempus",
+      "temporis",
+      "time",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "noun-042",
+      "noun",
+      "cibus",
+      "cibī",
+      "food",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-043",
+      "noun",
+      "ager",
+      "agrī",
+      "field",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-044",
+      "noun",
+      "dextera",
+      "dexterae",
+      "right hand; right side",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-045",
+      "noun",
+      "caput",
+      "capitis",
+      "head",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "noun-046",
+      "noun",
+      "liber",
+      "librī",
+      "book",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-047",
+      "noun",
+      "equus",
+      "equī",
+      "horse",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "noun-048",
+      "noun",
+      "bēstia",
+      "bēstiae",
+      "animal; beast",
+      "1st",
+      "feminine"
+    ],
+    [
+      "noun-049",
+      "noun",
+      "signum",
+      "signī",
+      "sign; signal",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "noun-050",
+      "noun",
+      "templum",
+      "templī",
+      "temple",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "noun-051",
+      "noun",
+      "fōns",
+      "fontis",
+      "fountain; spring; source",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "noun-052",
+      "pronoun",
+      "vōs",
+      "vestrī",
+      "you (plural)",
+      "pronoun",
+      "not inherent"
+    ],
+    [
+      "noun-053",
+      "pronoun",
+      "nōs",
+      "nostrī",
+      "we; us",
+      "pronoun",
+      "not inherent"
+    ],
+    [
+      "noun-054",
+      "noun",
+      "rēs",
+      "reī",
+      "thing; matter",
+      "5th",
+      "feminine"
+    ],
+    [
+      "noun-055",
+      "noun",
+      "diēs",
+      "diēī",
+      "day",
+      "5th",
+      "masculine"
+    ],
+    [
+      "noun-056",
+      "noun",
+      "frūctus",
+      "frūctūs",
+      "fruit; produce",
+      "4th",
+      "masculine"
+    ],
+    [
+      "noun-057",
+      "noun",
+      "arcus",
+      "arcūs",
+      "bow; arch",
+      "4th",
+      "masculine"
+    ],
+    [
+      "noun-058",
+      "noun",
+      "soror",
+      "sorōris",
+      "sister",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "noun-059",
+      "noun",
+      "vōx",
+      "vōcis",
+      "voice",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "noun-060",
+      "noun",
+      "cor",
+      "cordis",
+      "heart",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "noun-061",
+      "noun",
+      "rēx",
+      "rēgis",
+      "king",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "noun-062",
+      "pronoun",
+      "tū",
+      "tuī",
+      "you (singular)",
+      "pronoun",
+      "not inherent"
+    ]
+  ],
+  "verbs": [
+    [
+      "verb-001",
+      "pugnō",
+      "pugnāre",
+      "pugnāvī",
+      "pugnātum",
+      "fight",
+      "1st"
+    ],
+    [
+      "verb-002",
+      "ambulō",
+      "ambulāre",
+      "ambulāvī",
+      "ambulātum",
+      "walk",
+      "1st"
+    ],
+    [
+      "verb-003",
+      "parō",
+      "parāre",
+      "parāvī",
+      "parātum",
+      "prepare",
+      "1st"
+    ],
+    [
+      "verb-004",
+      "nuntiō",
+      "nuntiāre",
+      "nuntiāvī",
+      "nuntiātum",
+      "announce; report",
+      "1st"
+    ],
+    [
+      "verb-005",
+      "mandūcō",
+      "mandūcāre",
+      "mandūcāvī",
+      "mandūcātum",
+      "chew; eat",
+      "1st"
+    ],
+    [
+      "verb-006",
+      "rēgnō",
+      "rēgnāre",
+      "rēgnāvī",
+      "rēgnātum",
+      "reign; rule",
+      "1st"
+    ],
+    [
+      "verb-007",
+      "adōrō",
+      "adōrāre",
+      "adōrāvī",
+      "adōrātum",
+      "worship; adore",
+      "1st"
+    ],
+    [
+      "verb-008",
+      "līberō",
+      "līberāre",
+      "līberāvī",
+      "līberātum",
+      "free; release",
+      "1st"
+    ],
+    [
+      "verb-009",
+      "lavō",
+      "lavāre",
+      "lāvī",
+      "lautum",
+      "wash",
+      "1st"
+    ],
+    [
+      "verb-010",
+      "portō",
+      "portāre",
+      "portāvī",
+      "portātum",
+      "carry",
+      "1st"
+    ],
+    [
+      "verb-011",
+      "volō",
+      "volāre",
+      "volāvī",
+      "volātum",
+      "fly",
+      "1st"
+    ],
+    [
+      "verb-012",
+      "dō",
+      "dare",
+      "dedī",
+      "datum",
+      "give",
+      "1st (irregular)"
+    ],
+    [
+      "verb-013",
+      "creō",
+      "creāre",
+      "creāvī",
+      "creātum",
+      "create; make",
+      "1st"
+    ],
+    [
+      "verb-014",
+      "cōgitō",
+      "cōgitāre",
+      "cōgitāvī",
+      "cōgitātum",
+      "think; consider",
+      "1st"
+    ],
+    [
+      "verb-015",
+      "rogō",
+      "rogāre",
+      "rogāvī",
+      "rogātum",
+      "ask",
+      "1st"
+    ],
+    [
+      "verb-016",
+      "stō",
+      "stāre",
+      "stetī",
+      "statum",
+      "stand",
+      "1st (irregular)"
+    ],
+    [
+      "verb-017",
+      "clāmō",
+      "clāmāre",
+      "clāmāvī",
+      "clāmātum",
+      "shout; cry out",
+      "1st"
+    ],
+    [
+      "verb-018",
+      "cantō",
+      "cantāre",
+      "cantāvī",
+      "cantātum",
+      "sing",
+      "1st"
+    ],
+    [
+      "verb-019",
+      "amō",
+      "amāre",
+      "amāvī",
+      "amātum",
+      "love",
+      "1st"
+    ],
+    [
+      "verb-020",
+      "sedeō",
+      "sedēre",
+      "sēdī",
+      "sessum",
+      "sit",
+      "2nd"
+    ],
+    [
+      "verb-021",
+      "prohibeō",
+      "prohibēre",
+      "prohibuī",
+      "prohibitum",
+      "prevent; forbid",
+      "2nd"
+    ],
+    [
+      "verb-022",
+      "moneō",
+      "monēre",
+      "monuī",
+      "monitum",
+      "warn; advise",
+      "2nd"
+    ],
+    [
+      "verb-023",
+      "maneō",
+      "manēre",
+      "mānsī",
+      "mānsum",
+      "remain; stay",
+      "2nd"
+    ],
+    [
+      "verb-024",
+      "vocō",
+      "vocāre",
+      "vocāvī",
+      "vocātum",
+      "call; summon",
+      "1st"
+    ],
+    [
+      "verb-025",
+      "audiō",
+      "audīre",
+      "audīvī",
+      "audītum",
+      "hear; listen",
+      "4th"
+    ],
+    [
+      "verb-026",
+      "scrībō",
+      "scrībere",
+      "scrīpsī",
+      "scrīptum",
+      "write",
+      "3rd"
+    ],
+    [
+      "verb-027",
+      "emō",
+      "emere",
+      "ēmī",
+      "emptum",
+      "buy",
+      "3rd"
+    ],
+    [
+      "verb-028",
+      "doceō",
+      "docēre",
+      "docuī",
+      "doctum",
+      "teach",
+      "2nd"
+    ],
+    [
+      "verb-029",
+      "videō",
+      "vidēre",
+      "vīdī",
+      "vīsum",
+      "see",
+      "2nd"
+    ],
+    [
+      "verb-030",
+      "moveō",
+      "movēre",
+      "mōvī",
+      "mōtum",
+      "move",
+      "2nd"
+    ],
+    [
+      "verb-031",
+      "serviō",
+      "servīre",
+      "servīvī",
+      "servītum",
+      "serve",
+      "4th"
+    ],
+    [
+      "verb-032",
+      "pōnō",
+      "pōnere",
+      "posuī",
+      "positum",
+      "put; place",
+      "3rd"
+    ],
+    [
+      "verb-033",
+      "vīvō",
+      "vīvere",
+      "vīxī",
+      "victum",
+      "live",
+      "3rd"
+    ],
+    [
+      "verb-034",
+      "bibō",
+      "bibere",
+      "bibī",
+      "bibitum",
+      "drink",
+      "3rd"
+    ],
+    [
+      "verb-035",
+      "habeō",
+      "habēre",
+      "habuī",
+      "habitum",
+      "have; hold",
+      "2nd"
+    ],
+    [
+      "verb-036",
+      "fleō",
+      "flēre",
+      "flēvī",
+      "flētum",
+      "weep; cry",
+      "2nd"
+    ],
+    [
+      "verb-037",
+      "sciō",
+      "scīre",
+      "scīvī",
+      "scītum",
+      "know",
+      "4th"
+    ],
+    [
+      "verb-038",
+      "regō",
+      "regere",
+      "rēxī",
+      "rēctum",
+      "rule; govern",
+      "3rd"
+    ],
+    [
+      "verb-039",
+      "trahō",
+      "trahere",
+      "trāxī",
+      "tractum",
+      "pull; drag",
+      "3rd"
+    ],
+    [
+      "verb-040",
+      "dīcō",
+      "dīcere",
+      "dīxī",
+      "dictum",
+      "say; tell",
+      "3rd"
+    ],
+    [
+      "verb-041",
+      "currō",
+      "currere",
+      "cucurrī",
+      "cursum",
+      "run",
+      "3rd"
+    ],
+    [
+      "verb-042",
+      "cadō",
+      "cadere",
+      "cecidī",
+      "cāsum",
+      "fall",
+      "3rd"
+    ],
+    [
+      "verb-043",
+      "veniō",
+      "venīre",
+      "vēnī",
+      "ventum",
+      "come",
+      "4th"
+    ],
+    [
+      "verb-044",
+      "vincō",
+      "vincere",
+      "vīcī",
+      "victum",
+      "conquer; overcome",
+      "3rd"
+    ],
+    [
+      "verb-045",
+      "dūcō",
+      "dūcere",
+      "dūxī",
+      "ductum",
+      "lead",
+      "3rd"
+    ],
+    [
+      "verb-046",
+      "nōscō",
+      "nōscere",
+      "nōvī",
+      "nōtum",
+      "get to know; learn",
+      "3rd"
+    ],
+    [
+      "verb-047",
+      "dīligō",
+      "dīligere",
+      "dīlēxī",
+      "dīlēctum",
+      "love; esteem",
+      "3rd"
+    ],
+    [
+      "verb-048",
+      "nesciō",
+      "nescīre",
+      "nescīvī",
+      "nescītum",
+      "not know; be ignorant",
+      "4th"
+    ],
+    [
+      "verb-049",
+      "surgō",
+      "surgere",
+      "surrēxī",
+      "surrēctum",
+      "rise; get up",
+      "3rd"
+    ],
+    [
+      "verb-050",
+      "legō",
+      "legere",
+      "lēgī",
+      "lēctum",
+      "read; choose",
+      "3rd"
+    ],
+    [
+      "verb-051",
+      "edō",
+      "edere",
+      "ēdī",
+      "ēsum",
+      "eat",
+      "3rd"
+    ],
+    [
+      "verb-052",
+      "petō",
+      "petere",
+      "petīvī",
+      "petītum",
+      "seek; ask for",
+      "3rd"
+    ]
+  ],
+  "conjunctions": [
+    [
+      "conjunction-001",
+      "nē",
+      "lest; so that not"
+    ],
+    [
+      "conjunction-002",
+      "autem",
+      "however; but"
+    ],
+    [
+      "conjunction-003",
+      "enim",
+      "for; indeed"
+    ],
+    [
+      "conjunction-004",
+      "igitur",
+      "therefore; and so"
+    ],
+    [
+      "conjunction-005",
+      "sed",
+      "but"
+    ],
+    [
+      "conjunction-006",
+      "atque",
+      "and; and also"
+    ]
+  ],
+  "grammar": [
+    [
+      "grammar-noun-001",
+      "How can you identify a first-declension noun?",
+      "Genitive singular ends in -ae."
+    ],
+    [
+      "grammar-noun-002",
+      "How can you identify a second-declension noun?",
+      "Genitive singular ends in -ī."
+    ],
+    [
+      "grammar-noun-003",
+      "How can you identify a third-declension noun?",
+      "Genitive singular ends in -is."
+    ],
+    [
+      "grammar-noun-004",
+      "How can you identify a fourth-declension noun?",
+      "Genitive singular ends in -ūs."
+    ],
+    [
+      "grammar-noun-005",
+      "How can you identify a fifth-declension noun?",
+      "Genitive singular ends in -ēī or -eī."
+    ],
+    [
+      "grammar-noun-006",
+      "Which noun declension has genitive singular -ae?",
+      "First declension."
+    ],
+    [
+      "grammar-noun-007",
+      "Which noun declension has genitive singular -ī?",
+      "Second declension."
+    ],
+    [
+      "grammar-noun-008",
+      "Which noun declension has genitive singular -is?",
+      "Third declension."
+    ],
+    [
+      "grammar-noun-009",
+      "Which noun declension has genitive singular -ūs?",
+      "Fourth declension."
+    ],
+    [
+      "grammar-noun-010",
+      "Which noun declension has genitive singular -eī?",
+      "Fifth declension."
+    ],
+    [
+      "grammar-noun-011",
+      "Which four attributes describe Latin nouns?",
+      "Declension, gender, number, and case."
+    ],
+    [
+      "grammar-verb-001",
+      "What are the standard passive personal endings?",
+      "-or, -ris, -tur, -mur, -minī, -ntur (1st/2nd/3rd person singular then plural)."
+    ],
+    [
+      "grammar-verb-002",
+      "What identifies a first-conjugation verb?",
+      "Its second principal part (infinitive) typically ends in -āre."
+    ],
+    [
+      "grammar-verb-003",
+      "What identifies a second-conjugation verb?",
+      "Its second principal part (infinitive) typically ends in long -ēre."
+    ],
+    [
+      "grammar-verb-004",
+      "What identifies a third-conjugation verb?",
+      "Its second principal part (infinitive) ends in short -ere."
+    ],
+    [
+      "grammar-verb-005",
+      "What identifies a fourth-conjugation verb?",
+      "Its second principal part (infinitive) ends in -īre."
+    ],
+    [
+      "grammar-verb-006",
+      "What are the six attributes of Latin verbs?",
+      "Conjugation, person, number, tense, voice, and mood."
+    ],
+    [
+      "grammar-verb-007",
+      "Conjugate sum (to be) in the present indicative.",
+      "sum, es, est; sumus, estis, sunt."
+    ],
+    [
+      "grammar-verb-008",
+      "Conjugate sum (to be) in the imperfect indicative.",
+      "eram, erās, erat; erāmus, erātis, erant."
+    ],
+    [
+      "grammar-verb-009",
+      "Conjugate sum (to be) in the future indicative.",
+      "erō, eris, erit; erimus, eritis, erunt."
+    ]
+  ],
+  "unresolved": [
+    {
+      "id": "unresolved-001",
+      "photo": "7752.jpg",
+      "card_position": "row 2, column 5",
+      "visible_side": "English definition only",
+      "visible_text": "inhabit, dwell",
+      "missing": "Latin first and other principal parts and conjugation",
+      "status": "needs Latin-side photo; do not guess"
+    }
+  ]
+}
