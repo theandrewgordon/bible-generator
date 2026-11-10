@@ -78,6 +78,11 @@ PRODUCTS = (
         "description": "Practice phonics, spelling, and decoding in a gentle word adventure.",
     },
     {
+        "id": "latin-quest", "name": "Latin Quest", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/latin-quest", "accent": "forest",
+        "description": "Listen, translate, and practice Latin in short or longer quests, with saved voice audio and gentle review.",
+    },
+    {
         "id": "games-lab", "name": "Games Lab", "area": "labs",
         "maturity": "sandbox", "path": "/labs/games", "accent": "gold",
         "description": "Try small interactive game prototypes for families while we refine the controls, levels, and play flow.",
