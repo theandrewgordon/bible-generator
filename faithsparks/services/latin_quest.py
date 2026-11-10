@@ -18,6 +18,7 @@ INSTRUCTIONS = {
 SYNONYMS = {
  'wood': ['timber'], 'farmer': ['a farmer'], 'no one': ['nobody'],
  'joy': ['happiness'], 'road': ['path'], 'house': ['home'], 'animal': ['beast'],
+ 'not know': ["don't know", 'do not know', 'be unaware'],
  'announce': ['proclaim'], 'free': ['set free'], 'prevent': ['stop'],
  'weep': ['cry'], 'get up': ['stand up'], 'conquer': ['defeat'],
  'you (plural)': ['you all', 'all of you', 'yall'], 'you (singular)': ['you'],
