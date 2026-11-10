@@ -98,7 +98,8 @@ for q in reverse_cards:
             q['answers'] = list(dict.fromkeys(q['answers'] + other['answers'][:1]))
 
 QUESTION_MAP = {q['id']: q for q in QUESTIONS}
-CUES = {'welcome': 'Welcome to Latin Quest. Listen, try one answer, and take your time. You can ask for a hint, repeat, reveal, skip, or stop.',
+CUES = {'study-unknown': 'I could not find that fact on these cards. Try asking for meaning, gender, declension, conjugation, or principal parts. Say repeat to hear the quiz question again.',
+        'welcome': 'Welcome to Latin Quest. Listen, try one answer, and take your time. You can ask for a hint, repeat, reveal, skip, or stop.',
         'complete': 'Quest complete. Well done practicing! Your progress is saved on this device.',
         'correct': 'Correct! Well done.', 'try': 'Good try. Let us learn this one together.',
         'listen': 'Your turn. Say your answer now.', 'paused': 'Quest paused. Your completed questions are saved on this device.'}

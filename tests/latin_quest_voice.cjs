@@ -2,7 +2,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const core=require('../static/js/latin-quest-core.js');
 const source=fs.readFileSync('static/js/latin-quest.js','utf8');
 const tick=()=>new Promise(r=>setImmediate(r));
-const study=[{id:'noun-014',word:'terra',aliases:['terra','terrae'],fact:'gender',answer:'feminine',cue:'study:noun-014:gender'}];
+const study=[...Array.from({length:25},(_,i)=>({id:'noun-'+i,word:'testword'+i,aliases:['testword'+i],fact:'gender',answer:'feminine',cue:'study:noun-'+i+':gender'})),{id:'noun-014',word:'terra',aliases:['terra','terrae'],fact:'gender',answer:'feminine',cue:'study:noun-014:gender'}];
 function setup(){
  const nodes={},recognizers=[],sent=[],cache=new Map(),storage={};
  const node=id=>nodes[id]??={value:'',checked:false,hidden:false,textContent:'',children:[],addEventListener(n,f){this[n]=f;},replaceChildren(){this.children=[];},appendChild(x){this.children.push(x);},closest(){return {title:''};}};
@@ -23,6 +23,12 @@ function setup(){
  a.nodes['lq-study-question'].value='What gender is porta?';a.nodes['lq-study-form'].submit({preventDefault(){}});await tick();assert.equal(a.sent.length,1);assert.match(a.nodes['lq-study-result'].textContent,/could not find/);
  a.nodes['lq-study-mic'].click();a.recognizers[1].onerror({error:'not-allowed'});assert.match(a.nodes['lq-study-status'].textContent,/Type your question/);
  a.nodes['lq-start'].click();await tick();await tick();assert.equal(a.nodes['lq-round'].textContent,'Question 1 of 20');assert(a.nodes['lq-study'].hidden);
- a.nodes['lq-stop'].click();await tick();await tick();assert.equal(a.nodes['lq-study'].hidden,false);assert.match(a.nodes['lq-result-title'].textContent,/pause/);
- console.log('Latin Quest voice: spoken study lookup, fixed-cue audio, repeat reuse, unknown words, denied mic fallback and 20-question start passed.');
+ a.nodes['lq-mic'].click();a.recognizers[2].onresult({results:[[{transcript:'What gender is it?'}]]});await tick();await tick();
+ assert.match(a.nodes['lq-followup-result'].textContent,/gender: feminine/);assert.equal(a.nodes['lq-round'].textContent,'Question 1 of 20');assert.equal(a.nodes['lq-answer'].disabled,false);assert.match(a.nodes['lq-followup-status'].textContent,/with help/);
+ a.nodes['lq-mic'].click();a.recognizers[3].onresult({results:[[{transcript:'What gender is porta?'}]]});await tick();await tick();
+ assert.match(a.nodes['lq-followup-result'].textContent,/not available/);assert.equal(a.nodes['lq-answer'].disabled,false,'unknown question must not be graded as an incorrect answer');
+ a.nodes['lq-answer'].value='earth';a.nodes['lq-form'].submit({preventDefault(){}});await tick();await tick();
+ assert.match(a.nodes['lq-feedback'].textContent,/little help/);
+ a.nodes['lq-stop'].click();await tick();await tick();assert.equal(a.nodes['lq-score'].textContent,'0 / 1');assert.equal(a.nodes['lq-study'].hidden,false);assert.match(a.nodes['lq-result-title'].textContent,/pause/);
+ console.log('Latin Quest voice: spoken study lookup, fixed-cue audio, repeat reuse, unknown words, denied mic fallback 20-question start, in-session follow-ups, and assisted scoring passed.');
 })().catch(e=>{console.error(e);process.exit(1);});

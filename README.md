@@ -110,7 +110,10 @@ letter names. Dedicated phoneme audio must be listening-reviewed before use.
 part of speech, noun gender/declension/nominative/genitive, verb conjugation, and
 principal parts. Answers come from fixed approved card facts; no free-form AI
 answers or guessed vocabulary are used. Unclear or missing words are left for
-the user to clarify. Browser microphone permission is required.
+the user to clarify. Browser microphone permission is required. During a quiz, use “Ask about this card”
+or speak a follow-up such as “What gender is it?” through the answer microphone.
+The question stays open; known help is marked as assisted practice, and an
+unknown study question is not graded as a wrong quiz answer.
 
 `/labs/latin-quest` offers 5/10/15/20/30/50/100-question or all-available-card Latin practice: Latin → English
 (the default), English → Latin, noun declension/gender/case forms, verb
