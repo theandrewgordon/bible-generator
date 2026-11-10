@@ -3,6 +3,7 @@ const {matches,buildQueue,record}=require('../static/js/latin-quest-core.js');
 const meaning={id:'noun-001:meaning',card:'noun-001',mode:'meaning',details:'Noun.',answers:['servant','slave'],latin:false};
 assert(matches(meaning,'a servant'));assert(matches(meaning,'slave'));assert(!matches(meaning,'window'));assert(!matches(meaning,'slav'));
 assert(matches({...meaning,details:'Verb.',answers:['fight']},'to fight'));
+assert(matches({...meaning,details:'Verb.',answers:["don't know",'do not know']},"I don't know"));
 assert(matches({...meaning,answers:['faith','trust']},'it means trust'));
 assert(matches({...meaning,mode:'reverse',answers:['rēx'],latin:true},'rex'));
 const attrs={...meaning,id:'grammar-noun-011:grammar',mode:'grammar',answers:['Declension, gender, number, and case.']};

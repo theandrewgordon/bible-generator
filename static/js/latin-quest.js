@@ -42,6 +42,8 @@ function listen(){
  stopMedia();const token=generation,r=new Recognition();recognition=r;r.lang='en-US';r.interimResults=false;r.continuous=false;r.maxAlternatives=3;
  $('lq-audio-status').textContent='Listening… say an answer, hint, repeat, answer, next, or stop.';
  r.onresult=event=>{if(token!==generation||!active)return;recognition=null;const text=event.results[0][0].transcript;$('lq-answer').value=text;const command=core.normalize(text);
+  // A valid vocabulary answer takes precedence over a generic voice shortcut.
+  if(!resolved&&core.matches(current(),text)){check(text);return;}
   if(['stop','stop quest','pause','cancel'].includes(command)){finish(true);return;}
   if(['repeat','say it again'].includes(command)){repeatQuestion();return;}
   if(['hint','a hint','give me a hint'].includes(command)){hint();return;}
