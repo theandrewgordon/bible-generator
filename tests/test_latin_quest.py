@@ -1,6 +1,6 @@
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 import pytest
 from flask import Flask
 from faithsparks.services import latin_quest as cards
@@ -69,10 +69,10 @@ def test_voice_is_generated_once_then_reused_without_paid_call(client, monkeypat
 
 def test_cache_key_covers_voice_pronunciation_and_content(client):
     paths={cards.cache_path('welcome',voice,p) for voice in cards.VOICES for p in cards.INSTRUCTIONS}
-    assert len(paths)==4
+    assert len(paths)==2
     assert cards.cache_path('correct','coral','classical') != cards.cache_path('welcome','coral','classical')
     post(client)
-    assert post(client,{'cue':'noun-001:meaning:details','voice':'marin','pronunciation':'church'}).status_code == 200
+    assert post(client,{'cue':'noun-001:meaning:details','voice':'marin','pronunciation':'classical'}).status_code == 200
     assert client[4].call_count == 2
 
 @pytest.mark.parametrize('payload', [[], 'answer', {'cue':[]}, {'cue':'unknown','voice':'coral','pronunciation':'classical'}, {'cue':'welcome','voice':'fake','pronunciation':'church'}, {'text':'private answer','cue':'welcome','voice':'coral','pronunciation':'classical'}])
@@ -117,3 +117,13 @@ def test_latin_lab_is_discoverable_and_noindexed():
         assert response.headers['X-Robots-Tag']=='noindex, nofollow'
         assert b'unresolved-001' not in response.data
         assert b'/labs/latin-quest' not in c.get('/sitemap.xml').data
+
+
+def test_only_classical_pronunciation_is_supported(client):
+    assert set(cards.INSTRUCTIONS) == {'classical'}
+    response = post(client, {'cue':'welcome', 'voice':'coral', 'pronunciation':'church'})
+    assert response.status_code == 400
+    client[4].assert_not_called()
+    old = cards.cache_path('welcome', 'coral', 'classical')
+    with patch.dict(cards.INSTRUCTIONS, {'classical': 'changed pronunciation guidance'}):
+        assert cards.cache_path('welcome', 'coral', 'classical') != old

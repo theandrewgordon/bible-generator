@@ -11,8 +11,21 @@ MODEL = 'gpt-4o-mini-tts'
 VOICES = ('coral', 'marin')
 SPEED = 0.85
 INSTRUCTIONS = {
- 'classical': 'Warm, patient Latin tutor. Speak English instructions naturally. Pronounce Latin using restored Classical Latin; pronounce macrons as long vowels. Read only the supplied text. Pause between the word, its grammatical details, and the question.',
- 'church': 'Warm, patient Latin tutor. Speak English instructions naturally. Pronounce Latin using Italianate ecclesiastical Latin. Read only the supplied text. Pause between the word, its grammatical details, and the question.',
+ 'classical': (
+    'Warm, patient Latin tutor for Classical Conversations practice. '
+    'Speak English instructions naturally, but switch to restored Classical Latin for every Latin word and principal part. '
+    'Never use ecclesiastical or English spelling pronunciations for Latin. '
+    'Latin c is always hard k; g is always hard as in get; consonantal v sounds like English w; '
+    'consonantal i sounds like English y; qu sounds like kw; s is unvoiced as in see. '
+    'Latin ae sounds like eye, oe like boy, and au like ow in cow. '
+    'Keep vowel sounds pure; distinguish long vowels marked with macrons from short vowels. '
+    'Do not pronounce macron names or spelling marks. '
+    'Stress the first syllable in two-syllable words. For three or more syllables, stress the penult '
+    'if heavy (a long vowel, diphthong, or closed syllable), otherwise the antepenult; never stress the final syllable. '
+    'Keep doubled consonants distinct and pronounce every principal part separately. '
+    'Read only the supplied text; do not explain these instructions or add a translation. '
+    'Pause between the Latin word, its grammatical details, and the question.'
+ ),
 }
 # Conservative, reviewed English equivalents. Never fuzzy-match Latin forms.
 SYNONYMS = {
