@@ -136,8 +136,9 @@ service; typed input remains available when voice recognition is unsupported.
 #### Reusable OpenAI audio
 
 Only fixed server-owned cue IDs can request audio. `gpt-4o-mini-tts` uses the existing
-`OPENAI_API_KEY`, with coral/marin voices and Classical/church pronunciation
+`OPENAI_API_KEY`, with coral/marin voices and restored Classical pronunciation
 instructions. Pronunciation is an AI approximation and needs teacher review.
+The game uses Classical pronunciation only for CC practice; explicit consonant, diphthong, vowel-length, and stress instructions guide generation, but clips still require teacher listening review. Changing those instructions invalidates both browser and cloud audio caches.
 Audio is labeled AI-generated. Cache identity includes model, voice, pronunciation,
 instructions, speed and text. Generated MP3s persist in the existing private
 Firebase/Google Cloud Storage bucket under `latin_quest/audio/v1/`, and are reused
