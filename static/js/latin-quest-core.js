@@ -24,5 +24,22 @@ function buildQueue(questions,mode,size,stats,review=false,random=Math.random){
  const seen=new Set();return pool.filter(q=>{if(seen.has(q.card))return false;seen.add(q.card);return true;}).slice(0,size);
 }
 function record(stats,q,correct,helped){const prior=stats[q.id]||{};return {...stats,[q.id]:{attempts:(prior.attempts||0)+1,correct:(prior.correct||0)+(correct&&!helped?1:0),streak:correct&&!helped?Math.min(9,(prior.streak||0)+1):0}};}
-const api={normalize,matches,buildQueue,record};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LatinQuestCore=api;
+function lookupStudy(entries,text){
+ const query=normalize(text);if(!query)return [];
+ let facts=['meaning'];
+ if(/\bgender\b/.test(query))facts=['gender'];
+ else if(/\b(declension|declination)\b/.test(query))facts=['declension'];
+ else if(/\bconjugation\b/.test(query))facts=['conjugation'];
+ else if(/\bnominative\b/.test(query))facts=['nominative'];
+ else if(/\bgenitive\b/.test(query))facts=['genitive'];
+ else if(/principal part/.test(query)){
+  const n=query.match(/\b(first|second|third|fourth|1|2|3|4)\b/);
+  facts=[n?'principal part '+({first:1,second:2,third:3,fourth:4}[n[1]]||n[1]):'principal parts'];
+ }else if(/\bforms\b/.test(query))facts=['forms','principal parts'];
+ else if(/part of speech|noun or verb|is .+ a (noun|verb|pronoun|conjunction)/.test(query))facts=['part of speech'];
+ else if(!/\b(mean|meaning|translate|english|definition|define)\b|^what is /.test(query)&&!entries.some(e=>e.aliases.some(a=>normalize(a)===query)))return [];
+ const padded=' '+query+' ';
+ return entries.filter(e=>facts.includes(e.fact)&&e.aliases.some(a=>padded.includes(' '+normalize(a)+' ')));
+}
+const api={normalize,matches,buildQueue,record,lookupStudy};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LatinQuestCore=api;
 })(typeof window!=='undefined'?window:globalThis);

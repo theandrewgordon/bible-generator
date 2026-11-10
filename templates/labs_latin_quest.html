@@ -10,11 +10,11 @@
 {% block content %}
 <main class="lq" id="lq-app">
  <div class="lq-top"><a class="lq-link" href="/labs">← Faith Sparks Labs</a><span class="lq-tag">A little practice. A lasting memory.</span></div>
- <header><h1>Latin Quest</h1><p class="lq-intro">Listen to a Latin word. Give one English meaning. Build confidence in five or ten questions, with a friendly voice and room to try again.</p></header>
+ <header><h1>Latin Quest</h1><p class="lq-intro">Listen to a Latin word. Give one English meaning. Build confidence in a short or longer quest, with a friendly voice and room to try again.</p></header>
  <section id="lq-setup" class="lq-panel" aria-label="Set up practice">
   <div class="lq-grid">
    <div><label for="lq-mode">Choose your practice</label><select id="lq-mode">{% for key,label in latin_modes.items() %}<option value="{{key}}">{{label}}</option>{% endfor %}</select></div>
-   <div><label for="lq-size">Session length</label><select id="lq-size"><option value="5">5 questions · a small win</option><option value="10">10 questions · a deeper practice</option></select></div>
+   <div><label for="lq-size">Session length</label><select id="lq-size"><option value="5">5 questions · a small win</option><option value="10">10 questions · a deeper practice</option><option value="15">15 questions</option><option value="20">20 questions</option><option value="30">30 questions</option><option value="50">50 questions</option><option value="100">100 questions</option><option value="140">All available cards</option></select></div>
    <div><label for="lq-voice">Voice</label><select id="lq-voice"><option value="coral">Coral · warm and clear</option><option value="marin">Marin · calm and natural</option></select></div>
    <div><label for="lq-pronunciation">Latin pronunciation</label><select id="lq-pronunciation"><option value="classical">Classical</option><option value="church">Church / ecclesiastical</option></select></div>
   </div>
@@ -23,6 +23,13 @@
   <p class="lq-small">One listed meaning or a close equivalent is enough. Card details are given for vocabulary practice; other modes ask you to recall them.</p>
   <div class="lq-row"><button class="primary" id="lq-start" type="button">Begin a quest →</button><button id="lq-review" type="button">Review missed cards</button></div>
   <p id="lq-progress-summary" class="lq-small"></p>
+ </section>
+ <section class="lq-panel" id="lq-study" aria-label="Ask about a card">
+  <p class="lq-tag">A question along the way</p><h2>Ask about a card</h2>
+  <p class="lq-small">Try “What gender is terra?”, “What does rex mean?”, or “What are the principal parts of pugno?”</p>
+  <form id="lq-study-form"><label for="lq-study-question">Your study question</label><input type="text" id="lq-study-question" autocomplete="off"><div class="lq-row"><button type="submit" id="lq-study-ask" class="primary">Ask the card set</button><button type="button" id="lq-study-mic">🎙 Ask by voice</button><button type="button" id="lq-study-repeat" hidden>Hear that answer again</button></div></form>
+  <p id="lq-study-status" class="lq-status" role="status"></p><p id="lq-study-result" class="lq-feedback" role="status" aria-live="polite"></p><div id="lq-study-choices" class="lq-row"></div>
+  <p class="lq-small">Answers come only from these cards. If a word is unclear, choose a matching card or type its Latin spelling. Pronunciation hints from speech recognition are not used to guess a different word.</p>
  </section>
  <section id="lq-session" class="lq-panel" aria-label="Practice session" hidden>
   <div class="lq-top"><span id="lq-round" class="lq-tag"></span><button id="lq-stop" type="button">Pause quest</button></div>
@@ -36,10 +43,10 @@
  </section>
  <section id="lq-result" class="lq-panel" aria-label="Practice results" hidden><p class="lq-tag">Small steps count</p><h2 id="lq-result-title"></h2><p id="lq-score" class="lq-stat"></p><p id="lq-result-copy"></p><div class="lq-row"><button id="lq-again" class="primary" type="button">Choose another quest</button></div></section>
  <p id="lq-notice" class="lq-status" role="status"></p>
- <details class="lq-panel"><summary>Teacher &amp; parent notes</summary><ul class="lq-list"><li>Uses the 140 approved photographed cards: 120 vocabulary cards and 20 grammar cards. The unresolved card is excluded.</li><li>New sessions favor cards that need practice. Hinted and revealed answers return for review. Progress stays in this browser, shared by anyone using this browser profile.</li><li>Answer checking uses listed meanings and a small set of equivalents. It avoids guessing at misspellings. Use “My answer was also correct” to accept another valid equivalent together.</li><li>AI-generated OpenAI voice clips are saved and reused. Latin pronunciation is a model approximation; a teacher should check unfamiliar forms.</li><li>The microphone uses your browser’s speech-recognition service, which may send audio to its provider. Faith Sparks receives no voice recordings or learner answers. Voice input works best for English meanings; type Latin forms if recognition struggles.</li></ul><div class="lq-row"><button id="lq-clear" type="button">Reset this browser’s Latin progress</button><button id="lq-clear-audio" type="button">Clear saved audio on this device</button></div></details>
+ <details class="lq-panel"><summary>Teacher &amp; parent notes</summary><ul class="lq-list"><li>Uses the 140 approved photographed cards: 120 vocabulary cards and 20 grammar cards. The unresolved card is excluded.</li><li>New sessions favor cards that need practice. Hinted and revealed answers return for review. Longer sessions stop at the number of distinct cards in the chosen mode. Progress stays in this browser, shared by anyone using this browser profile.</li><li>Answer checking uses listed meanings and a small set of equivalents. It avoids guessing at misspellings. Use “My answer was also correct” to accept another valid equivalent together.</li><li>AI-generated OpenAI voice clips are saved and reused. Latin pronunciation is a model approximation; a teacher should check unfamiliar forms.</li><li>The microphone uses your browser’s speech-recognition service, which may send audio to its provider. Faith Sparks receives no voice recordings or learner answers. Voice input works best for English meanings; type Latin forms if recognition struggles.</li></ul><div class="lq-row"><button id="lq-clear" type="button">Reset this browser’s Latin progress</button><button id="lq-clear-audio" type="button">Clear saved audio on this device</button></div></details>
  <p class="lq-small lq-note">Voice: AI-generated by OpenAI. Clips are reused from shared storage and saved on your device when supported. If audio is unavailable, use the visible card and answer controls. No automatic device-voice substitution.</p>
 </main>
-<script id="lq-config" type="application/json">{{ {'questions':latin_questions,'csrf':latin_csrf,'audioVersion':latin_audio_version,'ttsUrl':url_for('latin_quest.tts')}|tojson }}</script>
+<script id="lq-config" type="application/json">{{ {'questions':latin_questions,'study':latin_study,'csrf':latin_csrf,'audioVersion':latin_audio_version,'ttsUrl':url_for('latin_quest.tts')}|tojson }}</script>
 <script src="{{ url_for('static', filename='js/latin-quest-core.js') }}?v=1" defer></script>
 <script src="{{ url_for('static', filename='js/latin-quest.js') }}?v=1" defer></script>
 {% endblock %}

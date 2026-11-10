@@ -3,6 +3,7 @@
 const config=JSON.parse(document.getElementById('lq-config').textContent),core=window.LatinQuestCore,$=id=>document.getElementById(id);
 const STORE='faithsparks.latinQuest.progress.v1',CACHE='faithsparks-latin-voice-'+config.audioVersion;
 let stats={},queue=[],position=0,score=0,completed=0,active=false,resolved=false,helped=false,currentCorrect=false,previousStat=null;
+let studyCue=null;
 let settings={},generation=0,audio=null,recognition=null,nextTimer=null;
 const memory=new Map(),pending=new Map(),Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 function notice(text){$('lq-notice').textContent=text;}
@@ -68,7 +69,7 @@ function begin(review=false){
  stopMedia();settings={mode:$('lq-mode').value,voice:$('lq-voice').value,pronunciation:$('lq-pronunciation').value,details:$('lq-details').checked,handsfree:$('lq-auto').checked&&!!Recognition};
  queue=core.buildQueue(config.questions,settings.mode,Number($('lq-size').value),stats,review);
  if(!queue.length){notice('No missed cards in this practice mode yet. Start a quest or choose another mode.');return;}
- position=0;score=0;completed=0;active=true;notice('');$('lq-setup').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=false;paint();
+ position=0;score=0;completed=0;active=true;notice('');$('lq-setup').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=false;$('lq-study').hidden=true;paint();
 }
 async function hint(){if(!active||resolved)return;helped=true;$('lq-feedback').textContent=current().hint;const played=await speak(current().id+':hint');if(played&&settings.handsfree&&!resolved)listen();}
 async function resolve(correct){
@@ -85,13 +86,39 @@ function reveal(){if(!active||resolved)return;helped=true;resolve(false);}
 function advance(){if(!active||!resolved)return;stopMedia();position++;if(position>=queue.length){finish(false);return;}paint();}
 function override(){if(!active||!resolved||currentCorrect)return;stopMedia();if(previousStat)stats[current().id]=previousStat;else delete stats[current().id];stats=core.record(stats,current(),true,helped);save();if(!helped)score++;currentCorrect=true;$('lq-feedback').textContent='Marked correct together. Thanks for checking the meaning.';$('lq-override').hidden=true;summary();}
 function finish(paused){
- if(!active)return;stopMedia();active=false;$('lq-session').hidden=true;$('lq-result').hidden=false;$('lq-result-title').textContent=paused?'A good place to pause.':'Quest complete.';$('lq-score').textContent=score+' / '+completed;$('lq-result-copy').textContent='Correct without hints or reveals. Completed questions are saved on this device. Missed and hinted cards will return for review.';summary();speak('summary-'+(paused?'paused':'complete')+'-'+score+'-'+completed,true);
+ if(!active)return;stopMedia();active=false;$('lq-session').hidden=true;$('lq-result').hidden=false;$('lq-result-title').textContent=paused?'A good place to pause.':'Quest complete.';$('lq-score').textContent=score+' / '+completed;$('lq-result-copy').textContent='Correct without hints or reveals. Completed questions are saved on this device. Missed and hinted cards will return for review.';summary();$('lq-study').hidden=false;speakResult(paused);
 }
+async function speakResult(paused){
+ let token=generation;
+ for(const cue of [paused?'paused':'complete','score-'+score,'count-'+completed]){
+  const played=await speak(cue,true);token++;
+  if(!played||generation!==token)break;
+ }
+}
+function studySettings(){settings={voice:$('lq-voice').value,pronunciation:$('lq-pronunciation').value};}
+async function speakStudy(){if(!studyCue)return;studySettings();$('lq-study-status').textContent='Preparing the spoken card answer…';const played=await speak(studyCue,true);$('lq-study-status').textContent=played?'AI-generated OpenAI voice · saved for replay':$('lq-audio-status').textContent;}
+function showStudy(entry){studyCue=entry.cue;$('lq-study-result').textContent=entry.word+' — '+entry.fact+': '+entry.answer;$('lq-study-choices').replaceChildren();$('lq-study-repeat').hidden=false;speakStudy();}
+function askStudy(text){
+ stopMedia();studyCue=null;$('lq-study-status').textContent='';$('lq-study-repeat').hidden=true;$('lq-study-choices').replaceChildren();
+ const found=core.lookupStudy(config.study,text);
+ if(found.length===1){showStudy(found[0]);return;}
+ if(found.length>1){$('lq-study-result').textContent='Which card did you mean?';for(const entry of found){const button=document.createElement('button');button.type='button';button.textContent=entry.word;button.addEventListener('click',()=>showStudy(entry));$('lq-study-choices').appendChild(button);}return;}
+ $('lq-study-result').textContent='I could not find that word and fact in this card set. Try its Latin spelling and ask for meaning, gender, declension, conjugation, forms, or principal parts.';
+}
+function listenStudy(){
+ if(!Recognition||active)return;stopMedia();const token=generation,r=new Recognition();recognition=r;r.lang='en-US';r.interimResults=false;r.continuous=false;r.maxAlternatives=3;
+ $('lq-study-status').textContent='Listening for your question…';
+ r.onresult=event=>{if(token!==generation)return;recognition=null;const transcripts=Array.from(event.results[0]).map(x=>x.transcript);const text=transcripts.find(t=>core.lookupStudy(config.study,t).length)||transcripts[0];$('lq-study-question').value=text;askStudy(text);};
+ r.onerror=event=>{if(token!==generation)return;recognition=null;$('lq-study-status').textContent=event.error==='not-allowed'?'Microphone access was not granted. Type your question instead.':'I did not catch that. Try again, or type the Latin spelling.';};
+ r.onend=()=>{if(recognition===r){recognition=null;$('lq-study-status').textContent='Listening stopped. Try again, or type your question.';}};
+ try{r.start();}catch(_){recognition=null;$('lq-study-status').textContent='Voice input could not start. Type your question instead.';}
+}
+$('lq-study-form').addEventListener('submit',e=>{e.preventDefault();if(!active)askStudy($('lq-study-question').value);});$('lq-study-mic').addEventListener('click',listenStudy);$('lq-study-repeat').addEventListener('click',speakStudy);
 $('lq-start').addEventListener('click',()=>begin());$('lq-review').addEventListener('click',()=>begin(true));$('lq-stop').addEventListener('click',()=>finish(true));$('lq-form').addEventListener('submit',e=>{e.preventDefault();if(active&&!resolved)check($('lq-answer').value);});$('lq-mic').addEventListener('click',listen);$('lq-repeat').addEventListener('click',repeatQuestion);$('lq-hint').addEventListener('click',hint);$('lq-reveal').addEventListener('click',reveal);$('lq-skip').addEventListener('click',reveal);$('lq-next').addEventListener('click',advance);$('lq-override').addEventListener('click',override);
-$('lq-again').addEventListener('click',()=>{$('lq-result').hidden=true;$('lq-setup').hidden=false;});
+$('lq-again').addEventListener('click',()=>{$('lq-result').hidden=true;$('lq-setup').hidden=false;$('lq-study').hidden=false;});
 $('lq-clear').addEventListener('click',()=>{if(active){notice('Pause your quest before resetting progress.');return;}if(!confirm('Reset Latin Quest progress for this browser profile?'))return;stats={};save();summary();notice('Latin progress reset on this device.');});
 $('lq-clear-audio').addEventListener('click',async()=>{stopMedia();for(const url of memory.values())URL.revokeObjectURL(url);memory.clear();try{if('caches'in window){for(const key of await caches.keys())if(key.startsWith('faithsparks-latin-voice-'))await caches.delete(key);}notice('Saved Latin voice clips cleared on this device. Shared audio remains available for replay.');}catch(_){notice('This browser could not clear its saved audio.');}});
 window.addEventListener('pagehide',()=>{stopMedia();for(const url of memory.values())URL.revokeObjectURL(url);memory.clear();});
-if(!Recognition){$('lq-mic').disabled=true;$('lq-auto').disabled=true;$('lq-auto').closest('label').title='Voice answers require a browser with speech recognition. Use typed answers here.';}
+if(!Recognition){$('lq-study-mic').disabled=true;$('lq-study-status').textContent='This browser does not offer voice recognition. Type a study question above.';$('lq-mic').disabled=true;$('lq-auto').disabled=true;$('lq-auto').closest('label').title='Voice answers require a browser with speech recognition. Use typed answers here.';}
 summary();
 })();

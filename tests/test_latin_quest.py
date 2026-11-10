@@ -50,7 +50,8 @@ def test_approved_source_and_practice_variations():
     assert cards.QUESTION_MAP['noun-001:nouns-gender']['details'] == ''
     assert 'cibus' in cards.QUESTION_MAP['noun-007:reverse']['answers']
     assert 'or, ris, tur, mur, minī, ntur' in cards.QUESTION_MAP['grammar-verb-001:grammar']['answers']
-    assert 'summary-complete-5-5' in cards.CUES
+    assert 'score-140' in cards.CUES and 'count-140' in cards.CUES
+    assert next(e for e in cards.STUDY if e['word']=='terra' and e['fact']=='gender')['answer']=='feminine'
 
 def test_voice_is_generated_once_then_reused_without_paid_call(client, monkeypatch):
     first = post(client)
