@@ -26,7 +26,7 @@ def reply(body, status=200, **headers):
 def page():
     token = session.setdefault('_csrf_token', secrets.token_urlsafe(32))
     response = current_app.make_response(render_template('labs_latin_quest.html', noindex=True,
-        latin_questions=curriculum.QUESTIONS, latin_modes=curriculum.MODES, latin_csrf=token,
+        latin_questions=curriculum.QUESTIONS, latin_study=curriculum.STUDY, latin_modes=curriculum.MODES, latin_csrf=token,
         latin_audio_version=curriculum.AUDIO_VERSION))
     response.headers['Cache-Control'] = 'private, no-store'
     response.headers['X-Robots-Tag'] = 'noindex, nofollow'

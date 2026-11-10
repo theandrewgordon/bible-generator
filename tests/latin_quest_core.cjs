@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {matches,buildQueue,record}=require('../static/js/latin-quest-core.js');
+const {matches,buildQueue,record,lookupStudy}=require('../static/js/latin-quest-core.js');
 const meaning={id:'noun-001:meaning',card:'noun-001',mode:'meaning',details:'Noun.',answers:['servant','slave'],latin:false};
 assert(matches(meaning,'a servant'));assert(matches(meaning,'slave'));assert(!matches(meaning,'window'));assert(!matches(meaning,'slav'));
 assert(matches({...meaning,details:'Verb.',answers:['fight']},'to fight'));
@@ -14,4 +14,11 @@ assert.equal(buildQueue(qs,'meaning',10,prior).length,10);assert.equal(new Set(b
 assert.deepEqual(buildQueue(qs,'meaning',10,prior,true).map(q=>q.id),[qs[0].id]);
 assert.equal(record(prior,qs[0],true,true)[qs[0].id].streak,0);assert.equal(record(prior,qs[0],true,false)[qs[0].id].streak,1);
 assert.equal(buildQueue([...qs,qs[0]],'meaning',30,{}).length,20);
+assert.equal(buildQueue(qs,'meaning',50,{}).length,20);
+const study=[{word:'terra',aliases:['terra','terrae'],fact:'gender',answer:'feminine'},{word:'pugnō',aliases:['pugnō','pugnāre'],fact:'principal parts',answer:'pugnō, pugnāre, pugnāvī, pugnātum'},{word:'terra',aliases:['terra','terrae'],fact:'meaning',answer:'earth; land'}];
+assert.equal(lookupStudy(study,'What gender is terra?')[0].answer,'feminine');
+assert.equal(lookupStudy(study,'What are the principal parts of pugno?')[0].word,'pugnō');
+assert.equal(lookupStudy(study,'What does terra mean?')[0].answer,'earth; land');
+assert.equal(lookupStudy(study,'What gender is porta?').length,0);
+assert.equal(lookupStudy(study,'What tense is terra?').length,0);
 console.log('Latin Quest: alternate meanings, wrong answers, forms, lists, 5/10 sessions, review and assisted progress passed.');

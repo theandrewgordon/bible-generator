@@ -31,6 +31,7 @@ def ordinal(value):
     return value
 
 def add(card, kind, prompt, answers, hint, details='', latin=False):
+    display_answer = None if isinstance(answers, str) else answers[0]
     if isinstance(answers, str):
         answers = [a.strip() for a in answers.split(';') if a.strip()]
     variants = list(answers)
@@ -38,7 +39,7 @@ def add(card, kind, prompt, answers, hint, details='', latin=False):
         for answer in answers:
             variants.extend(SYNONYMS.get(answer, []))
     q = {'id': f'{card}:{kind}', 'card': card, 'mode': kind.split('-')[0], 'prompt': prompt,
-         'answers': list(dict.fromkeys(variants)), 'answer': '; '.join(answers),
+         'answers': list(dict.fromkeys(variants)), 'answer': display_answer or '; '.join(answers),
          'hint': hint, 'details': details, 'latin': latin}
     QUESTIONS.append(q)
 
@@ -107,11 +108,35 @@ for q in QUESTIONS:
     CUES[f'{q["id"]}:hint'] = q['hint']
     CUES[f'{q["id"]}:answer'] = f'The card answer is: {q["answer"]}.'
 
-# Results are also fixed cues, so hands-free session summaries can be reused.
-for done in range(11):
-    for correct in range(done + 1):
-        for state in ('complete', 'paused'):
-            CUES[f'summary-{state}-{correct}-{done}'] = f'Quest {state}. {correct} out of {done} correct without hints. Well done practicing. Your completed questions are saved on this device.'
+# Spoken study answers are fixed card facts, not model-generated tutoring.
+STUDY = []
+for cid, pos, first, second, meaning, decl, gender in SOURCE['nouns_and_pronouns']:
+    facts = {'meaning': meaning, 'part of speech': pos, 'forms': f'{first}, {second}'}
+    if pos == 'noun':
+        facts.update({'gender': gender, 'declension': f'{ordinal(decl)} declension',
+                      'nominative': first, 'genitive': second})
+    for fact, value in facts.items():
+        cue = f'study:{cid}:{fact.replace(" ", "-")}'
+        CUES[cue] = f'{first}. {fact.capitalize()}: {value}.'
+        STUDY.append({'id': cid, 'word': first, 'aliases': [first, second], 'fact': fact, 'answer': value, 'cue': cue})
+for cid, p1, p2, p3, p4, meaning, conj in SOURCE['verbs']:
+    facts = {'meaning': meaning, 'part of speech': 'verb', 'conjugation': f'{ordinal(conj)} conjugation',
+             'principal parts': ', '.join([p1, p2, p3, p4])}
+    for n, part in enumerate([p1, p2, p3, p4], 1):
+        facts[f'principal part {n}'] = part
+    for fact, value in facts.items():
+        cue = f'study:{cid}:{fact.replace(" ", "-")}'
+        CUES[cue] = f'{p1}. {fact.capitalize()}: {value}.'
+        STUDY.append({'id':cid, 'word':p1, 'aliases':[p1,p2,p3,p4], 'fact':fact, 'answer':value, 'cue':cue})
+for cid, word, meaning in SOURCE['conjunctions']:
+    for fact, value in {'meaning':meaning, 'part of speech':'conjunction'}.items():
+        cue = f'study:{cid}:{fact.replace(" ", "-")}'
+        CUES[cue] = f'{word}. {fact.capitalize()}: {value}.'
+        STUDY.append({'id':cid,'word':word,'aliases':[word],'fact':fact,'answer':value,'cue':cue})
+# Compose results from reusable number clips rather than one clip per score pair.
+for number in range(141):
+    CUES[f'score-{number}'] = f'{number} correct without hints.'
+    CUES[f'count-{number}'] = f'{number} questions completed.'
 
 AUDIO_VERSION = hashlib.sha256(json.dumps([MODEL, SPEED, INSTRUCTIONS, CUES], sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
 

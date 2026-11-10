@@ -106,7 +106,13 @@ letter names. Dedicated phoneme audio must be listening-reviewed before use.
 
 ### Latin Quest Lab
 
-`/labs/latin-quest` offers five- and ten-question Latin practice: Latin → English
+“Ask about a card” supports typed or spoken study questions about a word’s meaning,
+part of speech, noun gender/declension/nominative/genitive, verb conjugation, and
+principal parts. Answers come from fixed approved card facts; no free-form AI
+answers or guessed vocabulary are used. Unclear or missing words are left for
+the user to clarify. Browser microphone permission is required.
+
+`/labs/latin-quest` offers 5/10/15/20/30/50/100-question or all-available-card Latin practice: Latin → English
 (the default), English → Latin, noun declension/gender/case forms, verb
 conjugations/principal parts, grammar cards, and mixed sessions. Vocabulary prompts
 can announce part of speech and noun declension/gender or verb conjugation.
@@ -120,7 +126,8 @@ or sent to OpenAI. Conservative checking avoids fuzzy Latin matches. The teacher
 can explicitly accept an equivalent using “My answer was also correct.” Practice
 counts are shared within one browser profile and stored in localStorage. They do
 not sync with Jarvis/Home Assistant or across devices. Review missed cards uses
-the selected practice mode. Microphone input uses the browser's speech-recognition
+the selected practice mode. Longer sessions stop at the number of distinct cards
+in the chosen mode (up to 140 for mixed practice). Microphone input uses the browser's speech-recognition
 service; typed input remains available when voice recognition is unsupported.
 
 #### Reusable OpenAI audio
@@ -146,6 +153,6 @@ claimed. `LATIN_QUEST_TTS_DISABLED=1` or `AI_DISABLED=1` disables new generation
 saved clips remain playable. No broad pre-generation is performed at deployment.
 
 Validation: `python -m pytest tests/test_latin_quest.py tests/test_product_system.py -q`
-and `node tests/latin_quest_core.cjs`. Tests mock OpenAI/storage; they verify cache
+and `node tests/latin_quest_core.cjs` / `node tests/latin_quest_voice.cjs`. Tests mock OpenAI/storage; they verify cache
 hits do not call OpenAI, cache variants, fixed-cue validation, cost/error boundaries,
 accepted meanings, wrong meanings, five/ten-question selection, hints and review.

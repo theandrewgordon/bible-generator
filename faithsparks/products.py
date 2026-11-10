@@ -80,7 +80,7 @@ PRODUCTS = (
     {
         "id": "latin-quest", "name": "Latin Quest", "area": "labs",
         "maturity": "sandbox", "path": "/labs/latin-quest", "accent": "forest",
-        "description": "Listen, translate, and practice Latin in five- or ten-question quests, with saved voice audio and gentle review.",
+        "description": "Listen, translate, and practice Latin in short or longer quests, with saved voice audio and gentle review.",
     },
     {
         "id": "games-lab", "name": "Games Lab", "area": "labs",
