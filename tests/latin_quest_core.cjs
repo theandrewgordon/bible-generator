@@ -28,3 +28,13 @@ assert.equal(lookupStudy(study,'What does it mean?','noun-014')[0].fact,'meaning
 assert.equal(lookupStudy(study,'What gender is it?','verb-001').length,0);
 assert(isStudyQuestion('What gender is it?'));assert(!isStudyQuestion('I do not know'));
 console.log('Latin Quest: alternate meanings, wrong answers, forms, lists, 5/10 sessions, review and assisted progress passed.');
+const {choicesFor}=require('../static/js/latin-quest-core.js');
+const bank=[meaning,{...meaning,card:'a',answers:['slave','servant']},{...meaning,card:'b',answers:['food','meal']},{...meaning,card:'c',answers:['meal']},{...meaning,card:'d',answers:['water']},{...meaning,card:'e',answers:['road']}];
+const options=choicesFor(meaning,bank,()=>0.5);
+assert.equal(options.length,4);assert.equal(options.filter(a=>matches(meaning,a)).length,1);
+assert.equal(new Set(options).size,4);assert(!(options.includes('food')&&options.includes('meal')));
+const reverse={...meaning,mode:'reverse',answers:['cibus','esca'],latin:true};
+const latinBank=['cibus','esca','aqua','silva','terra','rēx'].map((a,i)=>({...reverse,card:'r'+i,answers:[a]}));
+assert.equal(choicesFor(reverse,latinBank).filter(a=>matches(reverse,a)).length,1);
+assert.deepEqual(choicesFor({...meaning,mode:'grammar'},bank),[]);
+console.log('Multiple choice: four distinct choices, alternate answers excluded, both directions passed.');
