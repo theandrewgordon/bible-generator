@@ -162,3 +162,7 @@ hits do not call OpenAI, cache variants, fixed-cue validation, cost/error bounda
 accepted meanings, wrong meanings, five/ten-question selection, hints and review.
 
 Latin Quest offers four-option multiple choice for Latin → English and English → Latin alongside speak/type. Options use approved card vocabulary, exclude all accepted equivalents, and shuffle each question. Choice progress uses a separate `:choice` question key so recognition practice does not advance recall mastery. Dark mode pairs readable text, labels, controls, and panel colors.
+
+Retest all cards ignores mastery order without erasing history; Retest these cards repeats the last session in shuffled order. Deck reset affects only the selected mode and answer style, offers an undo until a new session begins, and preserves other progress and audio. Voice is limited to questions, requested help, and corrective card answers; correct-answer celebrations, pauses, and score summaries are silent.
+
+Each vocabulary choice has an optional speaker button that reads only its fixed approved word/meaning without selecting it. These clips use the same private shared cache and browser cache as questions; identical text, voice, and pronunciation instructions share a cloud cache key. Clips generate on demand, not in a bulk paid warmup.

@@ -3,7 +3,7 @@
 const config=JSON.parse(document.getElementById('lq-config').textContent),core=window.LatinQuestCore,$=id=>document.getElementById(id);
 const STORE='faithsparks.latinQuest.progress.v1',CACHE='faithsparks-latin-voice-'+config.audioVersion;
 let stats={},queue=[],position=0,score=0,completed=0,active=false,resolved=false,helped=false,currentCorrect=false,previousStat=null;
-let studyCue=null;
+let studyCue=null,resetBackup=null,choiceButtons=[];
 let settings={},generation=0,audio=null,recognition=null,nextTimer=null;
 const memory=new Map(),pending=new Map(),Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 function notice(text){$('lq-notice').textContent=text;}
@@ -15,14 +15,24 @@ function progressQuestion(){return settings.response==='choice'?{...current(),id
 function sessionStats(){if(settings.response!=='choice')return stats;return Object.fromEntries(Object.entries(stats).filter(([id])=>id.endsWith(':choice')).map(([id,value])=>[id.slice(0,-7),value]));}
 function syncResponse(){const supported=['meaning','reverse'].includes($('lq-mode').value);$('lq-response').disabled=!supported;if(!supported)$('lq-response').value='recall';const choice=supported&&$('lq-response').value==='choice';$('lq-auto').disabled=choice||!Recognition;if(choice)$('lq-auto').checked=false;$('lq-response-note').textContent=supported?'Multiple choice or speak/type — your choice.':'This practice uses speak or type. Multiple choice is available for Latin ↔ English.';}
 function paintChoices(){
- const options=$('lq-options');options.replaceChildren();const values=settings.response==='choice'?core.choicesFor(current(),config.questions):[];
+ const options=$('lq-options');options.replaceChildren();choiceButtons=[];const values=settings.response==='choice'?core.choicesFor(current(),config.questions):[];
  $('lq-multiple').hidden=!values.length;$('lq-form').hidden=!!values.length;$('lq-choice-repeat').hidden=!values.length;
- for(const value of values){const button=document.createElement('button');button.type='button';button.className='lq-option';button.textContent=value;button.addEventListener('click',()=>{if(!active||resolved)return;for(const sibling of options.children){sibling.disabled=true;if(core.matches(current(),sibling.textContent)){sibling.dataset.result='correct';sibling.textContent+=' ✓';}else if(sibling===button){sibling.dataset.result='incorrect';sibling.textContent+=' — try this again later';}}check(value);});options.appendChild(button);}
+ for(const value of values){
+  const row=document.createElement('div');row.className='lq-option-row';
+  const button=document.createElement('button');button.type='button';button.className='lq-option';button.textContent=value;
+  button.addEventListener('click',()=>{if(!active||resolved)return;for(const sibling of choiceButtons){sibling.disabled=true;if(core.matches(current(),sibling.textContent)){sibling.dataset.result='correct';sibling.textContent+=' ✓';}else if(sibling===button){sibling.dataset.result='incorrect';sibling.textContent+=' — try this again later';}}check(value);});
+  row.appendChild(button);choiceButtons.push(button);
+  const card=config.questions.find(q=>q.mode===current().mode&&q.answers[0]===value);
+  if(card){const hear=document.createElement('button');hear.type='button';hear.className='lq-option-hear';hear.textContent='🔊';hear.ariaLabel='Hear '+value;hear.title='Listen without choosing this answer';hear.addEventListener('click',()=>{if(active)speak('option:'+card.id);});row.appendChild(hear);}
+  options.appendChild(row);
+ }
 }
 function stopMedia(){generation++;clearTimeout(nextTimer);nextTimer=null;if(audio){audio.pause();audio=null;}if(recognition){const r=recognition;recognition=null;r.abort();}}
 async function cachedClip(cue){
  const voice=settings.voice,pronunciation=settings.pronunciation;
- const key=[config.audioVersion,voice,pronunciation,cue].map(encodeURIComponent).join('/');
+ const option=cue.startsWith('option:')?config.questions.find(q=>q.id===cue.slice(7)):null;
+ const cacheCue=option?'option:'+option.mode+':'+option.answers[0]:cue;
+ const key=[config.audioVersion,voice,pronunciation,cacheCue].map(encodeURIComponent).join('/');
  if(memory.has(key))return {url:memory.get(key),origin:'device'};
  if(pending.has(key))return pending.get(key);
  const job=(async()=>{
@@ -74,36 +84,29 @@ function paint(){
  $('lq-feedback').textContent='';$('lq-followup-details').open=false;$('lq-followup-question').value='';$('lq-followup-status').textContent='';$('lq-followup-result').textContent='';$('lq-followup-choices').replaceChildren();$('lq-after').hidden=true;for(const name of ['hint','reveal','skip'])$('lq-'+name).disabled=false;
  paintChoices();$('lq-session').scrollIntoView?.({block:'start'});repeatQuestion();
 }
-function begin(review=false){
+function begin(kind='practice'){
  stopMedia();settings={response:['meaning','reverse'].includes($('lq-mode').value)&&$('lq-response').value==='choice'?'choice':'recall',mode:$('lq-mode').value,voice:$('lq-voice').value,pronunciation:$('lq-pronunciation').value,details:$('lq-details').checked,handsfree:$('lq-auto').checked&&!!Recognition};
  if(settings.response==='choice')settings.handsfree=false;
- queue=core.buildQueue(config.questions,settings.mode,Number($('lq-size').value),sessionStats(),review);
+ queue=kind==='same'?core.shuffled(queue):core.buildQueue(config.questions,settings.mode,Number($('lq-size').value),kind==='retest'?{}:sessionStats(),kind==='review');
  if(!queue.length){notice('No missed cards in this practice mode yet. Start a quest or choose another mode.');return;}
- position=0;score=0;completed=0;active=true;notice('');$('lq-setup').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=false;$('lq-study').hidden=true;paint();
+ resetBackup=null;$('lq-undo-reset').hidden=true;position=0;score=0;completed=0;active=true;notice('');$('lq-setup').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=false;$('lq-study').hidden=true;paint();
 }
 async function hint(){if(!active||resolved)return;helped=true;$('lq-feedback').textContent=current().hint;const played=await speak(current().id+':hint');if(played&&settings.handsfree&&!resolved)listen();}
 async function resolve(correct){
- if(!active||resolved)return;stopMedia();for(const button of $('lq-options').children)button.disabled=true;resolved=true;currentCorrect=correct;completed++;if(correct&&!helped)score++;stats=core.record(stats,progressQuestion(),correct,helped);save();summary();
+ if(!active||resolved)return;stopMedia();for(const button of choiceButtons)button.disabled=true;resolved=true;currentCorrect=correct;completed++;if(correct&&!helped)score++;stats=core.record(stats,progressQuestion(),correct,helped);save();summary();
  $('lq-answer').disabled=true;$('lq-check').disabled=true;for(const name of ['hint','reveal','skip'])$('lq-'+name).disabled=true;
  $('lq-feedback').textContent=correct?(helped?'You got it with a little help. We will revisit this card.':'Correct! One valid answer is enough.'):'Good try. Let us learn this card together.';
  $('lq-card-answer').textContent=current().answer;$('lq-after').hidden=false;$('lq-override').hidden=correct||settings.response==='choice';$('lq-next').textContent=position+1===queue.length?'Finish quest →':'Next question →';$('lq-bar').value=completed;
- const token=generation;await speak(correct?'correct':current().id+':answer');
+ const token=generation;if(!correct)await speak(current().id+':answer');
  // A new question or manual action invalidates this continuation.
- if(active&&resolved&&settings.handsfree&&generation===token+1)nextTimer=setTimeout(advance,3000);
+ if(active&&resolved&&settings.handsfree&&generation===(correct?token:token+1))nextTimer=setTimeout(advance,3000);
 }
 function check(text){if(!String(text).trim()){ $('lq-feedback').textContent='Give one answer, or choose Show answer to study this card.';return;}resolve(core.matches(current(),text));}
 function reveal(){if(!active||resolved)return;helped=true;resolve(false);}
 function advance(){if(!active||!resolved)return;stopMedia();position++;if(position>=queue.length){finish(false);return;}paint();}
 function override(){if(!active||!resolved||currentCorrect)return;stopMedia();if(previousStat)stats[progressQuestion().id]=previousStat;else delete stats[progressQuestion().id];stats=core.record(stats,progressQuestion(),true,helped);save();if(!helped)score++;currentCorrect=true;$('lq-feedback').textContent='Marked correct together. Thanks for checking the meaning.';$('lq-override').hidden=true;summary();}
 function finish(paused){
- if(!active)return;stopMedia();active=false;$('lq-session').hidden=true;$('lq-result').hidden=false;$('lq-result-title').textContent=paused?'A good place to pause.':'Quest complete.';$('lq-score').textContent=score+' / '+completed;$('lq-result-copy').textContent=(settings.response==='choice'?'Multiple-choice results. Choice practice is tracked separately from speak/type recall. ':'')+'Correct without hints or reveals. Completed questions are saved on this device. Missed and hinted cards will return for review.';summary();$('lq-study').hidden=false;speakResult(paused);
-}
-async function speakResult(paused){
- let token=generation;
- for(const cue of [paused?'paused':'complete','score-'+score,'count-'+completed]){
-  const played=await speak(cue,true);token++;
-  if(!played||generation!==token)break;
- }
+ if(!active)return;stopMedia();active=false;$('lq-session').hidden=true;$('lq-result').hidden=false;$('lq-result-title').textContent=paused?'A good place to pause.':'Quest complete.';$('lq-score').textContent=score+' / '+completed;$('lq-result-copy').textContent=(settings.response==='choice'?'Multiple-choice results. Choice practice is tracked separately from speak/type recall. ':'')+'Correct without hints or reveals. Completed questions are saved on this device. Missed and hinted cards will return for review.';summary();$('lq-study').hidden=false;
 }
 function studySettings(){settings={voice:$('lq-voice').value,pronunciation:$('lq-pronunciation').value};}
 async function speakStudy(){if(!studyCue)return;studySettings();$('lq-study-status').textContent='Preparing the spoken card answer…';const played=await speak(studyCue,true);$('lq-study-status').textContent=played?'AI-generated OpenAI voice · saved for replay':$('lq-audio-status').textContent;}
@@ -143,9 +146,17 @@ $('lq-response').addEventListener('change',syncResponse);$('lq-mode').addEventLi
 $('lq-followup-summary').addEventListener('click',()=>{if(active)stopMedia();});
 $('lq-followup-form').addEventListener('submit',e=>{e.preventDefault();askFollowup($('lq-followup-question').value);});$('lq-followup-mic').addEventListener('click',()=>listenStudy(true));$('lq-followup-back').addEventListener('click',repeatQuestion);
 $('lq-study-form').addEventListener('submit',e=>{e.preventDefault();if(!active)askStudy($('lq-study-question').value);});$('lq-study-mic').addEventListener('click',()=>listenStudy(false));$('lq-study-repeat').addEventListener('click',speakStudy);
-$('lq-start').addEventListener('click',()=>begin());$('lq-review').addEventListener('click',()=>begin(true));$('lq-stop').addEventListener('click',()=>finish(true));$('lq-form').addEventListener('submit',e=>{e.preventDefault();if(active&&!resolved)check($('lq-answer').value);});$('lq-mic').addEventListener('click',listen);$('lq-repeat').addEventListener('click',repeatQuestion);$('lq-hint').addEventListener('click',hint);$('lq-reveal').addEventListener('click',reveal);$('lq-skip').addEventListener('click',reveal);$('lq-next').addEventListener('click',advance);$('lq-override').addEventListener('click',override);
+$('lq-start').addEventListener('click',()=>begin());$('lq-review').addEventListener('click',()=>begin('review'));$('lq-retest').addEventListener('click',()=>begin('retest'));$('lq-retest-same').addEventListener('click',()=>begin('same'));$('lq-stop').addEventListener('click',()=>finish(true));$('lq-form').addEventListener('submit',e=>{e.preventDefault();if(active&&!resolved)check($('lq-answer').value);});$('lq-mic').addEventListener('click',listen);$('lq-repeat').addEventListener('click',repeatQuestion);$('lq-hint').addEventListener('click',hint);$('lq-reveal').addEventListener('click',reveal);$('lq-skip').addEventListener('click',reveal);$('lq-next').addEventListener('click',advance);$('lq-override').addEventListener('click',override);
 $('lq-again').addEventListener('click',()=>{$('lq-result').hidden=true;$('lq-setup').hidden=false;$('lq-study').hidden=false;});
-$('lq-clear').addEventListener('click',()=>{if(active){notice('Pause your quest before resetting progress.');return;}if(!confirm('Reset Latin Quest progress for this browser profile?'))return;stats={};save();summary();notice('Latin progress reset on this device.');});
+function resetDeck(all=false){
+ if(active){notice('Pause your quest before resetting progress.');return;}
+ const mode=$('lq-mode').value,response=$('lq-response').value==='choice'?'choice':'recall';
+ const label=all?'all Latin progress':config.modes?.[mode]||$('lq-mode').selectedOptions?.[0]?.textContent||mode;
+ if(!confirm(all?'Reset all Latin Quest progress for this browser profile?':'Reset '+label+' progress for '+(response==='choice'?'multiple choice':'speak/type')+' on this browser? Other practice progress will stay saved.'))return;
+ stopMedia();resetBackup={...stats};stats=all?{}:core.resetProgress(stats,config.questions,mode,response);save();summary();$('lq-undo-reset').hidden=false;notice('Progress reset for '+label+'. You can undo this reset until you start another quest, leave, or reset again.');
+}
+$('lq-reset-deck').addEventListener('click',()=>resetDeck());$('lq-clear').addEventListener('click',()=>resetDeck(true));
+$('lq-undo-reset').addEventListener('click',()=>{if(!resetBackup)return;stats={...stats,...resetBackup};resetBackup=null;save();summary();$('lq-undo-reset').hidden=true;notice('Reset undone. Previous progress restored.');});
 $('lq-clear-audio').addEventListener('click',async()=>{stopMedia();for(const url of memory.values())URL.revokeObjectURL(url);memory.clear();try{if('caches'in window){for(const key of await caches.keys())if(key.startsWith('faithsparks-latin-voice-'))await caches.delete(key);}notice('Saved Latin voice clips cleared on this device. Shared audio remains available for replay.');}catch(_){notice('This browser could not clear its saved audio.');}});
 window.addEventListener('pagehide',()=>{stopMedia();for(const url of memory.values())URL.revokeObjectURL(url);memory.clear();});
 if(!Recognition){$('lq-followup-mic').disabled=true;$('lq-study-mic').disabled=true;$('lq-study-status').textContent='This browser does not offer voice recognition. Type a study question above.';$('lq-mic').disabled=true;$('lq-auto').disabled=true;$('lq-auto').closest('label').title='Voice answers require a browser with speech recognition. Use typed answers here.';}

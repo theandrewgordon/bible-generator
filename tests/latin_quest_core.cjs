@@ -38,3 +38,11 @@ const latinBank=['cibus','esca','aqua','silva','terra','rēx'].map((a,i)=>({...r
 assert.equal(choicesFor(reverse,latinBank).filter(a=>matches(reverse,a)).length,1);
 assert.deepEqual(choicesFor({...meaning,mode:'grammar'},bank),[]);
 console.log('Multiple choice: four distinct choices, alternate answers excluded, both directions passed.');
+
+const {resetProgress}=require('../static/js/latin-quest-core.js');
+const resetStats={'noun-001:meaning':{attempts:2},'noun-001:meaning:choice':{attempts:1},'noun-001:reverse':{attempts:3}};
+assert.deepEqual(Object.keys(resetProgress(resetStats,[meaning],'meaning','recall')).sort(),['noun-001:meaning:choice','noun-001:reverse']);
+assert.deepEqual(Object.keys(resetProgress(resetStats,[meaning],'meaning','choice')).sort(),['noun-001:meaning','noun-001:reverse']);
+const mastered=Object.fromEntries(qs.map(q=>[q.id,{attempts:5,correct:5,streak:5}]));
+assert.equal(buildQueue(qs,'meaning',20,{},false).length,20,'retest includes known cards');
+assert.equal(buildQueue(qs,'meaning',20,mastered,true).length,0,'review excludes mastered cards');

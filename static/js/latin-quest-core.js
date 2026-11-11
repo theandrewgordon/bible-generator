@@ -23,6 +23,10 @@ function buildQueue(questions,mode,size,stats,review=false,random=Math.random){
  pool=shuffled(pool,random).sort((a,b)=>(stats[a.id]?.streak||0)-(stats[b.id]?.streak||0));
  const seen=new Set();return pool.filter(q=>{if(seen.has(q.card))return false;seen.add(q.card);return true;}).slice(0,size);
 }
+function resetProgress(stats,questions,mode,response){
+ const ids=new Set(questions.filter(q=>mode==='mixed'?q.mode!=='reverse':q.mode===mode).map(q=>q.id+(response==='choice'?':choice':'')));
+ return Object.fromEntries(Object.entries(stats).filter(([id])=>!ids.has(id)));
+}
 // Distractors come only from approved vocabulary; never offer another accepted answer.
 function choicesFor(q,questions,random=Math.random){
  if(!['meaning','reverse'].includes(q.mode))return [];
@@ -61,5 +65,5 @@ function lookupStudy(entries,text,contextCard=null){
  return [];
 }
 function isStudyQuestion(text){return /^(what|which|how|is|does|tell me|give me|define)\b/.test(normalize(text));}
-const api={normalize,matches,buildQueue,choicesFor,record,lookupStudy,isStudyQuestion};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LatinQuestCore=api;
+const api={normalize,matches,shuffled,buildQueue,resetProgress,choicesFor,record,lookupStudy,isStudyQuestion};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LatinQuestCore=api;
 })(typeof window!=='undefined'?window:globalThis);

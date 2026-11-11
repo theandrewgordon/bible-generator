@@ -77,7 +77,7 @@ def tts():
         try:
             with OpenAI(api_key=os.environ['OPENAI_API_KEY'], timeout=20, max_retries=0) as client:
                 audio = client.audio.speech.create(model=curriculum.MODEL, voice=voice,
-                    input=curriculum.CUES[cue], instructions=curriculum.INSTRUCTIONS[pronunciation],
+                    input=curriculum.CUES[cue], instructions=curriculum.speech_instructions(cue, pronunciation),
                     speed=curriculum.SPEED, response_format='mp3').read()
             if not audio or len(audio) > 2_000_000:
                 return reply({'error': 'audio_unavailable'}, 503)
