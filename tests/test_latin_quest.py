@@ -147,3 +147,30 @@ def test_option_audio_keeps_english_and_latin_distinct():
     assert 'English meaning' in cards.speech_instructions('option:noun-001:meaning', 'classical')
     assert 'isolated Latin word' in cards.speech_instructions('option:noun-001:reverse', 'classical')
     assert cards.speech_instructions('welcome', 'classical') == cards.INSTRUCTIONS['classical']
+
+
+def test_full_approved_decks_follow_student_flow(tmp_path):
+    import json
+    import os
+    import shutil
+    import subprocess
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('Node is required for browser-script integration checks')
+    bank = tmp_path / 'approved-bank.json'
+    bank.write_text(json.dumps(cards.QUESTIONS))
+    env = {**os.environ, 'LATIN_QUEST_BANK': str(bank)}
+    result = subprocess.run([node, 'tests/latin_quest_voice.cjs'], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.stdout.count('Full approved-deck playthrough:') == 8
+
+
+def test_page_uses_content_versioned_scripts():
+    from app import app
+    with app.test_client() as client:
+        response = client.get('/labs/latin-quest')
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert f'latin-quest.js?v={view._ASSET_VERSION}' in page
+    assert 'id="lq-resume"' in page
+    assert 'id="lq-reset-accept"' in page
