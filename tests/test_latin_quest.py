@@ -174,3 +174,13 @@ def test_page_uses_content_versioned_scripts():
     assert f'latin-quest.js?v={view._ASSET_VERSION}' in page
     assert 'id="lq-resume"' in page
     assert 'id="lq-reset-accept"' in page
+
+
+def test_memory_links_are_sourced_help_not_answers():
+    assert len(cards.MEMORY_LINKS) == 6
+    for cid, memory in cards.MEMORY_LINKS.items():
+        assert any(q['card'] == cid for q in cards.QUESTIONS)
+        assert memory['source'].startswith('https://')
+        assert cards.CUES['memory:' + cid] == memory['text']
+    eye = next(q for q in cards.QUESTIONS if q['id'] == 'noun-021:meaning')
+    assert 'ocular' not in eye['answers']

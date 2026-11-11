@@ -157,6 +157,12 @@ for number in range(141):
     CUES[f'score-{number}'] = f'{number} correct without hints.'
     CUES[f'count-{number}'] = f'{number} questions completed.'
 
+MEMORY_LINKS = json.loads((Path(__file__).resolve().parents[1] / 'content/latin_quest/memory_links.json').read_text())
+for card_id, memory in MEMORY_LINKS.items():
+    CUES['memory:' + card_id] = memory['text']
+    card = next(entry for entry in STUDY if entry['id'] == card_id)
+    STUDY.append({'id': card_id, 'word': card['word'], 'aliases': card['aliases'], 'fact': 'memory connection', 'answer': memory['text'], 'cue': 'memory:' + card_id})
+
 OPTION_INSTRUCTIONS = {
     'meaning': 'The supplied text is an English meaning. Read it in natural English, not as Latin.',
     'reverse': 'The supplied text is an isolated Latin word. Read it in restored Classical Latin, not English.',
@@ -172,3 +178,4 @@ def cache_path(cue, voice, pronunciation):
     payload = [MODEL, voice, pronunciation, speech_instructions(cue, pronunciation), SPEED, CUES[cue]]
     digest = hashlib.sha256(json.dumps(payload, ensure_ascii=False).encode()).hexdigest()
     return f'latin_quest/audio/v1/{digest}.mp3'
+
