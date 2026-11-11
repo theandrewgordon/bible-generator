@@ -127,3 +127,23 @@ def test_only_classical_pronunciation_is_supported(client):
     old = cards.cache_path('welcome', 'coral', 'classical')
     with patch.dict(cards.INSTRUCTIONS, {'classical': 'changed pronunciation guidance'}):
         assert cards.cache_path('welcome', 'coral', 'classical') != old
+
+
+def test_choice_audio_is_fixed_card_text_and_cached(client):
+    q = next(q for q in cards.QUESTIONS if q['mode'] == 'reverse')
+    cue = 'option:' + q['id']
+    assert cards.CUES[cue] == q['answers'][0]
+    payload = {'cue': cue, 'voice': 'coral', 'pronunciation': 'classical'}
+    assert post(client, payload).status_code == 200
+    assert post(client, payload).headers['X-TTS-Cache'] == 'HIT'
+    client[4].assert_called_once()
+    assert client[5].call_args.kwargs['input'] == q['answers'][0]
+    for q in cards.QUESTIONS:
+        if q['mode'] in {'meaning', 'reverse'}:
+            assert cards.CUES['option:' + q['id']] == q['answers'][0]
+
+
+def test_option_audio_keeps_english_and_latin_distinct():
+    assert 'English meaning' in cards.speech_instructions('option:noun-001:meaning', 'classical')
+    assert 'isolated Latin word' in cards.speech_instructions('option:noun-001:reverse', 'classical')
+    assert cards.speech_instructions('welcome', 'classical') == cards.INSTRUCTIONS['classical']

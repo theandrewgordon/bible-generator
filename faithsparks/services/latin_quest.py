@@ -121,6 +121,8 @@ for q in QUESTIONS:
     CUES[f'{q["id"]}:details'] = f'{q["details"]} {q["prompt"]}'.strip()
     CUES[f'{q["id"]}:hint'] = q['hint']
     CUES[f'{q["id"]}:answer'] = f'The card answer is: {q["answer"]}.'
+    if q['mode'] in {'meaning', 'reverse'}:
+        CUES[f'option:{q["id"]}'] = q['answers'][0]
 
 # Spoken study answers are fixed card facts, not model-generated tutoring.
 STUDY = []
@@ -152,9 +154,18 @@ for number in range(141):
     CUES[f'score-{number}'] = f'{number} correct without hints.'
     CUES[f'count-{number}'] = f'{number} questions completed.'
 
-AUDIO_VERSION = hashlib.sha256(json.dumps([MODEL, SPEED, INSTRUCTIONS, CUES], sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
+OPTION_INSTRUCTIONS = {
+    'meaning': 'The supplied text is an English meaning. Read it in natural English, not as Latin.',
+    'reverse': 'The supplied text is an isolated Latin word. Read it in restored Classical Latin, not English.',
+}
+
+def speech_instructions(cue, pronunciation):
+    extra = OPTION_INSTRUCTIONS.get(cue.rsplit(':', 1)[-1], '') if cue.startswith('option:') else ''
+    return INSTRUCTIONS[pronunciation] + (' ' + extra if extra else '')
+
+AUDIO_VERSION = hashlib.sha256(json.dumps([MODEL, SPEED, INSTRUCTIONS, OPTION_INSTRUCTIONS, CUES], sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
 
 def cache_path(cue, voice, pronunciation):
-    payload = [MODEL, voice, pronunciation, INSTRUCTIONS[pronunciation], SPEED, CUES[cue]]
+    payload = [MODEL, voice, pronunciation, speech_instructions(cue, pronunciation), SPEED, CUES[cue]]
     digest = hashlib.sha256(json.dumps(payload, ensure_ascii=False).encode()).hexdigest()
     return f'latin_quest/audio/v1/{digest}.mp3'

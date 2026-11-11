@@ -3,8 +3,8 @@ const core=require('../static/js/latin-quest-core.js');
 const source=fs.readFileSync('static/js/latin-quest.js','utf8');
 const tick=()=>new Promise(r=>setImmediate(r));
 const study=[...Array.from({length:25},(_,i)=>({id:'noun-'+i,word:'testword'+i,aliases:['testword'+i],fact:'gender',answer:'feminine',cue:'study:noun-'+i+':gender'})),{id:'noun-014',word:'terra',aliases:['terra','terrae'],fact:'gender',answer:'feminine',cue:'study:noun-014:gender'}];
-function setup(response='recall'){
- const nodes={},recognizers=[],sent=[],cache=new Map(),storage={};
+function setup(response='recall',initialStats={}){
+ const nodes={},recognizers=[],sent=[],cache=new Map(),storage={'faithsparks.latinQuest.progress.v1':JSON.stringify(initialStats)};
  const node=id=>nodes[id]??={value:'',checked:false,hidden:false,textContent:'',children:[],dataset:{},addEventListener(n,f){this[n]=f;},replaceChildren(){this.children=[];},appendChild(x){this.children.push(x);},closest(){return {title:''};}};
  node('lq-config').textContent=JSON.stringify({study,questions:Array.from({length:25},(_,i)=>({id:'noun-'+i+':meaning',card:'noun-'+i,mode:'meaning',prompt:'What does terra mean in English?',answers:response==='choice'?['answer'+i]:['earth','land'],answer:response==='choice'?'answer'+i:'earth; land',details:'Noun. first declension. feminine.',hint:'Think of your card.'})),csrf:'test-token',audioVersion:'v1',ttsUrl:'/labs/latin-quest/tts'});
  for(const [id,value]of Object.entries({'lq-response':response,'lq-mode':'meaning','lq-size':'20','lq-voice':'coral','lq-pronunciation':'classical'}))node(id).value=value;
@@ -32,11 +32,20 @@ function setup(response='recall'){
  a.nodes['lq-stop'].click();await tick();await tick();assert.equal(a.nodes['lq-score'].textContent,'0 / 1');assert.equal(a.nodes['lq-study'].hidden,false);assert.match(a.nodes['lq-result-title'].textContent,/pause/);
  const b=setup('choice');b.nodes['lq-start'].click();await tick();await tick();
  assert.equal(b.nodes['lq-options'].children.length,4);assert.equal(b.nodes['lq-form'].hidden,true);
- b.nodes['lq-options'].children[0].click();await tick();await tick();
- assert(b.nodes['lq-options'].children.every(n=>n.disabled));assert.equal(b.nodes['lq-after'].hidden,false);
+ const optionSpeaker=b.nodes['lq-options'].children[0].children[1];const beforeHear=b.sent.length;optionSpeaker.click();await tick();await tick();assert.equal(b.sent.length,beforeHear+1);assert.match(b.sent.at(-1).cue,/^option:/);assert.equal(b.nodes['lq-after'].hidden,true,'listening must not choose an answer');optionSpeaker.click();await tick();await tick();assert.equal(b.sent.length,beforeHear+1,'option replay reuses cached audio');
+ b.nodes['lq-options'].children[0].children[0].click();await tick();await tick();
+ assert(b.nodes['lq-options'].children.every(n=>n.children[0].disabled));assert.equal(b.nodes['lq-after'].hidden,false);
  const saved=JSON.parse(b.storage['faithsparks.latinQuest.progress.v1']);assert(Object.keys(saved).every(id=>id.endsWith(':choice')));
- b.nodes['lq-next'].click();await tick();await tick();assert.equal(b.nodes['lq-round'].textContent,'Question 2 of 20');assert(b.nodes['lq-options'].children.every(n=>!n.disabled));
+ b.nodes['lq-next'].click();await tick();await tick();assert.equal(b.nodes['lq-round'].textContent,'Question 2 of 20');assert(b.nodes['lq-options'].children.every(n=>!n.children[0].disabled));
  b.nodes['lq-stop'].click();await tick();await tick();assert.match(b.nodes['lq-result-copy'].textContent,/tracked separately/);
  b.nodes['lq-again'].click();b.nodes['lq-mode'].value='grammar';b.nodes['lq-mode'].change();assert.equal(b.nodes['lq-response'].disabled,true);assert.equal(b.nodes['lq-response'].value,'recall');
+ const c=setup('recall',{'noun-0:meaning':{attempts:2,correct:2,streak:2},'noun-0:meaning:choice':{attempts:1,correct:1,streak:1},'verb-0:reverse':{attempts:3,correct:1,streak:0}});
+ c.nodes['lq-reset-deck'].click();let reset=JSON.parse(c.storage['faithsparks.latinQuest.progress.v1']);assert(!reset['noun-0:meaning']);assert(reset['noun-0:meaning:choice']);assert(reset['verb-0:reverse']);assert.equal(c.nodes['lq-undo-reset'].hidden,false);
+ c.nodes['lq-undo-reset'].click();assert(JSON.parse(c.storage['faithsparks.latinQuest.progress.v1'])['noun-0:meaning']);
+ c.nodes['lq-retest'].click();await tick();await tick();assert.equal(c.nodes['lq-round'].textContent,'Question 1 of 20');
+ const calls=c.sent.length;c.nodes['lq-answer'].value='earth';c.nodes['lq-form'].submit({preventDefault(){}});await tick();await tick();assert.equal(c.sent.length,calls,'correct answer feedback is silent');
+ c.nodes['lq-stop'].click();await tick();await tick();assert.equal(c.sent.length,calls,'scores and pause messages are silent');
+ const previous=JSON.stringify(c.storage);c.nodes['lq-retest-same'].click();await tick();await tick();assert.equal(c.nodes['lq-round'].textContent,'Question 1 of 20');assert.equal(JSON.stringify(c.storage),previous,'retesting must not erase progress');
+ console.log('Retest, scoped reset, undo, and quiet feedback passed.');
  console.log('Latin Quest voice: spoken study lookup, fixed-cue audio, repeat reuse, unknown words, denied mic fallback 20-question start, in-session follow-ups, and assisted scoring passed.');
 })().catch(e=>{console.error(e);process.exit(1);});
