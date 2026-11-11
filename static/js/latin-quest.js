@@ -1,17 +1,23 @@
 (function(){
 'use strict';
 const config=JSON.parse(document.getElementById('lq-config').textContent),core=window.LatinQuestCore,$=id=>document.getElementById(id);
-const STORE='faithsparks.latinQuest.progress.v1',CACHE='faithsparks-latin-voice-'+config.audioVersion;
+const PLAYERS='faithsparks.latinQuest.players.v1';
+let players=[{id:'player-1',name:'Player 1'},{id:'player-2',name:'Player 2'},{id:'player-3',name:'Player 3'}],player='player-1';
+try{const saved=JSON.parse(localStorage.getItem(PLAYERS)||'null');if(saved&&Array.isArray(saved.players)){const valid=saved.players.filter(p=>p&&/^player-[a-z0-9-]+$/.test(p.id)&&typeof p.name==='string'&&p.name.trim()&&p.name.length<=24).slice(0,12);if(valid.length){players=valid;player=players.some(p=>p.id===saved.current)?saved.current:players[0].id;}}}catch(_){}
+let STORE='faithsparks.latinQuest.player.'+player+'.progress.v1';
+const CACHE='faithsparks-latin-voice-'+config.audioVersion;
 let stats={},queue=[],position=0,score=0,completed=0,active=false,resolved=false,helped=false,currentCorrect=false,previousStat=null;
 let studyCue=null,resetBackup=null,choiceButtons=[],selectedChoice=null,requestedReset=null,assisted=0;
 let settings={},generation=0,audio=null,recognition=null,nextTimer=null;
 const memory=new Map(),pending=new Map(),Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 function notice(text){$('lq-notice').textContent=text;}
-try{const saved=JSON.parse(localStorage.getItem(STORE)||'{}');for(const [key,value]of Object.entries(saved)){if(value&&Number.isInteger(value.attempts)&&value.attempts>=0&&Number.isInteger(value.correct)&&value.correct>=0&&Number.isInteger(value.streak)&&value.streak>=0&&value.streak<=9)stats[key]=value;}}catch(_){notice('Progress storage is unavailable. You can still practice this session.');}
+function loadStats(){stats={};try{const saved=JSON.parse(localStorage.getItem(STORE)||'{}');for(const [key,value]of Object.entries(saved)){if(value&&Number.isInteger(value.attempts)&&value.attempts>=0&&Number.isInteger(value.correct)&&value.correct>=0&&Number.isInteger(value.streak)&&value.streak>=0&&value.streak<=9)stats[key]=value;}}catch(_){notice('Progress storage is unavailable. You can still practice this session.');}}
+loadStats();
 function save(){try{localStorage.setItem(STORE,JSON.stringify(stats));}catch(_){notice('This browser could not save progress. Keep this page open to retain this session.');}}
-function summary(){const practiced=new Set(Object.keys(stats).filter(id=>stats[id].attempts>0).map(id=>id.split(':')[0]));$('lq-progress-summary').textContent=practiced.size+' of 140 cards practiced on this device. Progress is shared by this browser profile.';}
+function summary(){const practiced=new Set(Object.keys(stats).filter(id=>stats[id].attempts>0).map(id=>id.split(':')[0]));$('lq-progress-summary').textContent=practiced.size+' of 140 cards practiced for '+players.find(p=>p.id===player).name+' on this device.';}
 function current(){return queue[position];}
-const WEEK='faithsparks.latinQuest.week.v1',deckCards=Array.from(new Map(config.questions.map(q=>[q.card,q])).values());
+let WEEK='faithsparks.latinQuest.player.'+player+'.week.v1';
+const deckCards=Array.from(new Map(config.questions.map(q=>[q.card,q])).values());
 let weekly=new Set(),weekEnabled=false;
 try{const saved=JSON.parse(localStorage.getItem(WEEK)||'{}');weekly=new Set((Array.isArray(saved.cards)?saved.cards:[]).filter(id=>deckCards.some(q=>q.card===id)));weekEnabled=saved.enabled===true;}catch(_){}
 $('lq-week-use').checked=weekEnabled;
@@ -101,7 +107,7 @@ function begin(kind='practice'){
  if(settings.response==='choice')settings.handsfree=false;
  const nextQueue=kind==='same'?core.shuffled(queue):core.buildQueue(practicePool(),settings.mode,Number($('lq-size').value),kind==='retest'?{}:sessionStats(),kind==='review');
  if(!nextQueue.length){notice('No cards match this practice. Check your weekly selection and focus, or use Retest all cards if there are no misses.');return;}
- queue=nextQueue;resetBackup=null;requestedReset=null;$('lq-reset-confirm').hidden=true;$('lq-undo-reset').hidden=true;position=0;score=0;assisted=0;completed=0;active=true;notice('');$('lq-setup').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=false;$('lq-study').hidden=true;paint();
+ queue=nextQueue;resetBackup=null;requestedReset=null;$('lq-reset-confirm').hidden=true;$('lq-undo-reset').hidden=true;position=0;score=0;assisted=0;completed=0;active=true;$('lq-player').disabled=true;$('lq-player-add').disabled=true;$('lq-player-rename').disabled=true;notice('');$('lq-setup').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=false;$('lq-study').hidden=true;paint();
 }
 async function hint(){if(!active||resolved)return;helped=true;$('lq-feedback').textContent=current().hint;const played=await speak(current().id+':hint');if(played&&settings.handsfree&&!resolved)listen();}
 async function resolve(correct){
@@ -118,7 +124,7 @@ function reveal(){if(!active||resolved)return;helped=true;resolve(false);}
 function advance(){if(!active||!resolved)return;stopMedia();position++;if(position>=queue.length){finish(false);return;}paint();}
 function override(){if(!active||!resolved||currentCorrect)return;stopMedia();if(previousStat)stats[progressQuestion().id]=previousStat;else delete stats[progressQuestion().id];stats=core.record(stats,progressQuestion(),true,helped);save();if(!helped)score++;else assisted++;currentCorrect=true;$('lq-feedback').textContent='Marked correct together. Thanks for checking the meaning.';$('lq-override').hidden=true;summary();}
 function finish(paused){
- if(!active)return;stopMedia();active=false;$('lq-session').hidden=true;$('lq-result').hidden=false;$('lq-result-title').textContent=paused?'A good place to pause.':'Quest complete.';$('lq-score').textContent=score+' / '+completed;$('lq-result-copy').textContent=(settings.response==='choice'?'Multiple-choice results. Choice practice is tracked separately from speak/type recall. ':'')+'Correct without hints or reveals. Completed questions are saved on this device. Missed and hinted cards will return for review.';$('lq-result-breakdown').textContent=score+' on your own · '+assisted+' with help · '+(completed-score-assisted)+' to practice again';$('lq-resume').hidden=!paused;summary();$('lq-study').hidden=false;$('lq-result-title').focus?.({preventScroll:true});$('lq-result').scrollIntoView?.({block:'start'});
+ if(!active)return;stopMedia();active=false;$('lq-player').disabled=false;$('lq-player-add').disabled=false;$('lq-player-rename').disabled=false;$('lq-session').hidden=true;$('lq-result').hidden=false;$('lq-result-title').textContent=paused?'A good place to pause.':'Quest complete.';$('lq-score').textContent=score+' / '+completed;$('lq-result-copy').textContent=(settings.response==='choice'?'Multiple-choice results. Choice practice is tracked separately from speak/type recall. ':'')+'Correct without hints or reveals. Completed questions are saved on this device. Missed and hinted cards will return for review.';$('lq-result-breakdown').textContent=score+' on your own · '+assisted+' with help · '+(completed-score-assisted)+' to practice again';$('lq-resume').hidden=!paused;summary();$('lq-study').hidden=false;$('lq-result-title').focus?.({preventScroll:true});$('lq-result').scrollIntoView?.({block:'start'});
 }
 function studySettings(){settings={...settings,voice:$('lq-voice').value,pronunciation:$('lq-pronunciation').value};}
 async function speakStudy(){if(!studyCue)return;studySettings();$('lq-study-status').textContent='Preparing the spoken card answer…';const played=await speak(studyCue,true);$('lq-study-status').textContent=played?'AI-generated OpenAI voice · saved for replay':$('lq-audio-status').textContent;}
@@ -160,13 +166,13 @@ $('lq-followup-form').addEventListener('submit',e=>{e.preventDefault();askFollow
 $('lq-study-form').addEventListener('submit',e=>{e.preventDefault();if(!active)askStudy($('lq-study-question').value);});$('lq-study-mic').addEventListener('click',()=>listenStudy(false));$('lq-study-repeat').addEventListener('click',speakStudy);
 $('lq-start').addEventListener('click',()=>begin());$('lq-review').addEventListener('click',()=>begin('review'));$('lq-retest').addEventListener('click',()=>begin('retest'));$('lq-retest-same').addEventListener('click',()=>begin('same'));$('lq-stop').addEventListener('click',()=>finish(true));$('lq-form').addEventListener('submit',e=>{e.preventDefault();if(active&&!resolved)check($('lq-answer').value);});$('lq-mic').addEventListener('click',listen);$('lq-repeat').addEventListener('click',repeatQuestion);$('lq-hint').addEventListener('click',hint);$('lq-reveal').addEventListener('click',reveal);$('lq-skip').addEventListener('click',reveal);$('lq-next').addEventListener('click',advance);$('lq-override').addEventListener('click',override);
 $('lq-again').addEventListener('click',()=>{$('lq-result').hidden=true;$('lq-setup').hidden=false;$('lq-study').hidden=false;$('lq-setup').scrollIntoView?.({block:'start'});});
-$('lq-resume').addEventListener('click',()=>{if(active||!queue.length)return;stopMedia();active=true;$('lq-result').hidden=true;$('lq-setup').hidden=true;$('lq-study').hidden=true;$('lq-session').hidden=false;$('lq-session').scrollIntoView?.({block:'start'});if(!resolved)repeatQuestion();});
+$('lq-resume').addEventListener('click',()=>{if(active||!queue.length)return;stopMedia();active=true;$('lq-player').disabled=true;$('lq-player-add').disabled=true;$('lq-player-rename').disabled=true;$('lq-result').hidden=true;$('lq-setup').hidden=true;$('lq-study').hidden=true;$('lq-session').hidden=false;$('lq-session').scrollIntoView?.({block:'start'});if(!resolved)repeatQuestion();});
 function resetDeck(all=false){
  if(active){notice('Pause your quest before resetting progress.');return;}
  const mode=$('lq-mode').value,response=$('lq-response').value==='choice'?'choice':'recall';
- const label=all?'all Latin progress':config.modes?.[mode]||$('lq-mode').selectedOptions?.[0]?.textContent||mode;
+ const label=all?'all Latin progress for '+players.find(p=>p.id===player).name:config.modes?.[mode]||$('lq-mode').selectedOptions?.[0]?.textContent||mode;
  requestedReset={all,mode,response,label};
- $('lq-reset-message').textContent=all?'Reset all Latin progress on this browser? Saved audio stays available.':'Reset '+label+' progress for '+(response==='choice'?'multiple choice':'speak/type')+'? Other practice progress and saved audio stay available.';
+ $('lq-reset-message').textContent=all?'Reset all Latin progress for '+players.find(p=>p.id===player).name+'? Other players and saved audio stay available.':'Reset '+label+' progress for '+(response==='choice'?'multiple choice':'speak/type')+' for '+players.find(p=>p.id===player).name+'? Other practice progress, other players, and saved audio stay available.';
  $('lq-reset-confirm').hidden=false;$('lq-reset-accept').focus?.({preventScroll:true});$('lq-reset-confirm').scrollIntoView?.({block:'nearest'});
 }
 $('lq-reset-deck').addEventListener('click',()=>resetDeck());$('lq-clear').addEventListener('click',()=>resetDeck(true));
@@ -176,5 +182,11 @@ $('lq-undo-reset').addEventListener('click',()=>{if(!resetBackup)return;stats={.
 $('lq-clear-audio').addEventListener('click',async()=>{stopMedia();for(const url of memory.values())URL.revokeObjectURL(url);memory.clear();try{if('caches'in window){for(const key of await caches.keys())if(key.startsWith('faithsparks-latin-voice-'))await caches.delete(key);}notice('Saved Latin voice clips cleared on this device. Shared audio remains available for replay.');}catch(_){notice('This browser could not clear its saved audio.');}});
 window.addEventListener('pagehide',()=>{stopMedia();for(const url of memory.values())URL.revokeObjectURL(url);memory.clear();});
 if(!Recognition){$('lq-followup-mic').disabled=true;$('lq-study-mic').disabled=true;$('lq-study-status').textContent='This browser does not offer voice recognition. Type a study question above.';$('lq-mic').disabled=true;$('lq-auto').disabled=true;$('lq-auto').closest('label').title='Voice answers require a browser with speech recognition. Use typed answers here.';}
-syncResponse();summary();
+function savePlayers(){try{localStorage.setItem(PLAYERS,JSON.stringify({players,current:player}));}catch(_){notice('Player settings could not be saved on this browser.');}}
+function paintPlayers(){const select=$('lq-player');select.replaceChildren();for(const p of players){const option=document.createElement('option');option.value=p.id;option.textContent=p.name;select.appendChild(option);}select.value=player;$('lq-player-name').value=players.find(p=>p.id===player).name;}
+function switchPlayer(id){if(active||!players.some(p=>p.id===id))return;stopMedia();player=id;STORE='faithsparks.latinQuest.player.'+player+'.progress.v1';WEEK='faithsparks.latinQuest.player.'+player+'.week.v1';loadStats();weekly=new Set();$('lq-week-use').checked=false;try{const w=JSON.parse(localStorage.getItem(WEEK)||'{}');weekly=new Set((Array.isArray(w.cards)?w.cards:[]).filter(id=>deckCards.some(q=>q.card===id)));$('lq-week-use').checked=w.enabled===true;}catch(_){}queue=[];position=0;score=0;assisted=0;completed=0;resetBackup=null;requestedReset=null;studyCue=null;$('lq-reset-confirm').hidden=true;$('lq-undo-reset').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=true;$('lq-setup').hidden=false;$('lq-study').hidden=false;$('lq-study-result').textContent='';$('lq-study-repeat').hidden=true;$('lq-week-search').value='';paintWeek();paintPlayers();savePlayers();summary();notice('Ready for '+players.find(p=>p.id===player).name+'.');}
+$('lq-player').addEventListener('change',()=>switchPlayer($('lq-player').value));
+$('lq-player-add').addEventListener('click',()=>{if(active)return;if(players.length>=12){notice('This browser already has 12 players. Rename an existing player to use it.');return;}const name=$('lq-player-name').value.trim().slice(0,24);if(!name||players.some(p=>p.name.toLowerCase()===name.toLowerCase())){notice('Enter a different player name or nickname first.');return;}const id='player-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);players.push({id,name});switchPlayer(id);});
+$('lq-player-rename').addEventListener('click',()=>{if(active)return;const name=$('lq-player-name').value.trim().slice(0,24);if(!name||players.some(p=>p.id!==player&&p.name.toLowerCase()===name.toLowerCase())){notice('Choose a different player name or nickname.');return;}players.find(p=>p.id===player).name=name;savePlayers();paintPlayers();summary();notice('Player name saved.');});
+paintPlayers();savePlayers();syncResponse();summary();
 })();
