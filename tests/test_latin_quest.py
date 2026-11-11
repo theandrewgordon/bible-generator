@@ -184,3 +184,17 @@ def test_memory_links_are_sourced_help_not_answers():
         assert cards.CUES['memory:' + cid] == memory['text']
     eye = next(q for q in cards.QUESTIONS if q['id'] == 'noun-021:meaning')
     assert 'ocular' not in eye['answers']
+
+
+def test_both_flashcard_directions_use_only_card_material():
+    qs = [q for q in cards.QUESTIONS if q['mode'] in {'meaning', 'reverse'}]
+    assert len(qs) == 240
+    for q in qs:
+        assert cards.CUES['flash:' + q['id'] + ':front'] == q['flash_front']
+        assert cards.CUES['flash:' + q['id'] + ':back'] == q['flash_back']
+    latin = next(q for q in qs if q['id'] == 'noun-021:meaning')
+    english = next(q for q in qs if q['id'] == 'noun-021:reverse')
+    assert latin['flash_front'] == english['flash_back'] == 'oculus, oculī'
+    assert latin['flash_back'] == english['flash_front'] == 'eye'
+    assert 'English meaning' in cards.speech_instructions('flash:noun-021:meaning:back', 'classical')
+    assert 'isolated Latin' in cards.speech_instructions('flash:noun-021:reverse:back', 'classical')

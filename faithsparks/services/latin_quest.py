@@ -163,6 +163,17 @@ for card_id, memory in MEMORY_LINKS.items():
     card = next(entry for entry in STUDY if entry['id'] == card_id)
     STUDY.append({'id': card_id, 'word': card['word'], 'aliases': card['aliases'], 'fact': 'memory connection', 'answer': memory['text'], 'cue': 'memory:' + card_id})
 
+for question in QUESTIONS:
+    if question['mode'] not in {'meaning', 'reverse'}:
+        continue
+    cid = question['card']
+    meaning = next(q['answer'] for q in QUESTIONS if q['card'] == cid and q['mode'] == 'meaning')
+    forms = next((e['answer'] for e in STUDY if e['id'] == cid and e['fact'] in {'forms', 'principal parts'}), None)
+    latin = forms or next(q['answer'] for q in QUESTIONS if q['card'] == cid and q['mode'] == 'reverse')
+    question['flash_front'], question['flash_back'] = (latin, meaning) if question['mode'] == 'meaning' else (meaning, latin)
+    CUES['flash:' + question['id'] + ':front'] = question['flash_front']
+    CUES['flash:' + question['id'] + ':back'] = question['flash_back']
+
 OPTION_INSTRUCTIONS = {
     'meaning': 'The supplied text is an English meaning. Read it in natural English, not as Latin.',
     'reverse': 'The supplied text is an isolated Latin word. Read it in restored Classical Latin, not English.',
@@ -170,6 +181,10 @@ OPTION_INSTRUCTIONS = {
 
 def speech_instructions(cue, pronunciation):
     extra = OPTION_INSTRUCTIONS.get(cue.rsplit(':', 1)[-1], '') if cue.startswith('option:') else ''
+    if cue.startswith('flash:'):
+        _, card, mode, side = cue.split(':')
+        english = (mode == 'meaning' and side == 'back') or (mode == 'reverse' and side == 'front')
+        extra = OPTION_INSTRUCTIONS['meaning' if english else 'reverse']
     return INSTRUCTIONS[pronunciation] + (' ' + extra if extra else '')
 
 AUDIO_VERSION = hashlib.sha256(json.dumps([MODEL, SPEED, INSTRUCTIONS, OPTION_INSTRUCTIONS, CUES], sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]

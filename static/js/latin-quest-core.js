@@ -24,7 +24,7 @@ function buildQueue(questions,mode,size,stats,review=false,random=Math.random){
  const seen=new Set();return pool.filter(q=>{if(seen.has(q.card))return false;seen.add(q.card);return true;}).slice(0,size);
 }
 function resetProgress(stats,questions,mode,response){
- const ids=new Set(questions.filter(q=>mode==='mixed'?q.mode!=='reverse':q.mode===mode).map(q=>q.id+(response==='choice'?':choice':'')));
+ const ids=new Set(questions.filter(q=>mode==='mixed'?q.mode!=='reverse':q.mode===mode).map(q=>q.id+(['choice','flash'].includes(response)?':'+response:'')));
  return Object.fromEntries(Object.entries(stats).filter(([id])=>!ids.has(id)));
 }
 // Distractors come only from approved vocabulary; never offer another accepted answer.
