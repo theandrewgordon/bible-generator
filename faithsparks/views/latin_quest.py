@@ -4,6 +4,7 @@ import hmac
 import os
 import secrets
 import threading
+from pathlib import Path
 from openai import OpenAI
 from flask import Blueprint, Response, current_app, jsonify, render_template, request, session
 from faithsparks.services import latin_quest as curriculum
@@ -14,6 +15,8 @@ from faithsparks.util.request_utils import get_client_ip
 
 bp = Blueprint('latin_quest', __name__, url_prefix='/labs/latin-quest')
 _LOCKS = [threading.Lock() for _ in range(32)]
+_ASSET_ROOT = Path(__file__).resolve().parents[2] / 'static/js'
+_ASSET_VERSION = hashlib.sha256(b''.join((_ASSET_ROOT / name).read_bytes() for name in ('latin-quest-core.js', 'latin-quest.js'))).hexdigest()[:16]
 
 def reply(body, status=200, **headers):
     response = Response(body, mimetype='audio/mpeg') if isinstance(body, bytes) else jsonify(body)
@@ -27,7 +30,7 @@ def page():
     token = session.setdefault('_csrf_token', secrets.token_urlsafe(32))
     response = current_app.make_response(render_template('labs_latin_quest.html', noindex=True,
         latin_questions=curriculum.QUESTIONS, latin_study=curriculum.STUDY, latin_modes=curriculum.MODES, latin_csrf=token,
-        latin_audio_version=curriculum.AUDIO_VERSION))
+        latin_audio_version=curriculum.AUDIO_VERSION, latin_asset_version=_ASSET_VERSION))
     response.headers['Cache-Control'] = 'private, no-store'
     response.headers['X-Robots-Tag'] = 'noindex, nofollow'
     return response

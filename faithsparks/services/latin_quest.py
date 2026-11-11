@@ -54,6 +54,9 @@ def add(card, kind, prompt, answers, hint, details='', latin=False):
     q = {'id': f'{card}:{kind}', 'card': card, 'mode': kind.split('-')[0], 'prompt': prompt,
          'answers': list(dict.fromkeys(variants)), 'answer': display_answer or '; '.join(answers),
          'hint': hint, 'details': details, 'latin': latin}
+    if kind in {'meaning', 'reverse'}:
+        language = 'English meaning' if kind == 'meaning' else 'Latin word'
+        q['hint'] = f"One {language} starts with the letter {answers[0][0].upper()}."
     QUESTIONS.append(q)
 
 for cid, pos, first, second, meaning, decl, gender in SOURCE['nouns_and_pronouns']:
