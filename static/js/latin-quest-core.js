@@ -23,6 +23,22 @@ function buildQueue(questions,mode,size,stats,review=false,random=Math.random){
  pool=shuffled(pool,random).sort((a,b)=>(stats[a.id]?.streak||0)-(stats[b.id]?.streak||0));
  const seen=new Set();return pool.filter(q=>{if(seen.has(q.card))return false;seen.add(q.card);return true;}).slice(0,size);
 }
+// Distractors come only from approved vocabulary; never offer another accepted answer.
+function choicesFor(q,questions,random=Math.random){
+ if(!['meaning','reverse'].includes(q.mode))return [];
+ const seen=new Set(q.answers.map(a=>answerText(a,q)));
+ const pool=shuffled(questions.filter(other=>other.mode===q.mode&&other.card!==q.card),random)
+  .sort((a,b)=>Number(b.details.split('.')[0]===q.details.split('.')[0])-Number(a.details.split('.')[0]===q.details.split('.')[0]));
+ const wrong=[];
+ for(const other of pool){
+  if(other.answers.some(a=>matches(q,a)))continue;
+  const value=other.answers[0],key=answerText(value,q);
+  if(!key||seen.has(key))continue;
+  wrong.push(value);other.answers.forEach(a=>seen.add(answerText(a,q)));
+  if(wrong.length===3)break;
+ }
+ return wrong.length===3?shuffled([q.answers[0],...wrong],random):[];
+}
 function record(stats,q,correct,helped){const prior=stats[q.id]||{};return {...stats,[q.id]:{attempts:(prior.attempts||0)+1,correct:(prior.correct||0)+(correct&&!helped?1:0),streak:correct&&!helped?Math.min(9,(prior.streak||0)+1):0}};}
 function lookupStudy(entries,text,contextCard=null){
  const query=normalize(text).replace(/\bprinciple\b/g,'principal');if(!query)return [];
@@ -45,5 +61,5 @@ function lookupStudy(entries,text,contextCard=null){
  return [];
 }
 function isStudyQuestion(text){return /^(what|which|how|is|does|tell me|give me|define)\b/.test(normalize(text));}
-const api={normalize,matches,buildQueue,record,lookupStudy,isStudyQuestion};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LatinQuestCore=api;
+const api={normalize,matches,buildQueue,choicesFor,record,lookupStudy,isStudyQuestion};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LatinQuestCore=api;
 })(typeof window!=='undefined'?window:globalThis);

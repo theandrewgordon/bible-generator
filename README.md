@@ -160,3 +160,5 @@ Validation: `python -m pytest tests/test_latin_quest.py tests/test_product_syste
 and `node tests/latin_quest_core.cjs` / `node tests/latin_quest_voice.cjs`. Tests mock OpenAI/storage; they verify cache
 hits do not call OpenAI, cache variants, fixed-cue validation, cost/error boundaries,
 accepted meanings, wrong meanings, five/ten-question selection, hints and review.
+
+Latin Quest offers four-option multiple choice for Latin → English and English → Latin alongside speak/type. Options use approved card vocabulary, exclude all accepted equivalents, and shuffle each question. Choice progress uses a separate `:choice` question key so recognition practice does not advance recall mastery. Dark mode pairs readable text, labels, controls, and panel colors.

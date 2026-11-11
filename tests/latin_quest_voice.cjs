@@ -3,11 +3,11 @@ const core=require('../static/js/latin-quest-core.js');
 const source=fs.readFileSync('static/js/latin-quest.js','utf8');
 const tick=()=>new Promise(r=>setImmediate(r));
 const study=[...Array.from({length:25},(_,i)=>({id:'noun-'+i,word:'testword'+i,aliases:['testword'+i],fact:'gender',answer:'feminine',cue:'study:noun-'+i+':gender'})),{id:'noun-014',word:'terra',aliases:['terra','terrae'],fact:'gender',answer:'feminine',cue:'study:noun-014:gender'}];
-function setup(){
+function setup(response='recall'){
  const nodes={},recognizers=[],sent=[],cache=new Map(),storage={};
- const node=id=>nodes[id]??={value:'',checked:false,hidden:false,textContent:'',children:[],addEventListener(n,f){this[n]=f;},replaceChildren(){this.children=[];},appendChild(x){this.children.push(x);},closest(){return {title:''};}};
- node('lq-config').textContent=JSON.stringify({study,questions:Array.from({length:25},(_,i)=>({id:'noun-'+i+':meaning',card:'noun-'+i,mode:'meaning',prompt:'What does terra mean in English?',answers:['earth','land'],answer:'earth; land',details:'Noun. first declension. feminine.',hint:'Think of your card.'})),csrf:'test-token',audioVersion:'v1',ttsUrl:'/labs/latin-quest/tts'});
- for(const [id,value]of Object.entries({'lq-mode':'meaning','lq-size':'20','lq-voice':'coral','lq-pronunciation':'classical'}))node(id).value=value;
+ const node=id=>nodes[id]??={value:'',checked:false,hidden:false,textContent:'',children:[],dataset:{},addEventListener(n,f){this[n]=f;},replaceChildren(){this.children=[];},appendChild(x){this.children.push(x);},closest(){return {title:''};}};
+ node('lq-config').textContent=JSON.stringify({study,questions:Array.from({length:25},(_,i)=>({id:'noun-'+i+':meaning',card:'noun-'+i,mode:'meaning',prompt:'What does terra mean in English?',answers:response==='choice'?['answer'+i]:['earth','land'],answer:response==='choice'?'answer'+i:'earth; land',details:'Noun. first declension. feminine.',hint:'Think of your card.'})),csrf:'test-token',audioVersion:'v1',ttsUrl:'/labs/latin-quest/tts'});
+ for(const [id,value]of Object.entries({'lq-response':response,'lq-mode':'meaning','lq-size':'20','lq-voice':'coral','lq-pronunciation':'classical'}))node(id).value=value;
  class Recognition{constructor(){recognizers.push(this);}start(){this.started=true;}abort(){this.onend?.();}}
  const caches={open:async()=>({match:async k=>cache.has(k.url)?new Response(cache.get(k.url),{headers:{'Content-Type':'audio/mpeg'}}):null,put:async(k,r)=>cache.set(k.url,await r.arrayBuffer()),delete:async k=>cache.delete(k.url)}),keys:async()=>[],delete:async()=>true};
  const win={LatinQuestCore:core,SpeechRecognition:Recognition,caches,addEventListener(){}};
@@ -30,5 +30,13 @@ function setup(){
  a.nodes['lq-answer'].value='earth';a.nodes['lq-form'].submit({preventDefault(){}});await tick();await tick();
  assert.match(a.nodes['lq-feedback'].textContent,/little help/);
  a.nodes['lq-stop'].click();await tick();await tick();assert.equal(a.nodes['lq-score'].textContent,'0 / 1');assert.equal(a.nodes['lq-study'].hidden,false);assert.match(a.nodes['lq-result-title'].textContent,/pause/);
+ const b=setup('choice');b.nodes['lq-start'].click();await tick();await tick();
+ assert.equal(b.nodes['lq-options'].children.length,4);assert.equal(b.nodes['lq-form'].hidden,true);
+ b.nodes['lq-options'].children[0].click();await tick();await tick();
+ assert(b.nodes['lq-options'].children.every(n=>n.disabled));assert.equal(b.nodes['lq-after'].hidden,false);
+ const saved=JSON.parse(b.storage['faithsparks.latinQuest.progress.v1']);assert(Object.keys(saved).every(id=>id.endsWith(':choice')));
+ b.nodes['lq-next'].click();await tick();await tick();assert.equal(b.nodes['lq-round'].textContent,'Question 2 of 20');assert(b.nodes['lq-options'].children.every(n=>!n.disabled));
+ b.nodes['lq-stop'].click();await tick();await tick();assert.match(b.nodes['lq-result-copy'].textContent,/tracked separately/);
+ b.nodes['lq-again'].click();b.nodes['lq-mode'].value='grammar';b.nodes['lq-mode'].change();assert.equal(b.nodes['lq-response'].disabled,true);assert.equal(b.nodes['lq-response'].value,'recall');
  console.log('Latin Quest voice: spoken study lookup, fixed-cue audio, repeat reuse, unknown words, denied mic fallback 20-question start, in-session follow-ups, and assisted scoring passed.');
 })().catch(e=>{console.error(e);process.exit(1);});
