@@ -247,6 +247,18 @@ def play():
     return render_template('play.html', products=products_for('play'))
 
 
+@bp.get('/labs/math-fact-rally')
+def math_fact_rally():
+    """Standalone, offline-friendly learning game in the root Labs catalog."""
+    game_file = Path(__file__).resolve().parents[2] / 'static' / 'labs' / 'math-fact-rally.html'
+    response = send_file(game_file, mimetype='text/html')
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
 @bp.get('/labs')
 def labs():
     return render_template(
