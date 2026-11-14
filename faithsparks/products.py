@@ -83,6 +83,11 @@ PRODUCTS = (
         "description": "Listen, translate, and practice Latin in short or longer quests, with saved voice audio and gentle review.",
     },
     {
+        "id": "math-fact-rally", "name": "Math Fact Rally", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/math-fact-rally", "accent": "blue",
+        "description": "Five-minute verbal math practice for 1–4 kids, with saved skills and smart review.",
+    },
+    {
         "id": "games-lab", "name": "Games Lab", "area": "labs",
         "maturity": "sandbox", "path": "/labs/games", "accent": "gold",
         "description": "Try small interactive game prototypes for families while we refine the controls, levels, and play flow.",
