@@ -20,6 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - run: node tests/math_fact_adventure_levels.cjs
       - run: node tests/latin_quest_core.cjs
       - run: node tests/latin_quest_voice.cjs
       - run: node tests/reading_quest_audio.cjs
