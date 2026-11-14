@@ -38,6 +38,19 @@ def test_math_fact_rally_is_a_standalone_root_lab():
     assert "noindex" in game.headers["X-Robots-Tag"]
 
 
+def test_math_adventure_preserves_simple_journal_play_and_saved_progress():
+    html = (ROOT / "static" / "labs" / "math-fact-rally.html").read_text(encoding="utf-8")
+    assert 'id="quickFive" class="green main-cta"' in html
+    assert 'id="homeOptions" class="home-options"' in html
+    assert 'class="journal-page"' in html
+    assert 'discovery-stamp' in html
+    assert "function nextDiscovery(p)" in html
+    assert "learningPatterns(data)" in html
+    assert "mathFactRally.v2" in html
+    assert "restoreSession()" in html
+    assert 'id="exportProgress"' in html
+
+
 def test_reading_quest_is_paused_and_unreachable(monkeypatch):
     from faithsparks.products import products_for
     from faithsparks.services import ai_budget
