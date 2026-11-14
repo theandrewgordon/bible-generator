@@ -22,17 +22,17 @@ def test_math_fact_rally_is_a_standalone_root_lab():
     from faithsparks.products import products_for
 
     item = next(product for product in products_for("labs") if product["id"] == "math-fact-rally")
-    assert item["path"] == "/labs/math-fact-rally"
+    assert item["path"] == "/labs/math-fact-adventure"
 
     app.config.update(TESTING=True)
     with app.test_client() as client:
         labs = client.get("/labs")
-        game = client.get("/labs/math-fact-rally")
+        game = client.get("/labs/math-fact-adventure")
     assert labs.status_code == 200
-    assert b"Math Fact Rally" in labs.data
-    assert b'href="/labs/math-fact-rally"' in labs.data
+    assert b"Math Fact Adventure" in labs.data
+    assert b'href="/labs/math-fact-adventure"' in labs.data
     assert game.status_code == 200
-    assert b"Math Fact Rally" in game.data
+    assert b"Math Fact Adventure" in game.data
     assert game.mimetype == "text/html"
     assert game.headers["Cache-Control"] == "private, no-store"
     assert "noindex" in game.headers["X-Robots-Tag"]
