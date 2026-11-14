@@ -88,6 +88,11 @@ PRODUCTS = (
         "description": "Five-minute verbal math practice for 1–4 kids, with saved skills and smart review.",
     },
     {
+        "id": "geo-detectives", "name": "Geo Detectives!", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/geo-detectives", "accent": "gold",
+        "description": "Explore colorful watercolor landscapes, guess geography terms, and compare landforms with visual clues.",
+    },
+    {
         "id": "games-lab", "name": "Games Lab", "area": "labs",
         "maturity": "sandbox", "path": "/labs/games", "accent": "gold",
         "description": "Try small interactive game prototypes for families while we refine the controls, levels, and play flow.",
