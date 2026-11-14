@@ -83,8 +83,8 @@ PRODUCTS = (
         "description": "Listen, translate, and practice Latin in short or longer quests, with saved voice audio and gentle review.",
     },
     {
-        "id": "math-fact-rally", "name": "Math Fact Rally", "area": "labs",
-        "maturity": "sandbox", "path": "/labs/math-fact-rally", "accent": "blue",
+        "id": "math-fact-rally", "name": "Math Fact Adventure", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/math-fact-adventure", "accent": "blue",
         "description": "Five-minute verbal math practice for 1–4 kids, with saved skills and smart review.",
     },
     {
