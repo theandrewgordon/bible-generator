@@ -13,10 +13,34 @@ def test_product_registry_has_task_first_navigation_and_formal_labs():
     ]
     labs = [product for product in PRODUCTS if product["area"] == "labs"]
     assert {product["maturity"] for product in labs} <= {"beta", "experiment", "sandbox"}
-    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio", "games-lab", "same-brain", "reading-quest", "latin-quest", "math-fact-rally"}
+    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio", "games-lab", "same-brain", "reading-quest", "latin-quest", "math-fact-rally", "geo-detectives"}
     assert next(product for product in PRODUCTS if product["id"] == "same-brain")["path"] == "/same-brain"
     assert all(product["path"] != "/speeddie" for product in PRODUCTS)
 
+
+
+def test_geo_detectives_is_an_illustrated_guess_first_root_lab():
+    from faithsparks.products import products_for
+
+    item = next(product for product in products_for("labs") if product["id"] == "geo-detectives")
+    assert item["path"] == "/labs/geo-detectives"
+
+    app.config.update(TESTING=True)
+    with app.test_client() as client:
+        labs = client.get("/labs")
+        game = client.get("/labs/geo-detectives")
+    assert labs.status_code == 200
+    assert b"Geo Detectives!" in labs.data
+    assert b'href="/labs/geo-detectives"' in labs.data
+    assert game.status_code == 200
+    assert game.mimetype == "text/html"
+    assert game.headers["Cache-Control"] == "private, no-store"
+    assert "noindex" in game.headers["X-Robots-Tag"]
+    assert b"data:image/webp;base64," in game.data
+    assert game.data.count(b'class="gamecard guess-card"') == 101
+    assert game.data.count(b'class="gamecard compare-card"') == 40
+    assert b'guess-card:has(.choices input[type="radio"]:checked)' in game.data
+    assert b'compare-card:has(.comparison-guess input[type="checkbox"]:checked)' in game.data
 
 def test_math_fact_rally_is_a_standalone_root_lab():
     from faithsparks.products import products_for
