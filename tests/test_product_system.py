@@ -13,9 +13,29 @@ def test_product_registry_has_task_first_navigation_and_formal_labs():
     ]
     labs = [product for product in PRODUCTS if product["area"] == "labs"]
     assert {product["maturity"] for product in labs} <= {"beta", "experiment", "sandbox"}
-    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio", "games-lab", "same-brain", "reading-quest", "latin-quest"}
+    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio", "games-lab", "same-brain", "reading-quest", "latin-quest", "math-fact-rally"}
     assert next(product for product in PRODUCTS if product["id"] == "same-brain")["path"] == "/same-brain"
     assert all(product["path"] != "/speeddie" for product in PRODUCTS)
+
+
+def test_math_fact_rally_is_a_standalone_root_lab():
+    from faithsparks.products import products_for
+
+    item = next(product for product in products_for("labs") if product["id"] == "math-fact-rally")
+    assert item["path"] == "/labs/math-fact-rally"
+
+    app.config.update(TESTING=True)
+    with app.test_client() as client:
+        labs = client.get("/labs")
+        game = client.get("/labs/math-fact-rally")
+    assert labs.status_code == 200
+    assert b"Math Fact Rally" in labs.data
+    assert b'href="/labs/math-fact-rally"' in labs.data
+    assert game.status_code == 200
+    assert b"Math Fact Rally" in game.data
+    assert game.mimetype == "text/html"
+    assert game.headers["Cache-Control"] == "private, no-store"
+    assert "noindex" in game.headers["X-Robots-Tag"]
 
 
 def test_reading_quest_is_paused_and_unreachable(monkeypatch):
