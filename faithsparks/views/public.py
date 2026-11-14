@@ -247,6 +247,7 @@ def play():
     return render_template('play.html', products=products_for('play'))
 
 
+@bp.get('/labs/math-fact-adventure')
 @bp.get('/labs/math-fact-rally')
 def math_fact_rally():
     """Standalone, offline-friendly learning game in the root Labs catalog."""
