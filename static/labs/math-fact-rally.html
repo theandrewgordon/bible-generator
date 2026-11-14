@@ -64,7 +64,7 @@ function superscript(n){const digits={'0':'⁰','1':'¹','2':'²','3':'³','4':'
 function hint(q){switch(q.operation){case 'Addition':return q.a+q.b>10?'Try making a ten first.':'Try counting on from the larger number.';case 'Subtraction':return 'What would you add to the smaller number to reach the larger one?';case 'Multiplication':return 'Think of equal groups or a number you can double.';case 'Division':return 'Use the related multiplication fact.';default:return 'Multiply the base by itself as many times as the exponent says.'}}
 function show(){graded=false;answerRevealed=false;hintUsed=false;const p=players[position%players.length],q=sequence[position];score();get('turn').textContent=`Question ${position+1} of ${sequence.length}`;get('who').textContent=`🎤 ${p.name} · ${q.operation} · ${q.level}`;get('math').style.fontSize='';get('math').textContent=notation(q);get('questionCode').textContent=q.id==='Fresh'?'Freshly generated fact':`PDF answer key: ${q.id}`;get('answer').textContent='Say your answer aloud!';get('message').textContent='Listen for the answer, then mark the result.';get('hint').classList.add('hidden');for(const id of ['hintBtn','reveal','correct','assisted','incorrect']){get(id).disabled=false;get(id).classList.remove('hidden')}get('next').classList.add('hidden')}
 function mark(outcome){if(graded)return;if(outcome==='right'&&(answerRevealed||hintUsed))outcome='assisted';if(answerRevealed&&outcome==='assisted')outcome='wrong';previousSnapshot={progress:JSON.parse(JSON.stringify(progress)),scores:players.map(p=>p.score),position};graded=true;const p=players[position%players.length],q=sequence[position],key=recordKey(q),rec=getProgress(p.name)[key]||{right:0,wrong:0,assisted:0};if(outcome==='right'){p.score++;rec.right++}else if(outcome==='assisted'){p.score++;rec.assisted=(rec.assisted||0)+1}else{rec.wrong++}getProgress(p.name)[key]=rec;get('answer').textContent=`Answer: ${q.answer}`;get('message').textContent=outcome==='right'?'Independent! +1 point.':outcome==='assisted'?'With help — saved for review. +1 point.':'Saved for another practice round.';['hintBtn','reveal','correct','assisted','incorrect'].forEach(id=>get(id).classList.add('hidden'));get('next').classList.remove('hidden');get('next').textContent=position===sequence.length-1?'🏁 Finish game':'Next question →';saveSession();score()}
-function finish(){score();const max=Math.max(...players.map(p=>p.score)),winners=players.filter(p=>p.score===max).map(p=>p.name);get('turn').textContent='Rally complete!';get('who').textContent='🏆 Final scores';get('math').textContent=winners.length===players.length?'Great work, everyone!':`${winners.join(' & ')} ${winners.length===1?'wins':'win'}!`;get('math').style.fontSize='clamp(1.7rem,5vw,3rem)';get('answer').textContent=`Top score: ${max} / ${get('rounds').value}`;get('questionCode').textContent='';get('message').textContent='Missed facts have been saved on this device.';get('hint').classList.add('hidden');get('next').classList.add('hidden');session=null;persist();const r=get('results');r.classList.remove('hidden');r.replaceChildren();r.appendChild(el('h3','','Practice summary'));const tbl=el('table');const tr=el('tr');['Player','Correct','Needs practice'].forEach(t=>tr.appendChild(el('th','',t)));tbl.appendChild(tr);players.forEach(p=>{const row=el('tr');[p.name,String(p.score),String(Number(get('rounds').value)-p.score)].forEach(v=>row.appendChild(el('td','',v)));tbl.appendChild(row)});r.appendChild(tbl)}
+function finish(){score();const max=Math.max(...players.map(p=>p.score)),winners=players.filter(p=>p.score===max).map(p=>p.name);get('turn').textContent='Rally complete!';get('who').textContent='🏆 Final scores';get('math').textContent=winners.length===players.length?'Great work, everyone!':`${winners.join(' & ')} ${winners.length===1?'wins':'win'}!`;get('math').style.fontSize='clamp(1.7rem,5vw,3rem)';get('answer').textContent=`Top score: ${max} / ${get('rounds').value}`;get('questionCode').textContent='';get('message').textContent='Missed facts have been saved on this device.';get('hint').classList.add('hidden');get('next').classList.add('hidden');session=null;persist();const r=get('results');r.classList.remove('hidden');r.replaceChildren();r.appendChild(el('h3','','Practice summary'));const tbl=el('table');const tr=el('tr');['Player','Correct','Needs practice'].forEach(t=>tr.appendChild(el('th','',t)));tbl.appendChild(tr);players.forEach(p=>{const row=el('tr');[p.name,String(p.score),String(Number(get('rounds').value)-p.score)].forEach(v=>row.appendChild(el('td','',v)));tbl.appendChild(row)});r.appendChild(tbl);players.forEach(p=>{const box=el('div','report-item');box.append(el('h3','',p.name+' — what to practice'));addLearningSummary(box,getProgress(p.name));r.append(box)})}
 function begin(configOverride){const v=get('validation');v.classList.add('hidden');const config=configOverride||readConfig();const missing=config.findIndex(p=>!p.operations.length);if(missing!==-1){v.textContent=`Choose at least one operation for Player ${missing+1}.`;v.classList.remove('hidden');return}players=config.map(p=>({...p,score:0}));settings={playerCount:config.length,rounds:get('rounds').value,source:get('source').value,players:config};persist();try{buildSequence()}catch(e){v.textContent=e.message;v.classList.remove('hidden');return}position=0;previousSnapshot=null;session=null;get('home').classList.add('hidden');get('report').classList.add('hidden');get('results').classList.add('hidden');get('setup').classList.add('hidden');get('game').classList.remove('hidden');show();saveSession();window.scrollTo?.({top:0,behavior:'instant'})}
 function restart(){session=null;persist();get('setup').classList.add('hidden');get('game').classList.add('hidden');get('report').classList.add('hidden');get('home').classList.remove('hidden');players=[];sequence=[];position=0;graded=false;renderHome();window.scrollTo?.({top:0,behavior:'instant'})}
 window.addEventListener('error',event=>{const box=get('error');box.textContent=`The game encountered an error: ${event.message}`;box.classList.remove('hidden')});
@@ -76,7 +76,72 @@ get('clearProgress').addEventListener('click',()=>{if(!window.confirm('Clear sav
 
 function saveSession(){session={players,sequence,position,graded,answerRevealed,hintUsed,previousSnapshot};persist()}
 function renderHome(){const box=get('homePlayers');box.replaceChildren();const p=settings.players?.length?settings.players:[{name:'Player 1',operations:['Addition'],level:'Starter'}];for(const x of p){const row=el('div');row.append(el('strong','',x.name),el('small','',`${(x.operations||['Addition']).join(' + ')} · ${x.level||'Starter'}`));box.appendChild(row)}get('resumeInfo').textContent=session?.sequence?.length?'Your last game is saved. Tap Resume to continue.':'Individual settings are saved on this device.';get('homePlay').textContent=session?.sequence?.length?'▶ Resume game':'▶ Play again'}
-function showReport(){get('home').classList.add('hidden');get('setup').classList.add('hidden');get('report').classList.remove('hidden');const root=get('reportContent');root.replaceChildren();const ps=settings.players?.length?settings.players:[{name:'Player 1'}];ps.forEach(p=>{const data=getProgress(p.name),records=Object.entries(data).filter(([,v])=>v&&typeof v==='object');const strong=records.filter(([,v])=>(v.right||0)>=3&&(v.wrong||0)===0&&(v.assisted||0)===0);const review=records.filter(([,v])=>(v.wrong||0)+(v.assisted||0)>0).sort((a,b)=>((b[1].wrong||0)*2+(b[1].assisted||0))-((a[1].wrong||0)*2+(a[1].assisted||0))).slice(0,8);const card=el('div','report-item');card.append(el('h3','',p.name),el('p','',`${records.length} different facts practiced · ${strong.length} answered independently 3+ times · ${review.length} highlighted for review`));if(review.length){card.append(el('div','small','Review these facts:'));for(const [key] of review){const [op,a,b]=key.split(':');card.append(el('span','pill',notation({operation:op,a:Number(a),b:Number(b)}).replace(' = ?','')))}const b=el('button','green','Practice weak facts');b.addEventListener('click',()=>{get('report').classList.add('hidden');get('source').value='fresh';const cfg=(settings.players||ps).map(x=>({...x,focus:x.name===p.name?'review':x.focus||'all'}));get('playerCount').value=String(cfg.length);begin(cfg)});card.append(b)}else card.append(el('p','small','No missed or assisted facts yet. Keep playing!'));root.append(card)})}
+// Educational pattern summaries are calculated locally. They are not clinical diagnoses.
+function factPatterns(op,a,b){
+ const labels=[];
+ if(op==='Addition'){
+  if(a===b)labels.push('Doubles');
+  if(Math.abs(a-b)===1)labels.push('Near doubles');
+  if(a+b>10&&a<10&&b<10)labels.push('Making ten');
+  if(a===0||b===0)labels.push('Adding zero');
+  if(a+b>=20)labels.push('Larger addition facts');
+ }
+ if(op==='Subtraction'){
+  if(a>=10&&a-b<10&&b>0)labels.push('Subtracting across ten');
+  if(b===0)labels.push('Subtracting zero');
+  if(a===b)labels.push('Subtracting equal numbers');
+  if(a>=20)labels.push('Larger subtraction facts');
+ }
+ if(op==='Multiplication'){
+  if(a===0||b===0)labels.push('Multiplying by zero');
+  if(a===1||b===1)labels.push('Multiplying by one');
+  if(a===b)labels.push('Square facts');
+  if([6,7,8,9].includes(a)||[6,7,8,9].includes(b))labels.push('6–9 times tables');
+ }
+ if(op==='Division'){
+  if(b===2)labels.push('Dividing by two');
+  if(b===5||b===10)labels.push('Dividing by five or ten');
+  if(b>=6)labels.push('Larger division facts');
+ }
+ if(op==='Exponents'){
+  if(b===2)labels.push('Square powers');
+  if(b===3)labels.push('Cube powers');
+  if(b>=4)labels.push('Higher powers');
+ }
+ return labels;
+}
+function learningPatterns(data){
+ const counts=new Map();
+ for(const [key,rec] of Object.entries(data||{})){
+  const [op,rawA,rawB]=key.split(':');
+  const a=Number(rawA),b=Number(rawB);
+  if(!OPERATIONS.includes(op)||!Number.isFinite(a)||!Number.isFinite(b)||!rec||typeof rec!=='object')continue;
+  const right=Math.max(0,Number(rec.right)||0),assisted=Math.max(0,Number(rec.assisted)||0),wrong=Math.max(0,Number(rec.wrong)||0);
+  for(const label of factPatterns(op,a,b)){
+   const tag=op+'|'+label;
+   const row=counts.get(tag)||{operation:op,label,total:0,difficult:0,missed:0,assisted:0,facts:new Set()};
+   row.total+=right+assisted+wrong;row.difficult+=assisted+wrong;row.missed+=wrong;row.assisted+=assisted;row.facts.add(key);counts.set(tag,row);
+  }
+ }
+ return [...counts.values()].filter(r=>r.total>=3&&r.difficult>=2&&r.difficult/r.total>=.35)
+  .sort((a,b)=>b.difficult/b.total-a.difficult/a.total||b.difficult-a.difficult).slice(0,3);
+}
+function addLearningSummary(parent,data){
+ const patterns=learningPatterns(data);
+ const section=el('div','learning-summary');
+ section.append(el('h4','','Patterns worth practicing'));
+ if(patterns.length){
+  for(const item of patterns){
+   const row=el('p','',item.label+' ('+item.operation+'): '+item.difficult+' of '+item.total+' attempts needed help or review.');
+   section.append(row);
+  }
+  section.append(el('p','small','These are practice clues, not a diagnosis. Only skills with enough recorded attempts are shown.'));
+ }else{
+  section.append(el('p','small','Keep practicing! More answers are needed before the game can identify a reliable pattern.'));
+ }
+ parent.append(section);
+}
+function showReport(){get('home').classList.add('hidden');get('setup').classList.add('hidden');get('report').classList.remove('hidden');const root=get('reportContent');root.replaceChildren();const ps=settings.players?.length?settings.players:[{name:'Player 1'}];ps.forEach(p=>{const data=getProgress(p.name),records=Object.entries(data).filter(([,v])=>v&&typeof v==='object');const strong=records.filter(([,v])=>(v.right||0)>=3&&(v.wrong||0)===0&&(v.assisted||0)===0);const review=records.filter(([,v])=>(v.wrong||0)+(v.assisted||0)>0).sort((a,b)=>((b[1].wrong||0)*2+(b[1].assisted||0))-((a[1].wrong||0)*2+(a[1].assisted||0))).slice(0,8);const card=el('div','report-item');card.append(el('h3','',p.name),el('p','',`${records.length} different facts practiced · ${strong.length} answered independently 3+ times · ${review.length} highlighted for review`));addLearningSummary(card,data);if(review.length){card.append(el('div','small','Review these facts:'));for(const [key] of review){const [op,a,b]=key.split(':');card.append(el('span','pill',notation({operation:op,a:Number(a),b:Number(b)}).replace(' = ?','')))}const b=el('button','green','Practice weak facts');b.addEventListener('click',()=>{get('report').classList.add('hidden');get('source').value='fresh';const cfg=(settings.players||ps).map(x=>({...x,focus:x.name===p.name?'review':x.focus||'all'}));get('playerCount').value=String(cfg.length);begin(cfg)});card.append(b)}else card.append(el('p','small','No missed or assisted facts yet. Keep playing!'));root.append(card)})}
 function restoreSession(){if(!session||!Array.isArray(session.players)||!Array.isArray(session.sequence)||!session.sequence.length)return false;players=session.players;sequence=session.sequence;position=session.position||0;graded=!!session.graded;answerRevealed=!!session.answerRevealed;hintUsed=!!session.hintUsed;previousSnapshot=session.previousSnapshot||null;get('home').classList.add('hidden');get('setup').classList.add('hidden');get('game').classList.remove('hidden');get('results').classList.add('hidden');show();if(graded){const q=sequence[position];get('answer').textContent=`Answer: ${q.answer}`;['hintBtn','reveal','correct','assisted','incorrect'].forEach(id=>get(id).classList.add('hidden'));get('next').classList.remove('hidden')}else if(answerRevealed){get('answer').textContent=`Answer: ${sequence[position].answer}`;get('correct').disabled=true;get('assisted').disabled=true}else if(hintUsed){get('hint').textContent=hint(sequence[position]);get('hint').classList.remove('hidden');get('hintBtn').disabled=true}return true}
 get('quickFive').addEventListener('click',()=>{get('rounds').value='5'; if(session?.sequence?.length){const proceed=window.confirm('Start a new 5-question game? Your paused game will be replaced.');if(!proceed)return;session=null;persist()}const cfg=settings.players?.length?settings.players:readConfig();begin(cfg)});
 get('homePlay').addEventListener('click',()=>{if(session?.sequence?.length){restoreSession()}else{const cfg=settings.players?.length?settings.players:readConfig();begin(cfg)}});
