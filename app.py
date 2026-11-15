@@ -276,6 +276,10 @@ def _compute_static_version() -> str:
         "static/admin.css",
         "static/bible_bee.css",
         "static/bible_bee.js",
+        "static/dist/browse/browse.js",
+        "static/dist/browse/browse.css",
+        "static/dist/gathering/gathering.js",
+        "static/dist/gathering/gathering.css",
     ):
         try:
             latest = max(latest, os.path.getmtime(rel))

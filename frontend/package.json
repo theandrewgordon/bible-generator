@@ -1,0 +1,19 @@
+{
+  "name": "faith-sparks-pages",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build && vite build --mode gathering",
+    "watch": "vite build --watch",
+    "test": "npm run build && node --test src/*.test.js",
+    "watch:gathering": "vite build --mode gathering --watch"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "jsdom": "^31.0.1",
+    "vite": "^7.2.0"
+  }
+}

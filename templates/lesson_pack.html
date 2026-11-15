@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}House Church Lesson Pack Builder | Faith Sparks{% endblock %}
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dist/gathering/gathering.css', v=static_v) }}" />
 <script type="application/ld+json">{{ {
   "@context": "https://schema.org",
   "@type": "WebApplication",
@@ -20,17 +21,19 @@
       <p class="lesson-pack__lede">Get a simple all-age plan, copywork worksheet, word search, answer key, and one clean printable PDF. Scripture wording is verified before anything is built.</p>
       <div class="lesson-pack__proof" aria-label="Key benefits"><span>Low prep</span><span>All ages together</span><span>Verified Scripture</span></div>
     </div>
-    <img src="{{ url_for('static', filename='hero_john_316.png') }}" alt="Preview of a printable Bible activity" width="640" height="480" loading="eager" />
   </div>
 
   <div class="lesson-pack__layout">
     <form method="post" class="lesson-pack__form" id="lesson-pack-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-      <div><p class="kicker">Build your pack</p><h2>What are you gathering for?</h2></div>
+      <div><p class="kicker">Build your pack</p></div>
       {% if not lesson_pack_signed_in %}
       <div class="lesson-pack__notice" role="note"><strong>Sign in is required to build.</strong> Make your choices first; they will stay with you through sign-in.</div>
       {% endif %}
 
+      <div id="gathering-step-nav"></div>
+      <div id="gathering-step-heading"></div>
+      <div data-builder-step="0">
       <label>
         Use this pack for
         <select name="lesson_mode" data-mode-select>
@@ -52,6 +55,8 @@
         <span class="muted small">A verse or short passage works best.</span>
       </label>
 
+      </div>
+      <div data-builder-step="1">
       <div class="lesson-pack__grid">
         <label>
           Bible version
@@ -86,14 +91,18 @@
         </label>
       </div>
 
+      </div>
+      <div id="gathering-controls"></div>
+      <div data-fallback-actions>
       <div class="cta-row">
         <button class="button primary" type="submit" id="lesson-pack-submit">{{ 'Build quick gathering pack' if lesson_pack_signed_in else 'Sign in to build' }}</button>
         <a class="button ghost" href="{{ url_for('generate') }}">Just make a worksheet</a>
       </div>
       <p class="lesson-pack__time muted small" id="lesson-pack-time">The quick pack uses local PDF builders after Scripture verification, so it should finish promptly.</p>
-      <div class="lesson-pack__progress" id="lesson-pack-progress" role="status" aria-live="polite" hidden>
+      <div class="lesson-pack__progress" id="lesson-pack-fallback-progress" role="status" aria-live="polite" hidden>
         <span class="lesson-pack__spinner" aria-hidden="true"></span>
         <span id="lesson-pack-progress-text">Verifying the passage and building your printables…</span>
+      </div>
       </div>
     </form>
 
@@ -122,7 +131,6 @@
   .lesson-pack{display:grid;gap:1rem;max-width:1080px;margin:0 auto}.lesson-pack [hidden]{display:none!important}.lesson-pack__hero,.lesson-pack__form,.lesson-pack__card{border:1px solid rgba(15,23,42,.09);background:var(--box);border-radius:20px;box-shadow:var(--card-shadow)}.lesson-pack__hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(220px,.6fr);align-items:center;gap:1.4rem;padding:clamp(1.1rem,3vw,2rem);overflow:hidden}.lesson-pack__hero img{width:100%;height:220px;object-fit:cover;border-radius:16px}.lesson-pack__lede{max-width:680px;font-size:1.06rem;line-height:1.65;color:var(--text-secondary)}.lesson-pack__proof{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:1rem}.lesson-pack__proof span,.lpr-badge{padding:.35rem .65rem;border-radius:999px;background:color-mix(in srgb,var(--primary) 12%,var(--box));color:var(--primary-dark);font-size:.78rem;font-weight:800}.lesson-pack__layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);align-items:start;gap:1rem}.lesson-pack__form,.lesson-pack__card{padding:clamp(1rem,2.5vw,1.5rem)}.lesson-pack__form{display:grid;gap:1rem}.lesson-pack__form h2,.lesson-pack__card h2{margin:.1rem 0}.kicker{display:inline-flex;margin:0 0 .35rem;padding:.34rem .65rem;border-radius:999px;background:rgba(14,165,233,.12);color:var(--primary-dark);font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}.lesson-pack__notice{padding:.8rem .9rem;border:1px solid color-mix(in srgb,var(--primary) 28%,transparent);border-radius:12px;background:color-mix(in srgb,var(--primary) 8%,var(--box))}.lesson-pack__notice strong{display:block}.lesson-pack__grid,.lesson-pack__options{display:grid;grid-template-columns:1fr 1fr;gap:.85rem}.lesson-pack label{display:grid;gap:.35rem;font-weight:700}.lesson-pack input[type=text],.lesson-pack select{width:100%;padding:.8rem .9rem;border-radius:12px;border:1px solid rgba(15,23,42,.15);background:var(--background);color:var(--text);-webkit-text-fill-color:var(--text)}.lesson-pack label.lesson-pack__checkbox{display:flex;align-items:flex-start;gap:.65rem;padding:.8rem;border:1px solid rgba(15,23,42,.1);border-radius:12px;font-weight:400}.lesson-pack__checkbox input{width:auto;margin-top:.2rem}.lesson-pack__checkbox strong,.lesson-pack__checkbox small{display:block}.lesson-pack__checkbox small{color:var(--text);opacity:.85;margin-top:.1rem}.lesson-pack__checkbox--art{background:color-mix(in srgb,#f59e0b 7%,var(--box))}.lesson-pack__time{margin:-.3rem 0 0}.lesson-pack__progress{display:flex;align-items:center;gap:.65rem;padding:.8rem .9rem;border-radius:12px;background:color-mix(in srgb,var(--primary) 9%,var(--box));font-weight:700}.lesson-pack__progress[hidden]{display:none}.lesson-pack__spinner{width:18px;height:18px;flex:0 0 auto;border:3px solid color-mix(in srgb,var(--primary) 25%,transparent);border-top-color:var(--primary);border-radius:50%;animation:lesson-pack-spin .8s linear infinite}@keyframes lesson-pack-spin{to{transform:rotate(360deg)}}.lesson-pack__card ol{display:grid;gap:.8rem;margin:1rem 0;padding-left:1.3rem}.lesson-pack__card li{padding-left:.25rem}.lesson-pack__card li span{display:block;margin-top:.12rem;color:var(--text-secondary);font-size:.88rem;line-height:1.45}.lesson-pack__aside-note{padding:.8rem;border-radius:12px;background:color-mix(in srgb,var(--primary) 8%,var(--box));font-size:.88rem;line-height:1.5}.lesson-pack__quick{display:flex;gap:.7rem;flex-wrap:wrap}
   @media(max-width:760px){.lesson-pack__hero{grid-template-columns:1fr}.lesson-pack__hero img{height:160px}.lesson-pack__layout{grid-template-columns:1fr}.lesson-pack__card{order:-1}.lesson-pack__grid,.lesson-pack__options{grid-template-columns:1fr}.lesson-pack .cta-row,.lesson-pack__quick{display:grid;grid-template-columns:1fr}.lesson-pack .button{width:100%;text-align:center}.lesson-pack__hero,.lesson-pack__form,.lesson-pack__card{border-radius:16px}}
 </style>
-<script>
-  (()=>{const q=s=>document.querySelector(s),mode=q('[data-mode-select]'),minutes=q('[data-minutes-select]'),sessionField=q('[data-session-field]'),version=q('[data-version-select]'),age=q('[data-age-select]'),cursive=q('[data-cursive-check]'),coloring=q('[data-coloring-check]'),fromUrl={{ selection_from_url|tojson }};const has=(el,v)=>el&&Array.from(el.options).some(o=>o.value===v);if(!fromUrl){const saved={mode:localStorage.getItem('lessonPackMode'),minutes:localStorage.getItem('lessonPackMinutes'),version:localStorage.getItem('preferredVersion'),age:localStorage.getItem('lessonPackAge')};if(has(mode,saved.mode))mode.value=saved.mode;if(has(minutes,saved.minutes))minutes.value=saved.minutes;if(has(version,saved.version))version.value=saved.version;if(has(age,saved.age))age.value=saved.age;cursive.checked=localStorage.getItem('lessonPackCursive')==='1';coloring.checked=localStorage.getItem('lessonPackColoring')==='1'}[[mode,'lessonPackMode'],[minutes,'lessonPackMinutes'],[version,'preferredVersion'],[age,'lessonPackAge']].forEach(([el,key])=>el&&el.addEventListener('change',()=>localStorage.setItem(key,el.value)));cursive.addEventListener('change',()=>localStorage.setItem('lessonPackCursive',cursive.checked?'1':'0'));coloring.addEventListener('change',()=>{localStorage.setItem('lessonPackColoring',coloring.checked?'1':'0');updateTime()});const modeNotes={{ lesson_pack_modes|tojson }},modeNote=q('#lesson-pack-mode-note');function updateMode(){modeNote.textContent=modeNotes[mode.value]?.description||'';sessionField.hidden=mode.value!=='house-church'}mode.addEventListener('change',updateMode);updateMode();const ageNotes={'3-5':'Large writing space; simplest word search.','6-8':'More writing practice; forward-or-backward word search.','9-10':'Deeper reflection; words in every direction.','10+':'Context study; larger challenge grid.'},ageNote=q('#lesson-pack-age-note');function updateAge(){ageNote.textContent=ageNotes[age.value]||''}age.addEventListener('change',updateAge);updateAge();function updateTime(){q('#lesson-pack-time').textContent=coloring.checked?'The core pack is fast; the optional coloring illustration can take a minute or two longer.':'The quick pack uses local PDF builders after Scripture verification, so it should finish promptly.'}updateTime();const form=q('#lesson-pack-form'),submit=q('#lesson-pack-submit'),progress=q('#lesson-pack-progress'),progressText=q('#lesson-pack-progress-text');form.addEventListener('submit',e=>{if(submit.disabled){e.preventDefault();return}submit.disabled=true;submit.setAttribute('aria-disabled','true');submit.textContent={{ ('Building your pack…' if lesson_pack_signed_in else 'Opening sign in…')|tojson }};progress.hidden=false;progressText.textContent={{ ('Verifying the passage and building your printables…' if lesson_pack_signed_in else 'Saving your choices for sign in…')|tojson }}})})();
-</script>
+<script id="gathering-config" type="application/json">{{ {"fromUrl": selection_from_url, "modes": lesson_pack_modes, "signedIn": lesson_pack_signed_in, "worksheetUrl": url_for('generate')}|tojson }}</script>
+<script type="module" src="{{ url_for('static', filename='dist/gathering/gathering.js', v=static_v) }}"></script>
 {% endblock %}

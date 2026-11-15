@@ -1,0 +1,21 @@
+.gathering-steps { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .5rem; }
+.gathering-steps button { display: inline-flex; align-items: center; gap: .45rem; padding: .6rem .8rem; border: 1px solid color-mix(in srgb, var(--muted) 30%, transparent); border-radius: 12px; background: var(--box); color: var(--text); font: inherit; font-size: .85rem; cursor: pointer; }
+.gathering-steps button[aria-current] { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--box)); font-weight: 700; }
+.gathering-steps button:disabled { opacity: .55; cursor: default; }
+.gathering-steps span { font-weight: 800; }
+.gathering-step-title { margin: .5rem 0 !important; }
+[data-builder-step] { display: grid; gap: 1rem; min-width: 0; }
+.gathering-review { padding: 1.2rem; border-radius: 14px; background: color-mix(in srgb, var(--primary) 6%, var(--box)); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent); }
+.gathering-review h3 { font-size: 1.5rem; margin: .5rem 0 1rem; overflow-wrap: anywhere; }
+.gathering-review dl { margin: 0; }
+.gathering-review dl div { display: grid; grid-template-columns: 1fr 1.5fr; gap: 1rem; padding: .7rem 0; border-bottom: 1px solid color-mix(in srgb, var(--muted) 20%, transparent); }
+.gathering-review dt { color: var(--muted); }
+.gathering-review dd { margin: 0; font-weight: 700; }
+.gathering-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1rem; }
+.gathering-actions .primary { margin-left: auto; }
+.lesson-pack input[type=text], .lesson-pack select { box-sizing: border-box; }
+.gathering-steps :focus-visible, .gathering-actions :focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+@media(max-width:760px) { .lesson-pack__card { order: initial !important; } }
+@media(max-width:420px) { .gathering-steps { gap: .3rem; } .gathering-steps button { padding: .55rem; } .gathering-review dl div { grid-template-columns: 1fr; gap: .2rem; } }
+
+.lesson-pack__hero { grid-template-columns: minmax(0, 1fr) !important; }

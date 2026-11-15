@@ -451,7 +451,9 @@ def test_templates_have_progress_and_no_forced_download():
     result = (root / "templates/lesson_pack_result.html").read_text(encoding="utf-8")
 
     assert "lesson-pack-progress" in builder
-    assert "Saving your choices for sign in" in builder
-    assert "submit.disabled=true" in builder
+    enhancement = (root / "frontend/src/gathering.jsx").read_text(encoding="utf-8")
+    assert "Saving your choices for sign in" in enhancement
+    assert 'disabled={busy}' in enhancement
+    assert 'dist/gathering/gathering.js' in builder
     assert "window.setInterval" not in result
     assert "Download pack ({{ download_format }})" in result
