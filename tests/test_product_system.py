@@ -36,11 +36,13 @@ def test_geo_detectives_is_an_illustrated_guess_first_root_lab():
     assert game.mimetype == "text/html"
     assert game.headers["Cache-Control"] == "private, no-store"
     assert "noindex" in game.headers["X-Robots-Tag"]
-    assert b"data:image/webp;base64," in game.data
-    assert game.data.count(b'class="gamecard guess-card"') == 101
-    assert game.data.count(b'class="gamecard compare-card"') == 40
-    assert b'guess-card:has(.choices input[type="radio"]:checked)' in game.data
-    assert b'compare-card:has(.comparison-guess input[type="checkbox"]:checked)' in game.data
+    assert b'/static/labs/learning/geo/main-' in game.data
+    import json
+    data = json.loads((ROOT / 'frontend/learning-labs/geo/data.json').read_text())
+    assert len(data['quest']) == 101
+    assert len(data['compare']) == 40
+    assert all(q['answer'] in q['choices'] for q in data['quest'])
+    assert all(q['arts'][0] != q['arts'][1] for q in data['compare'])
 
 def test_math_fact_rally_is_a_standalone_root_lab():
     from faithsparks.products import products_for
@@ -67,11 +69,12 @@ def test_math_adventure_preserves_simple_journal_play_and_saved_progress():
     assert 'id="quickFive" class="green main-cta"' in html
     assert 'id="homeOptions" class="home-options"' in html
     assert 'class="journal-page"' in html
-    assert 'discovery-stamp' in html
-    assert "function nextDiscovery(p)" in html
-    assert "learningPatterns(data)" in html
-    assert "mathFactRally.v2" in html
-    assert "restoreSession()" in html
+    assert 'discovery-stamp' in (ROOT / 'frontend/learning-labs/math/engine.js').read_text()
+    code = (ROOT / 'frontend/learning-labs/math/engine.js').read_text()
+    assert "function nextDiscovery(p)" in code
+    assert "learningPatterns(data)" in code
+    assert "mathFactRally.v2" in code
+    assert "restoreSession()" in code
     assert 'id="exportProgress"' in html
 
 

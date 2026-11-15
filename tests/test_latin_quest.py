@@ -171,7 +171,8 @@ def test_page_uses_content_versioned_scripts():
         response = client.get('/labs/latin-quest')
     assert response.status_code == 200
     page = response.get_data(as_text=True)
-    assert f'latin-quest.js?v={view._ASSET_VERSION}' in page
+    assert 'type="module" src="/static/labs/learning/latin/main-' in page
+    assert 'latin-quest.js?v=' not in page
     assert 'id="lq-resume"' in page
     assert 'id="lq-reset-accept"' in page
 

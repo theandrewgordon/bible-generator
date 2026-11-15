@@ -20,6 +20,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - run: npm ci --prefix frontend/learning-labs
+      - run: npm test --prefix frontend/learning-labs
+      - run: npm run build --prefix frontend/learning-labs
       - run: node tests/math_fact_adventure_levels.cjs
       - run: node tests/latin_quest_core.cjs
       - run: node tests/latin_quest_voice.cjs

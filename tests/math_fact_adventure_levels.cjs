@@ -3,8 +3,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const html=fs.readFileSync('static/labs/math-fact-rally.html','utf8');
-const code=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
-assert(code,'Game JavaScript exists');
+const code=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
 new Function(code);
 const before=code.slice(code.indexOf('const OPERATIONS='),code.indexOf('const KEY='));
 const generators=code.slice(code.indexOf('function calculate('),code.indexOf('function bankLevel('));
@@ -41,8 +40,8 @@ for(const stage of [...stages,'Mixed Levels']){
   }
  }
 }
-assert(html.includes('mathFactRally.v2'),'Storage key must remain compatible');
+assert(code.includes('mathFactRally.v2'),'Storage key must remain compatible');
 assert(html.includes('Math Fact Adventure'),'Retain product name');
-assert(html.includes('Patterns worth practicing'),'Retain weakness analysis');
-assert(html.includes('data:image/webp;base64'),'Retain watercolor illustration');
+assert(code.includes('Patterns worth practicing'),'Retain weakness analysis');
+assert(html.includes('/static/labs/learning/math/journal-'),'Retain watercolor illustration');
 console.log('Math Fact Adventure:',checked,'verified generated facts and 600 focused selections.');

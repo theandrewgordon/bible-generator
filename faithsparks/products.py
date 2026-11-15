@@ -80,17 +80,17 @@ PRODUCTS = (
     {
         "id": "latin-quest", "name": "Latin Quest", "area": "labs",
         "maturity": "sandbox", "path": "/labs/latin-quest", "accent": "forest",
-        "description": "Listen, translate, and practice Latin in short or longer quests, with saved voice audio and gentle review.",
+        "description": "The Word Notebook: translate, listen, or flip flashcards across 140 approved Latin cards, with individual progress and gentle review.",
     },
     {
         "id": "math-fact-rally", "name": "Math Fact Adventure", "area": "labs",
         "maturity": "sandbox", "path": "/labs/math-fact-adventure", "accent": "blue",
-        "description": "Five-minute verbal math practice for 1–4 kids, with saved skills and smart review.",
+        "description": "The Discovery Journal: say or type your answers, explore five fluency stages, and grow with smart review for 1–4 learners.",
     },
     {
         "id": "geo-detectives", "name": "Geo Detectives!", "area": "labs",
         "maturity": "sandbox", "path": "/labs/geo-detectives", "accent": "gold",
-        "description": "Explore colorful watercolor landscapes, guess geography terms, and compare landforms with visual clues.",
+        "description": "The Field Atlas: solve 101 landscape mysteries and explore 40 comparisons, with automatic two-team scoring and watercolor scenes.",
     },
     {
         "id": "games-lab", "name": "Games Lab", "area": "labs",
