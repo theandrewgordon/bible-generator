@@ -4,7 +4,7 @@ The bundle library (`/browse`) is the first React page enhancement. Flask still 
 
 From this directory:
 
-- `npm ci` installs locked dependencies (Node 22.12+ recommended).
+- `npm ci` installs locked dependencies (Node 22.22.2+, 24.15+, or 26+ required for the test tooling).
 - `npm run build` updates `../static/dist/browse/`.
 - `npm run watch` rebuilds while you edit; refresh the Flask page to see changes.
 - `npm test` builds and checks filtering, URL parsing, and production-bundle integration against a simulated browser DOM.
@@ -22,3 +22,5 @@ Keep access enforcement in Flask. Visibility filters are only a browsing conveni
 The builder uses Passage → Printables → Review steps, retaining the actual server-rendered form fields and CSRF token. Its review summarizes settings and expected contents; it does not claim to preview the generated PDF or verify Scripture in the browser. Native form submission continues through the existing verification, sign-in, and generation routes. The full form remains usable without JavaScript.
 
 Browser preferences are optional and guarded against storage failures. Explicit URL choices take precedence, and saved Bible versions cannot select disabled options. Submission is disabled while navigation starts and restored on a cached Back navigation. Tests exercise the built bundle, field preservation, validation, review, storage restrictions, URL precedence, and submission recovery.
+
+CI installs the locked page dependencies, runs the production-bundle tests, and checks that rebuilding leaves the committed Browse and Gathering assets unchanged.
