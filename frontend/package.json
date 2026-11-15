@@ -3,10 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build && vite build --mode gathering",
+    "build": "vite build && vite build --mode gathering && vite build --mode worksheet",
     "watch": "vite build --watch",
     "test": "npm run build && node --test src/*.test.js",
-    "watch:gathering": "vite build --mode gathering --watch"
+    "watch:gathering": "vite build --mode gathering --watch",
+    "watch:worksheet": "vite build --mode worksheet --watch"
   },
   "dependencies": {
     "react": "^19.2.0",

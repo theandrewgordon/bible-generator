@@ -1,0 +1,12 @@
+.worksheet-preview-top, .worksheet-preview-nav {display:flex; align-items:center; justify-content:space-between; gap:.7rem; margin-bottom:1rem; flex-wrap:wrap;}
+.worksheet-preview-top h3 {margin:0;}
+.worksheet-preview-nav {font-size:.85rem;}
+.worksheet-feedback {margin-top:1rem;}
+.worksheet-feedback p:empty {display:none;}
+.worksheet-feedback.error>div, .worksheet-feedback.pending>p, .worksheet-feedback.success>p {padding:1rem; border:1px solid color-mix(in srgb,var(--primary) 35%,transparent); border-radius:12px; background:var(--box);}
+.worksheet-feedback.error>div {border-color:#b45309;}
+.worksheet-feedback p {margin:.35rem 0;}
+.worksheet-feedback :focus-visible, .worksheet-preview-nav :focus-visible {outline:3px solid var(--primary); outline-offset:3px;}
+#worksheet-preview .preview-copy-box, #worksheet-preview .preview-trace, #worksheet-preview .preview-verse {overflow-wrap:anywhere; white-space:pre-wrap;}
+.worksheet-preview-nav .button {width:auto; flex:0 0 auto;}
+@media(max-width:980px) {#worksheetForm .col-side {order:initial;} #worksheet-preview {position:static;} }

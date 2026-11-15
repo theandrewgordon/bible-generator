@@ -23,7 +23,7 @@ jobs:
       - run: npm ci --prefix frontend
       - run: npm test --prefix frontend
       - name: Check generated page assets are current
-        run: git diff --exit-code -- static/dist/browse static/dist/gathering
+        run: git diff --exit-code -- static/dist/browse static/dist/gathering static/dist/worksheet
       - run: npm ci --prefix frontend/learning-labs
       - run: npm test --prefix frontend/learning-labs
       - run: npm run build --prefix frontend/learning-labs

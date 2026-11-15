@@ -1,5 +1,6 @@
 {% extends "base.html" %} {% block title %}Faith Sparks – Make
 Printable Bible Worksheets{% endblock %} {% set description = "Make printable Bible copywork worksheets for kids—perfect for Christian homeschool, Sunday school, or children’s ministry. Choose verses, versions (NLT, ESV, KJV, or WEB), cursive or manuscript." %}{% set og_description = "Make engaging Bible copywork PDFs from your favorite verses. Free starter plan; Plus unlocks more." %}{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dist/worksheet/worksheet.css', v=static_v) }}" />
 {# Page CSS lives in <head> so the page doesn't jump when it loads. #}
 <link href="{{ url_for('static', filename='vendor/tagify-4.39.0.css') }}" rel="stylesheet" />
 <style>
@@ -480,7 +481,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
           autocapitalize="off"
           spellcheck="false"
           enterkeyhint="go"
-          aria-describedby="verseHelp"
+          aria-describedby="verseHelp worksheet-feedback"
           autofocus
         />
         <small id="verseHelp" class="muted">
@@ -665,6 +666,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
       </div>
       {% endif %}
 
+      <div id="worksheet-feedback"></div>
       <div id="disclaimerBox" class="hidden warn" role="alert">
         ⚠️ Some verses could not be verified. Please double-check your input.
       </div>
@@ -674,7 +676,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     <aside class="col-side">
       <details class="preview-toggle">
         <summary>Show preview</summary>
-        <div class="preview card-lite" aria-live="polite">
+        <div class="preview card-lite" id="worksheet-preview">
           <h3 class="muted">Preview</h3>
           <div class="preview-sheet">
             <div class="preview-sheet-title">Bible Copywork Worksheet</div>
@@ -709,6 +711,11 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 <script src="{{ url_for('static', filename='vendor/tagify-4.39.0.min.js') }}"></script>
 {% endblock %} {% block extra_scripts %}
 <script>
+  const worksheetStorage = {
+    getItem(key) { try { return localStorage.getItem(key); } catch { return null; } },
+    setItem(key,value) { try { localStorage.setItem(key,value); } catch {} },
+    removeItem(key) { try { localStorage.removeItem(key); } catch {} }
+  };
   /* ===== Elements ===== */
   const verseInput     = document.getElementById('verseInput');
   const tagify         = new Tagify(verseInput, {
@@ -732,15 +739,6 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const customPrompt   = document.getElementById('customPrompt');
   const agreeTerms     = document.getElementById('agreeTerms');
   const customFilename = document.getElementById('customFilename');
-
-  // Preview
-  const previewVerse   = document.getElementById('previewVerse');
-  const previewVersion = document.getElementById('previewVersion');
-  const previewCursive = document.getElementById('previewCursive');
-  const previewPrompt  = document.getElementById('previewPrompt');
-  const previewCopy    = document.getElementById('previewCopy');
-  const previewTrace   = document.getElementById('previewTrace');
-  const previewWritingLines = document.getElementById('previewWritingLines');
 
   // Hints
   const filenamePreview= document.getElementById('filenamePreview');
@@ -790,8 +788,8 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const getRecentVerses = () => {
     if (!recentVersesEl) return [];
     try {
-      const stored = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
-      return Array.isArray(stored) ? stored.filter(Boolean) : [];
+      const stored = JSON.parse(worksheetStorage.getItem(RECENT_KEY) || "[]");
+      return Array.isArray(stored) ? stored.filter(item => typeof item === 'string' && item.trim()) : [];
     } catch {
       return [];
     }
@@ -802,7 +800,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     const list = getRecentVerses();
     const normalized = value.trim();
     const updated = [normalized, ...list.filter((item) => item !== normalized)].slice(0, MAX_RECENT);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+    worksheetStorage.setItem(RECENT_KEY, JSON.stringify(updated));
     renderRecentVerses();
     updateRepeatHint();
   };
@@ -906,34 +904,13 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
   const firstTagText = () => (getNormalizedTags()[0] || '');
 
   function updatePreview(){
-    const verse = firstTagText();
-    const title = (customTitle.value||'').trim();
-    const body  = (customText.value||'').trim();
-
-    if (verse){
-      previewVerse.textContent   = verse;
-      previewVersion.textContent = effectiveVersion();
-      previewPrompt.textContent  = '—';
-      previewCopy.textContent    = `Exact ${effectiveVersion()} text for ${verse} will appear here.`;
-      previewTrace.textContent   = 'The verse will be formatted in traceable handwriting.';
-    } else if (title || body){
-      previewVerse.textContent   = title || '(Custom text)';
-      previewVersion.textContent = 'Custom';
-      previewPrompt.textContent  = (customPrompt.value||'').trim() || '—';
-      previewCopy.textContent    = body || 'Your text will appear here.';
-      previewTrace.textContent   = body || 'Tracing text';
-    } else {
-      previewVerse.textContent   = '—';
-      previewVersion.textContent = effectiveVersion();
-      previewPrompt.textContent  = '—';
-      previewCopy.textContent    = 'Your Bible text will appear in the finished PDF.';
-      previewTrace.textContent   = 'Tracing text';
-    }
-    const lineCounts = {beginner:5, growing:3, confident:2};
-    const lineCount = lineCounts[learnerLevel?.value] || 3;
-    previewWritingLines.innerHTML = Array.from({length:lineCount},()=>'<i></i>').join('');
-    previewCursive.hidden = !cursiveToggle.checked;
-    document.body.classList.toggle('has-preview-data', Boolean(verse || title || body));
+    const mount = document.getElementById('worksheet-preview');
+    const pending = (tagify.DOM.input.textContent || '').trim();
+    const verses = getNormalizedTags();
+    if (pending && !isVersionOnly(pending)) verses.push(normalizeVerseText(pending));
+    mount.dataset.state = JSON.stringify({verses, version:effectiveVersion(), cursive:cursiveToggle.checked, level:learnerLevel.value, title:customTitle.value, text:customText.value, prompt:customPrompt.value});
+    mount.dispatchEvent(new CustomEvent('worksheet:change'));
+    document.body.classList.toggle('has-preview-data', Boolean(verses.length || customText.value.trim()));
   }
 
   function updateVerseFilenames(){
@@ -1022,21 +999,21 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     }
 
     if (versionSelect.value) {
-      localStorage.setItem('preferredVersion', versionSelect.value);
+      worksheetStorage.setItem('preferredVersion', versionSelect.value);
     } else {
-      localStorage.removeItem('preferredVersion');
+      worksheetStorage.removeItem('preferredVersion');
     }
 
     updatePreview();
   });
   cursiveToggle.addEventListener('change', ()=>{
-    localStorage.setItem('useCursive', cursiveToggle.checked);
+    worksheetStorage.setItem('useCursive', cursiveToggle.checked);
     updateVerseFilenames(); updateCustomFilename(); updatePreview();
   });
   learnerLevel?.addEventListener('change', ()=>{
     const help = {beginner:'Extra writing space for larger, early handwriting.',growing:'Balanced tracing and writing space for everyday practice.',confident:'A compact page for independent writers.'};
     learnerHelp.textContent = help[learnerLevel.value] || help.growing;
-    localStorage.setItem('learnerLevel', learnerLevel.value);
+    worksheetStorage.setItem('learnerLevel', learnerLevel.value);
     updateVerseFilenames(); updateCustomFilename(); updatePreview();
   });
 
@@ -1054,90 +1031,15 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     toastEl.classList.add('show');
     setTimeout(() => toastEl.classList.remove('show'), 2500);
   }
-  function parseFilename(dispo) {
-    if (!dispo) return null;
-    const star  = dispo.match(/filename\*\s*=\s*[^']+'[^']*'([^;]+)/i);
-    if (star) return decodeURIComponent(star[1]);
-    const plain = dispo.match(/filename\s*=\s*("?)([^";]+)\1/i);
-    return plain ? plain[2] : null;
-  }
-
-  /* ===== Submit (fetch → download; keep on page) ===== */
-  document.getElementById('worksheetForm').addEventListener('submit', async (e) => {
-    const form = e.currentTarget;
-    const tags      = getNormalizedTags();
-    const customBody= (customText.value||'').trim();
-
-    // Validate like before
-    if (!tags.length && !customBody){
-      e.preventDefault(); alert('Please add a verse or paste your own text.');
-      verseInput.setAttribute('aria-invalid','true'); return;
-    }
-    if (tags.length){
-      verseInput.value = tags.join(', ');
-      saveRecentVerse(tags[0]);
-    }
-    if (customBody && !(agreeTerms && agreeTerms.checked)){
-      e.preventDefault(); alert('Please confirm your content is appropriate.'); return;
-    }
-
-    // Intercept normal navigation
-    e.preventDefault();
-
-    try {
-      submitBtn.disabled = true;
-      form.setAttribute('aria-busy','true');
-      window.showOverlay?.();
-
-      // Flag generation so the navbar refreshes usage chip on this and next focus
-      sessionStorage.setItem('genPending', '1');
-      sessionStorage.setItem('genPendingFocus', '1');
-
-      const fd = new FormData(form);
-      const resp = await fetch(form.action, {
-        method: 'POST',
-        body: fd,
-        credentials: 'same-origin',
-        headers: { 'Accept': 'application/pdf, application/zip, application/octet-stream' },
-      });
-
-      if (!resp.ok) {
-        let msg = 'Something went wrong. Please try again.';
-        try { msg = (await resp.text()).slice(0, 240) || msg; } catch {}
-        showToast('❌ ' + msg);
-        return;
-      }
-
-      // Determine filename
-      const disp = resp.headers.get('Content-Disposition') || '';
-      const ct   = resp.headers.get('Content-Type') || '';
-      const ext  = ct.includes('zip') ? '.zip' : '.pdf';
-      const first = (tags[0] || customTitle.value || 'worksheet').split(/[,\n]/)[0];
-      const fallback = (first || 'worksheet').replace(/[^\w\s-]/g,'').trim().replace(/\s+/g,'_') + ext;
-      const filename = parseFilename(disp) || fallback;
-
-      // Download
-      const blob = await resp.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
-
-      showToast('✅ Worksheet ready');
-      recordCopyworkDay();
-
-      // If the API exists, update usage chip immediately
-      window.refreshUsageChip?.();
-      setTimeout(()=>window.refreshUsageChip?.(), 1200);
-    } catch (err) {
-      console.error(err);
-      showToast('❌ Network error. Please try again.');
-    } finally {
-      submitBtn.disabled = false;
-      form.removeAttribute('aria-busy');
-      window.hideOverlay?.();
-    }
+  // Commit a reference still being typed before the React download handler reads it.
+  document.getElementById('worksheetForm').addEventListener('submit', () => {
+    const pending = (tagify.DOM.input.textContent || '').trim();
+    if (pending) tagify.addTags(pending);
+    updatePreview();
+  }, true);
+  document.getElementById('worksheetForm').addEventListener('worksheet:created', event => {
+    if (event.detail.verse) saveRecentVerse(event.detail.verse);
+    recordCopyworkDay();
   });
 
   /* ===== Clear ===== */
@@ -1161,7 +1063,7 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     const urlVerses = params.get('v');
     const urlVer    = params.get('version');
     const urlCur    = params.get('cursive') === '1';
-    const savedLearnerLevel = localStorage.getItem('learnerLevel');
+    const savedLearnerLevel = worksheetStorage.getItem('learnerLevel');
     if (savedLearnerLevel && ['beginner','growing','confident'].includes(savedLearnerLevel)) learnerLevel.value = savedLearnerLevel;
 
     const prefill   = {{ prefill_verse|tojson|default('""') }};
@@ -1210,11 +1112,11 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
 
     if (!assignVersionIfAvailable(urlVer)) {
       if (!assignVersionIfAvailable(defaultVersionOverride)) {
-        assignVersionIfAvailable(localStorage.getItem('preferredVersion'));
+        assignVersionIfAvailable(worksheetStorage.getItem('preferredVersion'));
       }
     }
 
-    cursiveToggle.checked = urlCur || (localStorage.getItem('useCursive') === 'true');
+    cursiveToggle.checked = params.has('cursive') ? urlCur : (worksheetStorage.getItem('useCursive') === 'true');
     updatePreview();
     renderCopyworkRhythm();
 
@@ -1222,11 +1124,11 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     const el = document.getElementById('upgradeCta');
     if (el){
       const key = 'upgradeDismiss_' + (new Date()).toISOString().slice(0,7).replace('-', '');
-      if(localStorage.getItem(key) === '1'){ el.hidden = true; }
+      if(worksheetStorage.getItem(key) === '1'){ el.hidden = true; }
       else {
         el.hidden = false;
         el.querySelector('.dismiss').addEventListener('click', ()=>{
-          localStorage.setItem(key,'1'); el.hidden = true;
+          worksheetStorage.setItem(key,'1'); el.hidden = true;
         });
       }
     }
@@ -1236,15 +1138,16 @@ usage_info.monthly_limit is not none and (usage_info.monthly_remaining|int) <= 0
     const copy=new Date(date); copy.setHours(0,0,0,0); const day=(copy.getDay()+6)%7; copy.setDate(copy.getDate()-day); return copy.toISOString().slice(0,10);
   }
   function rhythmState(){
-    try{const value=JSON.parse(localStorage.getItem(RHYTHM_KEY)||'{}');return value.week===currentWeekKey()&&Array.isArray(value.days)?value:{week:currentWeekKey(),days:[]};}catch{return {week:currentWeekKey(),days:[]};}
+    try{const value=JSON.parse(worksheetStorage.getItem(RHYTHM_KEY)||'{}');return value.week===currentWeekKey()&&Array.isArray(value.days)?value:{week:currentWeekKey(),days:[]};}catch{return {week:currentWeekKey(),days:[]};}
   }
   function renderCopyworkRhythm(){
     const state=rhythmState(); const count=Math.min(3,new Set(state.days).size); const countEl=document.getElementById('copywork-rhythm-count'); const fill=document.getElementById('copywork-rhythm-fill'); const copy=document.getElementById('copywork-rhythm-copy');
     if(countEl)countEl.textContent=`${count} of 3 days`; if(fill)fill.style.width=`${Math.round(count/3*100)}%`; if(copy&&count>=3)copy.textContent='Rhythm complete. Keep going if another verse would serve your week.';
   }
   function recordCopyworkDay(){
-    const state=rhythmState(); const today=new Date().toISOString().slice(0,10); state.days=[...new Set([...state.days,today])]; localStorage.setItem(RHYTHM_KEY,JSON.stringify(state)); renderCopyworkRhythm();
+    const state=rhythmState(); const today=new Date().toISOString().slice(0,10); state.days=[...new Set([...state.days,today])]; worksheetStorage.setItem(RHYTHM_KEY,JSON.stringify(state)); renderCopyworkRhythm();
   }
 </script>
+<script type="module" src="{{ url_for('static', filename='dist/worksheet/worksheet.js', v=static_v) }}"></script>
 
 {% endblock %}

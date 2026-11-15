@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 
 // Separate builds keep page-specific assets independent and deployable by Flask.
 export default defineConfig(({ mode }) => {
-  const page = mode === 'gathering' ? 'gathering' : 'browse';
+  const page = ['gathering', 'worksheet'].includes(mode) ? mode : 'browse';
   return {
     build: {
       outDir: `../static/dist/${page}`,
