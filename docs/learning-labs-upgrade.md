@@ -45,3 +45,7 @@ The second release shares React components for QuickStart, SessionStatus, Learni
 - Latin adds a shared five-question button and per-player saved practice preferences. Detailed setup stays under Practice options. Answer Undo works across question navigation and from results, restores the prior progress record and preserves whether help was used. Voice behavior, fixed curriculum, flashcards, per-player weekly decks and existing progress formats remain in place.
 
 Validation covers per-learner review isolation, clearing mastered review cases, team alternation, five-question completion, hint classification, Undo from results, separate Math choice records, resumed choice sessions, Latin preference switching and saved preferences, and flashcard pause/resume. Browser checks run through the actual Flask application at desktop, tablet and phone sizes in Chromium and WebKit. These are shared UI and practice patterns; learner data stays separate by subject.
+
+## Geo visual direction restored
+
+The original attached illustrated Geo Detectives reference remains the visual guide: fox mascot, scroll title, colorful team flags, pinned parchment clues, green choice buttons, red wax-seal reveal, and watercolor landscapes. Geo now adds illustrated Quest / Compare / Explore again entry cards and its own invitation copy. The shared practice components accept subject-specific headings and introductory copy, so shared behavior supports each game's distinct visual identity. Existing progress, review, Undo, and five-question sessions remain intact.
