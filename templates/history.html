@@ -1,5 +1,7 @@
 {% extends "base.html" %} {% block title %}My Prints | Faith Sparks{%
-endblock %} {% block content %}
+endblock %} {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dist/history/history.css', v=static_v) }}" />
+{% endblock %} {% block content %}
 <p class="muted small" style="margin-bottom:0.25rem;"><a href="/" class="muted">Home</a> → My Prints</p>
 <h1 class="page-title">My Prints</h1>
 <p class="muted small page-sub">Signed in as: <strong>{{ email }}</strong></p>
@@ -169,18 +171,8 @@ endblock %} {% block content %}
 {% endif %}
 <form id="bulkDeleteForm" method="POST" action="{{ url_for('delete_bulk') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-  <div class="bulkbar card-lite advanced-only">
-    <label class="checkrow">
-      <input type="checkbox" id="selectAll" onclick="toggleAll(this)" />
-      <span>Select visible</span>
-    </label>
-    <button
-      type="submit"
-      class="button delete"
-      onclick="return confirmDeleteSelected()"
-    >
-      Delete selected
-    </button>
+  <div id="history-selection" class="bulkbar card-lite advanced-only">
+    <p class="small muted">Enable JavaScript to select and delete multiple worksheets.</p>
   </div>
 
   <ul id="cards" class="cards">
@@ -298,6 +290,7 @@ endblock %} {% block content %}
   <a class="button" href="{{ url_for('generate') }}">Make a worksheet</a>
 </div>
 {% endif %} {% endblock %} {% block extra_scripts %}
+<script type="module" src="{{ url_for('static', filename='dist/history/history.js', v=static_v) }}"></script>
 <style>
   .sticky-actions {
     position: sticky;
@@ -399,34 +392,8 @@ endblock %} {% block content %}
   }
 
   // ---------- Bulk select / delete ----------
-  function toggleAll(src) {
-    const checks = $$("#cards .card:not([hidden]) input.row-check");
-    checks.forEach((cb) => (cb.checked = src.checked));
-    updateSelectAllState();
-  }
-
-  function getSelectedValues() {
-    return $$("#cards .card:not([hidden]) input.row-check:checked").map(
-      (cb) => cb.value
-    );
-  }
-
-  function confirmDeleteSelected() {
-    const n = getSelectedValues().length;
-    if (!n) {
-      alert("No worksheets selected.");
-      return false;
-    }
-    return confirm(`Delete ${n} worksheet(s)?`);
-  }
-
   function updateSelectAllState() {
-    const selectAll = $("#selectAll");
-    if (!selectAll) return;
-    const visible = $$("#cards .card:not([hidden]) .row-check");
-    const checked = visible.filter((cb) => cb.checked).length;
-    selectAll.checked = visible.length > 0 && checked === visible.length;
-    selectAll.indeterminate = checked > 0 && checked < visible.length;
+    document.dispatchEvent(new Event('history:filtered'));
   }
 
   // ---------- CSV export of visible ----------
@@ -492,13 +459,14 @@ endblock %} {% block content %}
       document.querySelector('input[name="csrf_token"]')?.value ||
       "";
     try {
-      await fetch(
+      const response = await fetch(
         `{{ url_for('toggle_favorite', filename='__F__') }}`.replace(
           "__F__",
           file
         ),
         { method: "POST", headers: { "X-CSRFToken": csrfToken } }
       );
+      if (!response.ok) throw new Error("Favorite update failed");
       const li = btn.closest(".card");
       const nowFav = btn.textContent.trim() !== "Saved";
       btn.textContent = nowFav ? "Saved" : "Save";
@@ -547,7 +515,8 @@ endblock %} {% block content %}
     const sortSelect = document.getElementById("sortSelect");
     const searchInput = document.getElementById("searchInput");
     const cardList = document.getElementById("cards");
-    const saved = localStorage.getItem("historySimpleMode");
+    let saved = null;
+    try { saved = localStorage.getItem("historySimpleMode"); } catch {}
     const defaultSimple =
       saved === null ? true : saved === "1";
 
@@ -557,7 +526,7 @@ endblock %} {% block content %}
         simpleToggle.textContent = enabled ? "Show filters" : "Hide filters";
         simpleToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
       }
-      localStorage.setItem("historySimpleMode", enabled ? "1" : "0");
+      try { localStorage.setItem("historySimpleMode", enabled ? "1" : "0"); } catch {}
     }
 
     if (simpleToggle) {

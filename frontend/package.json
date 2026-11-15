@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build && vite build --mode gathering && vite build --mode worksheet",
+    "build": "vite build && vite build --mode gathering && vite build --mode worksheet && vite build --mode history && vite build --mode games",
     "watch": "vite build --watch",
     "test": "npm run build && node --test src/*.test.js",
     "watch:gathering": "vite build --mode gathering --watch",
