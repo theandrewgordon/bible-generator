@@ -22,6 +22,20 @@ jobs:
           node-version: "22"
       - run: npm ci --prefix frontend
       - run: npm test --prefix frontend
+      - name: Install browser test runtime
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Run desktop and phone browser checks
+        run: npm run test:browser --prefix frontend
+      - name: Upload browser failure details
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-failures
+          path: |
+            frontend/test-results/
+            frontend/playwright-report/
+          if-no-files-found: ignore
       - name: Check generated page assets are current
         run: git diff --exit-code -- static/dist
       - run: npm ci --prefix frontend/learning-labs

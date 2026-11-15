@@ -63,3 +63,18 @@ Each section's preview has an independent request lifecycle. Editing, clearing, 
 `presentation-upload.jsx` validates the selected extension, nonempty size, the server's 25 MiB limit, and available PDF/PowerPoint converters before native submission. The server still validates file contents and slide count. Its status reports waiting for upload/conversion without inventing a percentage. Pending submissions are locked against duplicates; `pageshow` resets the lock and re-reads any file retained by the browser, preserving the remaining native form. AI analysis remains explicitly opt-in. Both entries use the shared runtime and existing CI asset checks.
 
 Regression checks cover the production modules, multipart-form state, capability/size boundaries, and cached Back recovery. `python3 -m unittest discover -s tests -p test_presentation_review_state.py` independently exercises the actual review route's POST logic with external boundaries substituted, covering normal save and reanalysis state preservation.
+
+## Live follow-along and automated browser checks
+
+The public follow-along template uses `live-follow.jsx`, `follow-connection.js`, and `follow-wake.js`. Polling has one active request, bounded retry delays and request timeout, explicit HTTP handling, and cleanup on visibility/page lifecycle events. Superseded responses cannot update slides or loop state; lower server revisions cannot replace newer state. A 410 response ends polling, and a newer deck revision reloads the page. Blank-screen and cleared-word behavior remain controlled by the server. Screen-awake intent is separate from permission requests and acquired locks, so canceling a pending request releases the eventual lock instead of keeping the screen on unexpectedly.
+
+Run the browser suite from this directory:
+
+1. Install Python's Jinja2 (`pip install Jinja2`; already included in the app dependencies).
+2. Install the locked Node dependencies with `npm ci`.
+3. Install the browser with `npx playwright install chromium` (Linux CI uses `--with-deps`).
+4. Run `npm run test:browser`.
+
+`BROWSER_TEST_PYTHON` selects a Python interpreter if Jinja2 lives in a virtual environment. `BROWSER_EXECUTABLE` optionally selects an installed Chromium/Chrome binary; CI uses Playwright's pinned browser.
+
+The fixture server renders actual page templates and serves built static assets with deterministic test data and a minimal layout. It never imports the production app, reads accounts, or accepts mutation requests. API responses and native submits are intercepted by tests. These are frontend integration checks, not a replacement for Flask authentication/storage tests. Both desktop and 390px phone viewports exercise shared ES-module loading, exact bulk-delete payloads, edits during saves, upload validation/Back recovery, stale previews, reconnect/revision/end state, polling concurrency, and pending wake-lock cancellation. CI runs this suite on pushes and pull requests and uploads traces/screenshots on failure.

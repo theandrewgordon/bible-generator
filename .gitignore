@@ -32,3 +32,7 @@ instance/
 
 # Local learning-labs test environment
 .venv-tests/
+
+# Browser test artifacts
+frontend/test-results/
+frontend/playwright-report/

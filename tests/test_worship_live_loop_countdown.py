@@ -89,4 +89,6 @@ def test_screens_include_loop_and_countdown_hooks():
     assert 'id="wr-loop"' in remote and 'id="wr-audience-timer"' in remote
     assert "loop_start" in remote and "toggle_audience_timer" in remote
     assert "loopIndices" in (root / "worship_live_stage.html").read_text()
-    assert "followLoop" in (root / "worship_live_follow.html").read_text()
+    assert "dist/live-follow/live-follow.js" in (root / "worship_live_follow.html").read_text()
+    follow = (root.parent / "frontend" / "src" / "live-follow.jsx").read_text()
+    assert "createFollowConnection" in follow and "loop.indices" in follow

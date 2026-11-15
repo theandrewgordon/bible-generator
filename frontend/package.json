@@ -7,16 +7,18 @@
     "watch": "vite build --watch",
     "test": "npm run build && node --test src/*.test.js",
     "watch:gathering": "vite build --watch",
-    "watch:worksheet": "vite build --watch"
+    "watch:worksheet": "vite build --watch",
+    "test:browser": "npm run build && playwright test"
   },
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "esbuild": "^0.28.2",
     "jsdom": "^31.0.1",
-    "vite": "^7.2.0",
-    "esbuild": "^0.28.2"
+    "vite": "^7.2.0"
   },
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0"

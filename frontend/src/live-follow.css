@@ -1,0 +1,5 @@
+#live-follow-root {display:contents;}
+.wf-bar {flex-wrap:wrap;}
+.wf-wake-message {flex-basis:100%;text-align:center;font-size:.8rem;color:#94a3b8;}
+.wf-btn:focus-visible {outline:3px solid #5eead4;outline-offset:3px;}
+.wf-btn:disabled {opacity:.5;cursor:default;}

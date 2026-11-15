@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex,nofollow">
   <meta name="theme-color" content="#05070d">
   <title>{{ live.name }} · Follow along</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dist/live-follow/live-follow.css', v=static_v) }}">
   <style>
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{margin:0;height:100%;background:#05070d;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -33,7 +34,7 @@
   </style>
 </head>
 <body>
-  <header class="wf-top"><div class="wf-name">{{ live.name }}</div><span class="wf-status" id="wf-status">Following</span></header>
+  <header class="wf-top"><div class="wf-name">{{ live.name }}</div><span class="wf-status" id="wf-status" role="status" aria-live="polite">Connecting…</span></header>
   <main class="wf-main" id="wf-main" aria-live="polite"></main>
   <section class="wf-next" id="wf-next" aria-label="Up next"></section>
   <nav class="wf-bar" aria-label="Display options">
@@ -41,61 +42,8 @@
     <button class="wf-btn" id="wf-bigger" aria-label="Larger text">A+</button>
     <button class="wf-btn" id="wf-awake" aria-pressed="false">Keep screen on</button>
   </nav>
-  <script>
-  (function(){
-    var sessionId={{ session_id|tojson }};
-    var slides={{ slides|tojson }};
-    var current={{ live.current_index|int }},blank={{ live.blank|tojson }},clearWords={{ live.clear_words|default(false)|tojson }};
-    var revision={{ live.revision|int }},deckRevision=Number({{ live.deck_revision|default(0)|tojson }})||0;
-    var main=document.getElementById('wf-main'),next=document.getElementById('wf-next'),statusEl=document.getElementById('wf-status');
-    var size=1,pollTimer=null,ended=false,wakeLock=null,wantAwake=false,failures=0;
-    try{size=Math.min(1.8,Math.max(.7,Number(localStorage.getItem('fsFollowSize'))||1));}catch(e){}
-    function applySize(){document.body.style.setProperty('--size',size);try{localStorage.setItem('fsFollowSize',String(size));}catch(e){}}
-    function el(tag,cls,text){var node=document.createElement(tag);if(cls)node.className=cls;if(text)node.textContent=text;return node;}
-    function linesOf(slide){return (slide&&slide.lines||[]).join('\n');}
-    function render(){
-      main.textContent='';next.textContent='';
-      document.body.classList.toggle('is-hidden-words',!!clearWords);
-      if(ended){main.appendChild(el('p','wf-quiet','The service has ended. Thanks for worshiping with us.'));return;}
-      if(blank){main.appendChild(el('p','wf-quiet','·  ·  ·'));return;}
-      var slide=slides[current]||{};
-      main.appendChild(el('p','wf-part',slide.part_label||''));
-      if(slide.kind==='divider'){main.appendChild(el('h1','wf-title',slide.title||''));if(slide.artist)main.appendChild(el('p','wf-meta',slide.artist));if(slide.credit)main.appendChild(el('p','wf-credit',slide.credit));}
-      else if(slide.kind==='lyric'||slide.kind==='highlight'){main.appendChild(el('div','wf-lines',linesOf(slide)));}
-      else if(slide.kind==='video'){main.appendChild(el('h1','wf-title',slide.title||'Video'));main.appendChild(el('p','wf-meta','Playing on the main screen'));}
-      else{
-        if(slide.image_url){var img=el('img','wf-image');img.src=slide.image_url;img.alt='';main.appendChild(img);}
-        if(slide.kind!=='presentation'){main.appendChild(el('h1','wf-title',slide.title||''));if(slide.lines)main.appendChild(el('p','wf-meta',linesOf(slide)));}
-      }
-      var upcoming=slides[current+1];
-      if(upcoming&&upcoming.kind==='lyric'){next.appendChild(el('b','','Up next'));next.appendChild(document.createTextNode(linesOf(upcoming)));}
-      else if(upcoming&&upcoming.title){next.appendChild(el('b','','Up next'));next.appendChild(document.createTextNode(upcoming.title));}
-    }
-    function setStatus(ok){statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ended?'Ended':ok?'Following':'Reconnecting…';}
-    var followLoop={seconds:0,started:0,indices:[],offset:0};
-    setInterval(function(){var l=followLoop;if(ended||!l.seconds||!l.indices.length||!l.started)return;var looped=l.indices[Math.floor(Math.max(0,Date.now()/1000+l.offset-l.started)/l.seconds)%l.indices.length];if(looped!==current&&looped<slides.length){current=looped;render();}},500);
-    function schedule(delay){clearTimeout(pollTimer);if(!ended&&document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
-    function poll(){
-      fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'})
-        .then(function(r){if(r.status===410)throw new Error('ended');return r.json();})
-        .then(function(data){
-          if(!data.ok)throw new Error('offline');
-          if((Number(data.deck_revision)||0)>deckRevision){window.location.reload();return;}
-          var nextRevision=Number(data.revision)||0;
-          followLoop={seconds:Number(data.loop_seconds)||0,started:Number(data.loop_started_epoch)||0,indices:(data.loop_indices||[]).map(Number),offset:data.server_epoch?Number(data.server_epoch)-Date.now()/1000:0};
-          if(nextRevision>=revision){revision=nextRevision;var changed=current!==data.current_index||blank!==data.blank||clearWords!==data.clear_words;current=Math.max(0,Math.min(slides.length-1,Number(data.current_index)||0));blank=!!data.blank;clearWords=!!data.clear_words;if(changed)render();}
-          failures=0;setStatus(true);schedule(1500);
-        })
-        .catch(function(error){if(error.message==='ended'){ended=true;setStatus(false);render();return;}failures++;setStatus(false);schedule(Math.min(10000,1500*failures));});
-    }
-    function requestWake(){if(!('wakeLock' in navigator))return;navigator.wakeLock.request('screen').then(function(lock){wakeLock=lock;document.getElementById('wf-awake').setAttribute('aria-pressed','true');lock.addEventListener('release',function(){wakeLock=null;document.getElementById('wf-awake').setAttribute('aria-pressed','false');});}).catch(function(){});}
-    document.getElementById('wf-smaller').addEventListener('click',function(){size=Math.max(.7,Math.round((size-.1)*10)/10);applySize();});
-    document.getElementById('wf-bigger').addEventListener('click',function(){size=Math.min(1.8,Math.round((size+.1)*10)/10);applySize();});
-    document.getElementById('wf-awake').addEventListener('click',function(){wantAwake=!wakeLock;if(wakeLock){wakeLock.release();}else{requestWake();}});
-    if(!('wakeLock' in navigator))document.getElementById('wf-awake').hidden=true;
-    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){poll();if(wantAwake&&!wakeLock)requestWake();}else clearTimeout(pollTimer);});
-    applySize();render();schedule(1500);
-  })();
-  </script>
+  <div id="live-follow-root"></div>
+  <script id="live-follow-config" type="application/json">{{ {"sessionId": session_id, "slides": slides, "initial": {"current": live.current_index|int, "blank": live.blank, "clearWords": live.clear_words|default(false), "revision": live.revision|int, "deckRevision": live.deck_revision|default(0)}}|tojson }}</script>
+  <script type="module" src="{{ url_for('static', filename='dist/live-follow/live-follow.js', v=static_v) }}"></script>
 </body>
 </html>
