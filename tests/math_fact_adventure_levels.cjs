@@ -45,3 +45,15 @@ assert(html.includes('Math Fact Adventure'),'Retain product name');
 assert(code.includes('Patterns worth practicing'),'Retain weakness analysis');
 assert(html.includes('/static/labs/learning/math/journal-'),'Retain watercolor illustration');
 console.log('Math Fact Adventure:',checked,'verified generated facts and 600 focused selections.');
+const reviewRuntime=new Function(before+generators+`
+ const settings={answerStyle:'choice'};
+ const records={'Addition:3:4:choice':{wrong:1,assisted:0,lastOutcome:'wrong',level:'Trailhead'},'Addition:8:1':{wrong:4,assisted:0,lastOutcome:'wrong',level:'Trailhead'}};
+ const getProgress=()=>records;
+ const recordKey=q=>q.operation+':'+q.a+':'+q.b+':choice';
+ const drawWeighted=list=>list[0];
+ `+focus+`
+ return {freshFor,records};
+`)();
+const weak=reviewRuntime.freshFor({name:'Test',operations:['Addition'],level:'Trailhead',focus:'review'},new Set());
+assert.equal(weak.a,3);assert.equal(weak.b,4);assert.equal(weak.answer,7);
+console.log('Focused review selects the saved missed choice fact without mixing recall history.');

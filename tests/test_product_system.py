@@ -66,10 +66,10 @@ def test_math_fact_rally_is_a_standalone_root_lab():
 
 def test_math_adventure_preserves_simple_journal_play_and_saved_progress():
     html = (ROOT / "static" / "labs" / "math-fact-rally.html").read_text(encoding="utf-8")
-    assert 'id="quickFive" class="green main-cta"' in html
+    assert 'id="math-quick"' in html
     assert 'id="homeOptions" class="home-options"' in html
     assert 'class="journal-page"' in html
-    assert 'discovery-stamp' in (ROOT / 'frontend/learning-labs/math/engine.js').read_text()
+    assert 'id="math-summary"' in html
     code = (ROOT / 'frontend/learning-labs/math/engine.js').read_text()
     assert "function nextDiscovery(p)" in code
     assert "learningPatterns(data)" in code

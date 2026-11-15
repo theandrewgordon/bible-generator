@@ -35,3 +35,13 @@ Browser tests: start Flask, then `LABS_BASE_URL=http://127.0.0.1:5174 node tests
 ## Boundaries
 
 Saved learning progress is browser-local; cross-device sync is not added. Math's offline download is separate from hosted-page caching. Latin still needs the existing server for new voice clips; visible practice works when audio is unavailable. Geography diagrams illustrate distinctions rather than claiming every original watercolor is a precise scientific diagram.
+
+## Shared practice improvements — November 15
+
+The second release shares React components for QuickStart, SessionStatus, LearningSummary and PracticeOptions. An adapter lets the Math and Latin controllers use those components without rewriting their curriculum engines. Results use the same three categories: On my own, With help, Worth reviewing. All three games have answer Undo and a current learner indicator.
+
+- Geo now starts at a learner chooser and a five-question session. Two-team play, trail, comparison mode and longer sessions live in Practice options. Completed sessions finish with a journal. Review draws only from that learner’s missed or assisted discoveries; an independent answer clears the case from their review queue. Scores reset per session; cumulative learning history remains. Undo restores cumulative records as well as session scores. Old expedition saves still open without removing their existing fields.
+- Math offers verbal, typed and three-choice answers. Choice progress has its own key suffix and stays separate from recall in review and journal analysis. Actual recorded weak facts are used for focused review before generating additional practice. One learner can be selected from the configured roster without discarding the other learners’ settings. Stable answer choices and graded state survive reload. The offline download still works without network requests.
+- Latin adds a shared five-question button and per-player saved practice preferences. Detailed setup stays under Practice options. Answer Undo works across question navigation and from results, restores the prior progress record and preserves whether help was used. Voice behavior, fixed curriculum, flashcards, per-player weekly decks and existing progress formats remain in place.
+
+Validation covers per-learner review isolation, clearing mastered review cases, team alternation, five-question completion, hint classification, Undo from results, separate Math choice records, resumed choice sessions, Latin preference switching and saved preferences, and flashcard pause/resume. Browser checks run through the actual Flask application at desktop, tablet and phone sizes in Chromium and WebKit. These are shared UI and practice patterns; learner data stays separate by subject.

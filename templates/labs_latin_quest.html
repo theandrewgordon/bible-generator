@@ -18,7 +18,7 @@
 .lq .lq-option:disabled:not([data-result]){opacity:.6}
 .lq select:disabled{opacity:.75}
 </style>
-<!-- learning-labs-style --><link rel="stylesheet" href="/static/labs/learning/latin/style-DXFNtivM.css"><!-- /learning-labs-style -->
+<!-- learning-labs-style --><link rel="stylesheet" href="/static/labs/learning/latin/style-BjvqEs6y.css"><!-- /learning-labs-style -->
 {% endblock %}
 {% block content %}
 <div id="labs-family" data-game="latin"></div>
@@ -30,6 +30,7 @@
  <p id="lq-notice" class="lq-status" role="status"></p>
  <section class="lq-panel" aria-label="Choose player"><label for="lq-player">Who’s playing?</label><select id="lq-player"></select><p class="lq-small">Each player has separate progress and a weekly deck on this browser. Pause before switching players. Voice clips are shared.</p><details><summary>Add or rename a player</summary><label for="lq-player-name">Name or nickname</label><input type="text" id="lq-player-name" maxlength="24" autocomplete="off"><div class="lq-row"><button id="lq-player-add" type="button">Add player</button><button id="lq-player-rename" type="button">Rename selected player</button></div></details></section>
  <section id="lq-setup" class="lq-panel" aria-label="Set up practice">
+<div id="latin-quick"></div>
   <div class="lq-grid">
    <div><label for="lq-mode">Choose your practice</label><select id="lq-mode">{% for key,label in latin_modes.items() %}<option value="{{key}}">{{label}}</option>{% endfor %}</select></div>
    <div><label for="lq-size">Session length</label><select id="lq-size"><option value="5">5 questions · a small win</option><option value="10">10 questions · a deeper practice</option><option value="15">15 questions</option><option value="20">20 questions</option><option value="30">30 questions</option><option value="50">50 questions</option><option value="100">100 questions</option><option value="140">All available cards</option></select></div>
@@ -55,7 +56,7 @@
   <p class="lq-small">Answers come only from these cards. If a word is unclear, choose a matching card or type its Latin spelling. Pronunciation hints from speech recognition are not used to guess a different word.</p>
  </section>
  <section id="lq-session" class="lq-panel" aria-label="Practice session" hidden>
-  <div class="lq-top"><span id="lq-round" class="lq-tag"></span><button id="lq-stop" type="button">Pause quest</button></div>
+  <div id="latin-status"></div><div class="lq-top"><span id="lq-round" class="lq-tag"></span><button id="lq-stop" type="button">Pause quest</button></div>
   <progress id="lq-bar" max="5" value="0" aria-label="Questions completed"></progress>
   <p id="lq-meta" class="lq-meta"></p><h2 id="lq-question" tabindex="-1"></h2>
   <p id="lq-audio-status" class="lq-status" role="status"></p>
@@ -69,10 +70,10 @@
    <p id="lq-followup-status" class="lq-status" role="status"></p><p id="lq-followup-result" class="lq-feedback" role="status" aria-live="polite"></p><div id="lq-followup-choices" class="lq-row"></div>
   </details>
   <div class="lq-row" id="lq-quiz-tools"><button id="lq-choice-repeat" type="button" hidden>Hear again</button><button id="lq-hint" type="button">A little hint</button><button id="lq-reveal" type="button">Show answer</button><button id="lq-skip" type="button">Skip</button></div>
-  <p id="lq-feedback" class="lq-feedback" role="status" aria-live="polite"></p>
+  <button id="lq-undo-answer" type="button" disabled>↶ Undo last answer</button><p id="lq-feedback" class="lq-feedback" role="status" aria-live="polite"></p>
   <div id="lq-after" class="lq-choices" hidden><p id="lq-card-answer" class="lq-answer"></p><div class="lq-row"><button id="lq-next" class="primary" type="button">Next question →</button><button id="lq-override" type="button">My answer was also correct</button></div></div>
  </section>
- <section id="lq-result" class="lq-panel" aria-label="Practice results" hidden><p class="lq-tag">Small steps count</p><h2 id="lq-result-title" tabindex="-1"></h2><p id="lq-score" class="lq-stat"></p><p id="lq-result-breakdown" class="lq-feedback"></p><p id="lq-result-copy"></p><div class="lq-row"><button id="lq-resume" type="button" hidden>Resume quest</button><button id="lq-again" class="primary" type="button">Choose another quest</button><button id="lq-retest-same" type="button">Retest these cards</button></div></section>
+ <section id="lq-result" class="lq-panel" aria-label="Practice results" hidden><div id="latin-summary"></div><p class="lq-tag">Small steps count</p><h2 id="lq-result-title" tabindex="-1"></h2><p id="lq-score" class="lq-stat"></p><p id="lq-result-breakdown" class="lq-feedback"></p><p id="lq-result-copy"></p><div class="lq-row"><button id="lq-resume" type="button" hidden>Resume quest</button><button id="lq-again" class="primary" type="button">Choose another quest</button><button id="lq-retest-same" type="button">Retest these cards</button></div></section>
 
  <details class="lq-panel"><summary>Teacher &amp; parent notes</summary><ul class="lq-list"><li>Uses the 140 approved photographed cards: 120 vocabulary cards and 20 grammar cards. The unresolved card is excluded.</li><li>New sessions favor cards that need practice. Hinted and revealed answers return for review. Multiple-choice progress is tracked separately from speak/type recall. Longer sessions stop at the number of distinct cards in the chosen mode. Progress and weekly decks stay in this browser, separately for each selected player.</li><li>Answer checking uses listed meanings and a small set of equivalents. It avoids guessing at misspellings. Use “My answer was also correct” to accept another valid equivalent together.</li><li>AI-generated OpenAI voice clips are saved and reused. Uses restored Classical pronunciation for this CC practice game. Latin pronunciation is a model approximation; a teacher should check unfamiliar forms.</li><li>The microphone uses your browser’s speech-recognition service, which may send audio to its provider. Faith Sparks receives no voice recordings or learner answers. Voice input works best for English meanings; type Latin forms if recognition struggles.</li></ul><div class="lq-row"><button id="lq-clear" type="button">Reset this player’s Latin progress</button><button id="lq-clear-audio" type="button">Clear saved audio on this device</button></div></details>
  <p class="lq-small lq-note">Voice: AI-generated by OpenAI. Clips are reused from shared storage and saved on your device when supported. If audio is unavailable, use the visible card and answer controls. No automatic device-voice substitution.</p>
@@ -80,5 +81,5 @@
 <script id="lq-config" type="application/json">{{ {'memory':latin_memory,'modes':latin_modes,'questions':latin_questions,'study':latin_study,'csrf':latin_csrf,'audioVersion':latin_audio_version,'ttsUrl':url_for('latin_quest.tts')}|tojson }}</script>
 
 
-<!-- learning-labs-entry --><script type="module" src="/static/labs/learning/latin/main-D8B9POdw.js"></script><!-- /learning-labs-entry -->
+<!-- learning-labs-entry --><script type="module" src="/static/labs/learning/latin/main-CfswFs18.js"></script><!-- /learning-labs-entry -->
 {% endblock %}
