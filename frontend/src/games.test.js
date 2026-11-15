@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { pageBundle } from './test-bundle.js';
 import { JSDOM } from 'jsdom';
 const settle=()=>new Promise(resolve=>setTimeout(resolve,35));
 function setup(){
@@ -11,7 +11,7 @@ function setup(){
  <div id="wordCreateFields"><div id="game-word-controls"></div><textarea id="gameWords" name="gameWords">Faith\nGrace</textarea></div><button type="submit" id="createGameBtn">Create game</button>
  </form><script type="application/json" id="matchTopicsData">[]</script><script type="application/json" id="storyTopicsData">[{"label":"Hope","refs":"Psalm 23","words":["Hope"]}]</script>`,{url:'https://example.test/games/create',runScripts:'outside-only'});
 }
-const load=w=>w.eval(readFileSync(new URL('../../static/dist/games/games.js',import.meta.url),'utf8'));
+const load=w=>w.eval(pageBundle('games'));
 const click=(d,text)=>[...d.querySelectorAll('button')].find(b=>b.textContent===text).click();
 test('review is explicit and revoked after edits, topic changes, and word removals',async()=>{
  const dom=setup(),w=dom.window,d=w.document;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { pageBundle } from './test-bundle.js';
 import { JSDOM } from 'jsdom';
 const settle = () => new Promise(resolve => setTimeout(resolve, 40));
 test('production editor previews each page and preserves choices through validation and failed downloads', async () => {
@@ -16,7 +16,7 @@ test('production editor previews each page and preserves choices through validat
   let calls=0, payload;
   w.fetch = async (url, options) => {calls++; payload=options.body; return new Response('<html>Sign in</html>', {headers:{'Content-Type':'text/html'}});};
   try {
-    w.eval(readFileSync(new URL('../../static/dist/worksheet/worksheet.js', import.meta.url),'utf8')); await settle();
+    w.eval(pageBundle('worksheet')); await settle();
     assert.match(mount.textContent,/John 3:16/);
     assert.equal(mount.querySelectorAll('.preview-writing-lines i').length,5);
     [...mount.querySelectorAll('button')].find(b=>b.textContent==='Next').click(); await settle();
@@ -42,7 +42,7 @@ test('download submission is locked until a pending response finishes', async ()
   d.getElementById('worksheet-preview').dataset.state=JSON.stringify({verses:['John 3:16'],version:'WEB',level:'growing',cursive:false,title:'',text:'',prompt:''});
   w.fetch=()=>{calls++;return new Promise(done=>{resolve=done;});};
   try {
-    w.eval(readFileSync(new URL('../../static/dist/worksheet/worksheet.js',import.meta.url),'utf8'));await settle();
+    w.eval(pageBundle('worksheet'));await settle();
     const form=d.querySelector('form');form.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
     form.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await settle();
     assert.equal(calls,1);assert.equal(d.getElementById('submitBtn').disabled,true);

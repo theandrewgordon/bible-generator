@@ -2,6 +2,7 @@
 {% block title %}Plan Worship · Faith Sparks{% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dist/worship/worship.css', v=static_v) }}" />
 <style>
   .ws-set-card{background:var(--box);border-radius:14px;padding:1.25rem 1.5rem;margin-top:1.5rem;box-shadow:var(--card-shadow)}
   .ws-section-label{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin:0 0 .85rem}
@@ -445,6 +446,7 @@
     <button type="submit" form="lyric-sheet-form" class="ws-btn-ghost" id="lyric-sheet-btn" disabled>Lyrics PDF</button>
     <button type="button" class="ws-btn-ghost" id="musician-packet-btn" disabled>Musician packet</button>
   </div><span id="setlist-status" style="font-size:.82em;color:var(--text-secondary);display:none">Saved!</span>
+  <div id="worship-save-feedback"></div>
   <div class="ws-share-card" data-mobile-share>
     <div class="ws-section-label" style="margin-bottom:.4rem">Mobile slide link</div>
     <p class="muted small" style="margin:.1rem 0 .75rem">Open this on a phone and swipe through the set.</p>
@@ -720,6 +722,14 @@
 
   var loadingSet = false;
   var setDirty = true;
+  function markSetEdited() {
+    setDirty = true;
+    document.dispatchEvent(new CustomEvent('worship:changed', {detail: {dirty: true}}));
+  }
+  var saveInFlight = false;
+  var worshipSaveReady = false;
+  var serviceContext = 0;
+  document.addEventListener('worship:save-ready', function () { worshipSaveReady = true; syncUI(); });
 
   // Which ids are currently in the set
   var inSet = {};
@@ -904,7 +914,7 @@
   // ── UI sync ──────────────────────────────────────────────────────────────
 
   function syncOrder() {
-    if (!loadingSet) setDirty = true;
+    if (!loadingSet) markSetEdited();
     var ids = Array.from(setListEl.querySelectorAll('[data-id]'))
       .map(function (el) { return el.dataset.id; });
     orderInput.value = ids.join(',');
@@ -937,7 +947,7 @@
     if (downloadBtn) downloadBtn.disabled = !hasItems;
     if (lyricBtn) lyricBtn.disabled = !hasItems;
     if (musicianBtn) musicianBtn.disabled = !hasItems;
-    if (saveBtn) saveBtn.disabled = !hasItems || !CAN_EDIT;
+    if (saveBtn) saveBtn.disabled = !hasItems || !CAN_EDIT || saveInFlight || !worshipSaveReady;
     if (mobileShareEl) mobileShareEl.style.display = hasItems ? 'block' : 'none';
     Array.from(setListEl.children).forEach(function (item, index, items) {
       var up = item.querySelector('.set-move-up');
@@ -1384,7 +1394,7 @@
     take('presentation', 1);
     if (!chosen.length) chosen = LIBRARY_SONGS.slice(0, 5).map(function (item) { return item.id; });
     chosen.forEach(addToSet);
-    setDirty = true;
+    markSetEdited();
     syncUI();
     if (setListEl && setListEl.children.length) setListEl.scrollIntoView({behavior:'smooth', block:'center'});
   }
@@ -1538,6 +1548,7 @@
 
   function loadSetlistFromChip(chip) {
     if (!chip) return;
+    serviceContext += 1;
     var songIds = JSON.parse(chip.dataset.songs || '[]');
     var notes = JSON.parse(chip.dataset.notes || '{}');
     loadingSet = true;
@@ -1562,6 +1573,7 @@
     syncUI();
     loadingSet = false;
     setDirty = false;
+    document.dispatchEvent(new CustomEvent('worship:changed', {detail: {dirty: false}}));
   }
 
   function upsertSetlistChip(id, date, name, songIds, notes, updatedAt) {
@@ -1656,7 +1668,7 @@
             if (currentSetlistId === renameBtn.dataset.id) {
               currentSetlistId = data.id;
               currentSetlistName = data.name || data.date;
-              setDirty = false;
+              currentSetlistUpdatedAt = data.updated_at || currentSetlistUpdatedAt;
               updateMobileShare();
             }
           })
@@ -1715,6 +1727,7 @@
   // ── Save Setlist ──────────────────────────────────────────────────────────
 
   function openSaveModal() {
+    if (saveInFlight || !worshipSaveReady) return;
     if (!saveModal || !saveNameInput) {
       saveCurrentSet(todayLabel());
       return;
@@ -1732,6 +1745,7 @@
   }
 
   function saveCurrentSet(enteredName) {
+    if (saveInFlight || !CAN_EDIT || !worshipSaveReady) return;
     var ids = orderInput.value ? orderInput.value.split(',').filter(Boolean) : [];
     if (!ids.length) return;
     var today = todayLabel();
@@ -1750,24 +1764,29 @@
       if (v && v.trim()) notes[id] = v.trim();
     });
     fd.append('notes_json', JSON.stringify(notes));
-    fetch('/worship/setlist/save', { method: 'POST', body: fd, credentials: 'same-origin' })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (data.ok) {
-          currentSetlistId = data.id;
-          currentSetlistName = data.name || data.date;
-          currentSetlistUpdatedAt = data.updated_at || '';
-          setDirty = false;
-          upsertSetlistChip(data.id, data.date, data.name, data.songs, data.notes, data.updated_at);
-          updateMobileShare();
-          setlistStatus.textContent = (data.updated ? 'Updated ' : 'Saved ') + (data.name || data.date) + ' · last saved just now';
-          setlistStatus.style.display = 'inline';
-          setTimeout(function () { setlistStatus.style.display = 'none'; }, 2500);
-        } else {
-          alert(data.error || 'Save failed.');
-        }
-      })
-      .catch(function () { alert('Save failed.'); });
+    function readRevision() {
+      var currentIds = Array.from(setListEl.querySelectorAll('[data-id]')).map(function (el) { return el.dataset.id; });
+      return JSON.stringify([currentIds, collectSetNotes(currentIds)]);
+    }
+    document.dispatchEvent(new CustomEvent('worship:save', {detail: {
+      payload: fd,
+      readRevision: readRevision,
+      readContext: function () { return serviceContext; },
+      setPending: function (pending) {
+        saveInFlight = pending;
+        if (saveConfirmBtn) saveConfirmBtn.disabled = pending;
+        syncUI();
+      },
+      onSaved: function (data, result) {
+        upsertSetlistChip(data.id, data.date, data.name, data.songs, data.notes, data.updated_at);
+        if (!result.sameContext) return;
+        currentSetlistId = data.id;
+        currentSetlistName = data.name || data.date;
+        currentSetlistUpdatedAt = data.updated_at || '';
+        setDirty = !result.unchanged;
+        updateMobileShare();
+      }
+    }}));
   }
 
   saveBtn.addEventListener('click', openSaveModal);
@@ -1803,7 +1822,7 @@
       currentSetlistId = '';
       currentSetlistName = '';
       currentSetlistUpdatedAt = '';
-      setDirty = true;
+      markSetEdited();
       setlistStatus.textContent = 'Copied last set into this week. Save when ready.';
       setlistStatus.style.display = 'inline';
       setTimeout(function () { setlistStatus.style.display = 'none'; }, 3000);
@@ -1814,7 +1833,7 @@
 
   setListEl.addEventListener('input', function (e) {
     if (e.target.classList.contains('set-note')) {
-      setDirty = true;
+      markSetEdited();
       saveSetDraft();
       updateMobileShare();
     }
@@ -1907,4 +1926,5 @@
   } catch (error) {}
 })();
 </script>
+<script type="module" src="{{ url_for('static', filename='dist/worship/worship.js', v=static_v) }}"></script>
 {% endblock %}

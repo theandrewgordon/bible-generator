@@ -286,6 +286,8 @@ def _compute_static_version() -> str:
         "static/dist/history/history.css",
         "static/dist/games/games.js",
         "static/dist/games/games.css",
+        "static/dist/worship/worship.js",
+        "static/dist/worship/worship.css",
     ):
         try:
             latest = max(latest, os.path.getmtime(rel))
@@ -354,6 +356,8 @@ if enable_proxy_fix:
 def cache_versioned_vendor_assets(response):
     """Vendor files carry their version in the filename, so they never change."""
     if request.path.startswith("/static/vendor/") and response.status_code == 200 and re.search(r"-\d+\.\d+\.\d+", request.path):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif request.path.startswith("/static/dist/shared/") and response.status_code in (200, 304) and re.search(r"-[A-Za-z0-9_-]{8}\.js$", request.path):
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     elif request.path.startswith("/static/worship/backgrounds/") and response.status_code in (200, 304):
         # Slide backgrounds rarely change: cache a week so song changes paint instantly

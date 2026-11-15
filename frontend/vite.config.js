@@ -1,16 +1,21 @@
 import { defineConfig } from 'vite';
 
-// Separate builds keep page-specific assets independent and deployable by Flask.
-export default defineConfig(({ mode }) => {
-  const page = ['gathering', 'worksheet', 'history', 'games'].includes(mode) ? mode : 'browse';
-  return {
-    build: {
-      outDir: `../static/dist/${page}`,
-      emptyOutDir: true,
-      rollupOptions: {
-        input: `src/${page}.jsx`,
-        output: { entryFileNames: `${page}.js`, assetFileNames: '[name][extname]' },
+const pages = ['browse', 'gathering', 'worksheet', 'history', 'games', 'worship'];
+export default defineConfig({
+  build: {
+    outDir: '../static/dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: Object.fromEntries(pages.map(page => [page, `src/${page}.jsx`])),
+      output: {
+        entryFileNames: '[name]/[name].js',
+        chunkFileNames: 'shared/[name]-[hash].js',
+        assetFileNames: asset => {
+          const name = asset.names?.[0] || asset.name;
+          return `${name.replace(/\.css$/, '')}/${name}`;
+        },
+        manualChunks: id => id.includes('/node_modules/') ? 'react-runtime' : undefined,
       },
     },
-  };
+  },
 });

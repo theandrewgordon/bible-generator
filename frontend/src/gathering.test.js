@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { pageBundle } from './test-bundle.js';
 import { JSDOM } from 'jsdom';
 
 function setup({fromUrl = true, blockedStorage = false} = {}) {
@@ -23,7 +23,7 @@ function setup({fromUrl = true, blockedStorage = false} = {}) {
   if (blockedStorage) Object.defineProperty(dom.window, 'localStorage', {get() {throw new Error('Blocked');}});
   return dom;
 }
-const bundle = () => readFileSync(new URL('../../static/dist/gathering/gathering.js', import.meta.url), 'utf8');
+const bundle = () => pageBundle('gathering');
 const settle = () => new Promise(resolve => setTimeout(resolve, 40));
 const click = (doc, label) => {
   const button = [...doc.querySelectorAll('button')].find(button => button.textContent === label);

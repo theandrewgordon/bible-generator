@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { pageBundle } from './test-bundle.js';
 import { JSDOM } from 'jsdom';
 
 test('production bundle filters server cards, restores featured order, and resets empty results', async () => {
@@ -11,7 +11,7 @@ test('production bundle filters server cards, restores featured order, and reset
   const { window } = dom;
   const settle = () => new Promise(resolve => setTimeout(resolve, 60));
   try {
-    window.eval(readFileSync(new URL('../../static/dist/browse/browse.js', import.meta.url), 'utf8'));
+    window.eval(pageBundle('browse'));
     await settle();
     const cards = () => [...window.document.querySelectorAll('.bundle-card')];
     assert.equal(cards().filter(card => !card.hidden).length, 1);
