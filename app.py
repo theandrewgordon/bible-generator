@@ -288,6 +288,10 @@ def _compute_static_version() -> str:
         "static/dist/games/games.css",
         "static/dist/worship/worship.js",
         "static/dist/worship/worship.css",
+        "static/dist/song-editor/song-editor.js",
+        "static/dist/song-editor/song-editor.css",
+        "static/dist/deck-review/deck-review.js",
+        "static/dist/deck-review/deck-review.css",
     ):
         try:
             latest = max(latest, os.path.getmtime(rel))

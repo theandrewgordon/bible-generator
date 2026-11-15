@@ -8,6 +8,7 @@
 {% block title %}{{ page_titles.get(add_mode, 'Add to Worship') }} · Faith Sparks{% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dist/song-editor/song-editor.css', v=static_v) }}" />
 <style>
   .wa-workspace{max-width:840px;margin:0 auto}
   .wa-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin:1.5rem 0}
@@ -355,12 +356,6 @@
   const importPanels = Array.from(document.querySelectorAll('[data-import-panel]'));
   const pasteTextarea = document.querySelector('textarea[name="raw_lyrics"]');
   const linkInput = document.querySelector('input[name="import_url"]');
-  const partsList = document.getElementById('parts-list');
-  const chipsWrap = document.getElementById('arrangement-chips');
-  const orderWrap = document.getElementById('arrangement-order');
-  const orderInput = document.getElementById('arrangement-input');
-  const placeholder = document.getElementById('arrangement-placeholder');
-
   function setImportMode(mode) {
     if (importModeInput) importModeInput.value = mode;
     importTabs.forEach(tab => {
@@ -381,179 +376,6 @@
     });
   });
   setImportMode('paste');
-  if (!partsList) return;
-
-  function updateHidden() {
-    const names = Array.from(orderWrap.querySelectorAll('[data-name]')).map(el => el.dataset.name);
-    orderInput.value = names.join(',');
-    placeholder.style.display = names.length ? 'none' : 'inline';
-  }
-
-  function findChip(name) {
-    return Array.from(chipsWrap.children).find(el => el.dataset.name === name) || null;
-  }
-
-  function removeFromOrder(name) {
-    orderWrap.querySelectorAll('[data-name]').forEach(el => {
-      if (el.dataset.name === name) el.remove();
-    });
-    updateHidden();
-  }
-
-  function addToOrder(name) {
-    const tag = document.createElement('span');
-    tag.className = 'wa-order-tag';
-    tag.dataset.name = name;
-    const label = document.createTextNode(name + ' ');
-    const x = document.createElement('button');
-    x.type = 'button';
-    x.textContent = '×';
-    x.setAttribute('aria-label', 'Remove ' + name + ' from arrangement');
-    x.addEventListener('click', function (e) {
-      e.stopPropagation();
-      tag.remove();
-      updateHidden();
-    });
-    tag.appendChild(label);
-    tag.appendChild(x);
-    orderWrap.appendChild(tag);
-    updateHidden();
-  }
-
-  function upsertChip(name) {
-    if (!name) return;
-    if (findChip(name)) return;
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'wa-chip';
-    chip.dataset.name = name;
-    chip.textContent = name;
-    chip.addEventListener('click', function () { addToOrder(name); });
-    chipsWrap.appendChild(chip);
-  }
-
-  function removeChip(name) {
-    const chip = findChip(name);
-    if (chip) chip.remove();
-    removeFromOrder(name);
-  }
-
-  let partCount = 0;
-
-  function addPart(defaultName) {
-    partCount++;
-    const row = document.createElement('div');
-    row.className = 'wa-part-row';
-
-    const header = document.createElement('div');
-    header.className = 'wa-part-header';
-
-    const nameInput = document.createElement('input');
-    nameInput.type = 'text';
-    nameInput.name = 'part_name';
-    nameInput.className = 'part-name-input wa-part-name';
-    nameInput.placeholder = 'e.g. verse1, chorus, bridge';
-    nameInput.value = defaultName || '';
-    nameInput.setAttribute('aria-label', 'Part name');
-
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'wa-remove-btn';
-    removeBtn.textContent = '✕';
-    removeBtn.setAttribute('aria-label', 'Remove part');
-
-    const textarea = document.createElement('textarea');
-    textarea.name = 'part_lines';
-    textarea.setAttribute('aria-label', 'Lyrics for this part');
-    textarea.rows = 4;
-    textarea.placeholder = 'One lyric line per line. Blank line = new slide.';
-    textarea.className = 'wa-input';
-
-    const preview = document.createElement('div');
-    preview.className = 'wa-slide-preview';
-
-    let previewTimer = null;
-    textarea.addEventListener('input', function () {
-      clearTimeout(previewTimer);
-      previewTimer = setTimeout(function () { refreshPreview(textarea.value, preview); }, 400);
-    });
-    textarea.addEventListener('blur', function () {
-      clearTimeout(previewTimer);
-      refreshPreview(textarea.value, preview);
-    });
-
-    let prevName = defaultName || '';
-
-    nameInput.addEventListener('blur', function () {
-      const newName = nameInput.value.trim();
-      if (newName !== prevName) {
-        if (prevName) removeChip(prevName);
-        if (newName) upsertChip(newName);
-        prevName = newName;
-      }
-    });
-
-    removeBtn.addEventListener('click', function () {
-      const name = nameInput.value.trim();
-      if (name) removeChip(name);
-      row.remove();
-    });
-
-    header.appendChild(nameInput);
-    header.appendChild(removeBtn);
-    row.appendChild(header);
-    row.appendChild(textarea);
-    row.appendChild(preview);
-    partsList.appendChild(row);
-
-    if (defaultName) upsertChip(defaultName);
-  }
-
-  var previewRequestSequence = 0;
-  var previewUrl = {{ url_for('worship_preview_slides')|tojson }};
-  var previewCsrfToken = {{ csrf_token()|tojson }};
-
-  async function refreshPreview(linesText, container) {
-    var lines = (linesText || '').trim();
-    if (!lines) { container.innerHTML = ''; return; }
-    var requestSequence = ++previewRequestSequence;
-    container.dataset.previewRequest = String(requestSequence);
-    var slides;
-    try {
-      var response = await fetch(previewUrl, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': previewCsrfToken},
-        body: JSON.stringify({lines: lines})
-      });
-      if (!response.ok) throw new Error('Preview request failed');
-      var payload = await response.json();
-      slides = payload.slides || [];
-    } catch (error) {
-      if (container.dataset.previewRequest === String(requestSequence)) {
-        container.innerHTML = '<span class="small muted">Preview unavailable</span>';
-      }
-      return;
-    }
-    if (container.dataset.previewRequest !== String(requestSequence)) return;
-    container.innerHTML = '';
-    (slides || []).forEach(function (slide, i) {
-      var thumb = document.createElement('div');
-      thumb.className = 'wa-slide-thumb';
-      var num = document.createElement('div');
-      num.className = 'wa-slide-thumb-num';
-      num.textContent = 'Slide ' + (i + 1);
-      thumb.appendChild(num);
-      thumb.appendChild(document.createTextNode((slide.lines || []).join('\n')));
-      container.appendChild(thumb);
-    });
-  }
-
-  document.getElementById('add-part-btn').addEventListener('click', function () { addPart(''); });
-
-  addPart('verse1');
-  addPart('chorus');
-
-  updateHidden();
 })();
 </script>
 <script>
@@ -592,4 +414,6 @@
   }
 })();
 </script>
+<script id="song-editor-config" type="application/json">{{ {"song": none, "previewUrl": url_for('worship_preview_slides'), "csrf": csrf_token()}|tojson }}</script>
+<script type="module" src="{{ url_for('static', filename='dist/song-editor/song-editor.js', v=static_v) }}"></script>
 {% endblock %}

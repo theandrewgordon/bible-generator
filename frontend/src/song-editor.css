@@ -1,0 +1,9 @@
+.song-editor-name {display:grid;gap:.35rem;flex:1;min-width:0;}
+#parts-list .wa-part-header {align-items:end;gap:.7rem;}
+#parts-list label {display:grid;gap:.35rem;}
+#parts-list .wa-part-row {min-width:0;}
+#parts-list .wa-slide-thumb {white-space:pre-wrap;overflow-wrap:anywhere;}
+#arrangement-order .wa-order-tag {display:inline-flex;align-items:center;gap:.4rem;max-width:100%;overflow-wrap:anywhere;}
+#arrangement-order button {min-width:28px;min-height:32px;}
+.song-editor-error {padding:.8rem;border:1px solid #b45309;border-radius:10px;}
+#parts-list :focus-visible,#arrangement-order :focus-visible,#arrangement-chips :focus-visible {outline:3px solid var(--primary);outline-offset:3px;}

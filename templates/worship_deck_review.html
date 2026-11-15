@@ -2,6 +2,7 @@
 {% block title %}Review Slides · Faith Sparks{% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dist/deck-review/deck-review.css', v=static_v) }}" />
 <style>
   .wdr-summary,.wdr-card{background:var(--box);border-radius:14px;padding:1.2rem;box-shadow:var(--card-shadow);margin-bottom:1rem}
   .wdr-warning{background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:.8rem;margin:.75rem 0}
@@ -35,6 +36,7 @@
   {% else %}<p style="color:#166534">✓ Every song has current automated validation and human approval.</p>{% endif %}
 </div>
 
+<div id="deck-review-controls"></div>
 <div class="wdr-grid">
 {% for slide in slides %}
   <div class="wdr-slide{% if slide.is_crowded %} is-crowded{% endif %}" style="--wdr-bg:{% if slide.background_url %}url('{{ slide.background_url }}'){% else %}none{% endif %};--wdr-color:{{ slide.font_color or '#fff' }};--wdr-overlay:{{ slide.background_overlay or 0 }}">
@@ -59,4 +61,8 @@
   <button type="submit" class="wdr-review-return">Mark reviewed &amp; return</button>
   <button type="submit" formaction="{{ url_for('worship_build') }}">Checklist Complete — Build Deck</button>
 </form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script type="module" src="{{ url_for('static', filename='dist/deck-review/deck-review.js', v=static_v) }}"></script>
 {% endblock %}
