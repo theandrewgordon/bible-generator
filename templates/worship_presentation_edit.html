@@ -2,6 +2,7 @@
 {% block title %}Edit Presentation · Faith Sparks{% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dist/presentation-review/presentation-review.css', v=static_v) }}" />
 <style>
   .wpe-head{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap}.wpe-card{background:var(--box);border-radius:15px;padding:1.2rem;box-shadow:var(--card-shadow);margin-bottom:1rem}
   .wpe-input{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text);font:inherit}.wpe-card label{font-weight:800}
@@ -28,7 +29,8 @@
 
   <section class="wpe-card">
     <h2>Slides</h2>
-    <p class="wpe-meta">Drag to reorder. Uncheck a slide to keep it in the library without projecting it.</p>
+    <p class="wpe-meta">Drag or use Move earlier / Move later to reorder. Uncheck a slide to keep it in the library without projecting it.</p>
+    <div id="presentation-review-controls"></div>
     <ul class="wpe-grid" id="presentation-slides">
       {% for slide in item.presentation_slides %}
       <li class="wpe-slide{% if slide.hidden %} is-hidden{% endif %}" data-id="{{ slide.id }}" draggable="true">
@@ -62,14 +64,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{{ url_for('static', filename='vendor/sortable-lite.js') }}"></script>
-<script>
-(function(){
-  var list=document.getElementById('presentation-slides'),order=document.getElementById('presentation-slide-order'),form=document.getElementById('presentation-review-form');
-  function sync(){order.value=Array.from(list.querySelectorAll('[data-id]')).map(function(el){return el.dataset.id;}).join(',');}
-  list.addEventListener('change',function(event){var card=event.target.closest('.wpe-slide');if(card)card.classList.toggle('is-hidden',!event.target.checked);});
-  if(window.Sortable)Sortable.create(list,{animation:150,handle:'.wpe-handle',onEnd:sync});
-  form.addEventListener('submit',sync);sync();
-})();
-</script>
+<script type="module" src="{{ url_for('static', filename='dist/presentation-review/presentation-review.js', v=static_v) }}"></script>
 {% endblock %}

@@ -2,6 +2,7 @@
 {% block title %}Import a Presentation · Faith Sparks{% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='dist/presentation-upload/presentation-upload.css', v=static_v) }}" />
 <style>
   .wpi-shell{max-width:760px;margin:0 auto}.wpi-card{background:var(--box);border-radius:16px;padding:1.35rem;box-shadow:var(--card-shadow)}
   .wpi-card label{display:block;font-weight:800;margin:.9rem 0 .35rem}.wpi-input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;border-radius:9px;background:var(--background);color:var(--text);font:inherit}
@@ -28,7 +29,7 @@
   <form class="wpi-card" method="post" enctype="multipart/form-data" id="presentation-import-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label for="presentation-file">PowerPoint or PDF</label>
-    <input class="wpi-input" id="presentation-file" type="file" name="presentation" accept="{% if can_pptx %}.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,{% endif %}{% if can_pdf %}.pdf,application/pdf{% endif %}" required {% if not can_pptx and not can_pdf %}disabled{% endif %}>
+    <input class="wpi-input" id="presentation-file" aria-describedby="presentation-import-feedback" type="file" name="presentation" accept="{% if can_pptx %}.pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation,{% endif %}{% if can_pdf %}.pdf,application/pdf{% endif %}" required {% if not can_pptx and not can_pdf %}disabled{% endif %}>
     <p class="wpi-help">Up to 25 MB and 100 slides. Slides are imported as faithful static images. Animations, transitions, and embedded video are not included.</p>
 
     <label for="presentation-title">Presentation name</label>
@@ -43,17 +44,12 @@
       <button type="submit" id="presentation-import-submit" {% if not can_pptx and not can_pdf %}disabled{% endif %}>Import and review</button>
       <a href="{{ url_for('worship') }}">Cancel</a>
     </div>
-    <div class="wpi-progress" id="presentation-import-progress" role="status">Converting and checking every slide… this may take a minute.</div>
+    <div id="presentation-import-feedback"></div>
   </form>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
-(function(){
-  var form=document.getElementById('presentation-import-form'),button=document.getElementById('presentation-import-submit'),progress=document.getElementById('presentation-import-progress');
-  if(!form)return;
-  form.addEventListener('submit',function(){button.disabled=true;button.textContent='Importing…';progress.classList.add('is-visible');});
-})();
-</script>
+<script id="presentation-import-config" type="application/json">{{ {"pdf": presentation_capabilities.pdf, "pptx": presentation_capabilities.pptx, "maxBytes": presentation_max_bytes|default(26214400)}|tojson }}</script>
+<script type="module" src="{{ url_for('static', filename='dist/presentation-upload/presentation-upload.js', v=static_v) }}"></script>
 {% endblock %}

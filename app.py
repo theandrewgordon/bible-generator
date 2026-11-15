@@ -292,6 +292,10 @@ def _compute_static_version() -> str:
         "static/dist/song-editor/song-editor.css",
         "static/dist/deck-review/deck-review.js",
         "static/dist/deck-review/deck-review.css",
+        "static/dist/presentation-review/presentation-review.js",
+        "static/dist/presentation-review/presentation-review.css",
+        "static/dist/presentation-upload/presentation-upload.js",
+        "static/dist/presentation-upload/presentation-upload.css",
     ):
         try:
             latest = max(latest, os.path.getmtime(rel))
@@ -8773,6 +8777,7 @@ def worship_presentation_import():
         return render_template(
             "worship_presentation_import.html",
             presentation_capabilities=capabilities,
+            presentation_max_bytes=MAX_PRESENTATION_BYTES,
         )
 
     if request.method == "GET":
@@ -8895,25 +8900,6 @@ def worship_presentation_edit(presentation_id):
     if request.method == "POST":
         normalized["title"] = request.form.get("title", "").strip()[:160] or normalized["title"]
         normalized["sermon_notes"] = request.form.get("sermon_notes", "").strip()[:MAX_SERMON_NOTES_CHARS]
-        if request.form.get("action") == "reanalyze":
-            use_ai_highlights = _boolish(request.form.get("use_ai_highlights"))
-            highlight_api_key = _worship_notes_highlight_api_key(
-                use_ai_highlights, normalized["sermon_notes"]
-            )
-            suggestions = suggest_sermon_highlights(
-                normalized["sermon_notes"],
-                api_key=highlight_api_key,
-                model=os.getenv("WORSHIP_NOTES_MODEL", "gpt-4o-mini"),
-            )
-            normalized["ai_highlights_enabled"] = bool(highlight_api_key)
-            normalized["highlight_suggestions"] = [
-                {"id": f"highlight-{index}", "text": text, "enabled": False}
-                for index, text in enumerate(suggestions, 1)
-            ]
-            save_worship_song(normalized)
-            flash("Key points refreshed. Select the ones you want to project.", "success")
-            return redirect(url_for("worship_presentation_edit", presentation_id=presentation_id))
-
         slide_lookup = {slide["id"]: slide for slide in normalized.get("presentation_slides", [])}
         ordered_ids = [
             slide_id for slide_id in request.form.get("slide_order", "").split(",")
@@ -8941,10 +8927,26 @@ def worship_presentation_edit(presentation_id):
         normalized["highlight_suggestions"] = updated_highlights
         position = request.form.get("highlight_position", "after")
         normalized["highlight_position"] = position if position in {"before", "after"} else "after"
+        if request.form.get("action") == "reanalyze":
+            use_ai_highlights = _boolish(request.form.get("use_ai_highlights"))
+            highlight_api_key = _worship_notes_highlight_api_key(
+                use_ai_highlights, normalized["sermon_notes"]
+            )
+            suggestions = suggest_sermon_highlights(
+                normalized["sermon_notes"],
+                api_key=highlight_api_key,
+                model=os.getenv("WORSHIP_NOTES_MODEL", "gpt-4o-mini"),
+            )
+            normalized["ai_highlights_enabled"] = bool(highlight_api_key)
+            normalized["highlight_suggestions"] = [
+                {"id": f"highlight-{index}", "text": text, "enabled": False}
+                for index, text in enumerate(suggestions, 1)
+            ]
+
         normalized["updated_at"] = _worship_timestamp()
         normalized["updated_by"] = session.get("user_email", "")
         save_worship_song(normalized)
-        flash("Presentation updated.", "success")
+        flash("Key points refreshed. Select the ones you want to project." if request.form.get("action") == "reanalyze" else "Presentation updated.", "success")
         return redirect(url_for("worship_presentation_edit", presentation_id=presentation_id))
     return render_template("worship_presentation_edit.html", item=normalized)
 
