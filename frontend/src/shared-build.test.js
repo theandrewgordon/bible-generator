@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 
 test('every page imports one identical content-hashed runtime that exists in the release',()=>{
- const pages=['browse','gathering','worksheet','history','games','worship','song-editor','deck-review','presentation-review','presentation-upload','live-follow'];
+ const pages=['browse','gathering','worksheet','history','games','worship','song-editor','deck-review','presentation-review','presentation-upload','live-follow','live-remote','live-setup'];
  const imports=pages.map(page=>{
   const entry=readFileSync(new URL(`../../static/dist/${page}/${page}.js`,import.meta.url),'utf8');
   const runtime=entry.match(/\.\.\/shared\/react-runtime-[A-Za-z0-9_-]+\.js/);

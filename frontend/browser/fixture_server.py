@@ -25,6 +25,10 @@ def render(destination):
     page('upload','worship_presentation_import.html',presentation_capabilities={'pdf':True,'pptx':False},presentation_max_bytes=25*1024*1024)
     slides=[dict(kind='lyric',part_label='Verse 1',title='Grace',lines=['First lyric']),dict(kind='lyric',part_label='Chorus',title='Grace',lines=['Second lyric'])]
     page('follow','worship_live_follow.html',session_id='fixture',slides=slides,live=dict(name='Fixture service',current_index=0,blank=False,clear_words=False,revision=1,deck_revision=1))
+    remote_slides=[dict(kind='lyric',id='song1',title='Grace',part='verse1' if i<2 else 'chorus',part_label='Verse 1' if i<2 else 'Chorus',lines=[f'Remote lyric {i+1}']) for i in range(4)]
+    live=dict(name='Fixture service',current_index=0,blank=False,clear_words=False,revision=1,deck_revision=1)
+    page('remote','worship_live_remote.html',session_id='fixture',slides=remote_slides,live=live,follow_url='/follow.html')
+    page('setup','worship_live_setup.html',session_id='fixture',live=live,links={'view':'/follow.html','control':'/remote.html','stage':'/follow.html'},follow_url='/follow.html')
     (destination / 'static').symlink_to(ROOT / 'static', target_is_directory=True)
 
 class Handler(SimpleHTTPRequestHandler):

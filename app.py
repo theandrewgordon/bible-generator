@@ -298,6 +298,10 @@ def _compute_static_version() -> str:
         "static/dist/presentation-upload/presentation-upload.css",
         "static/dist/live-follow/live-follow.js",
         "static/dist/live-follow/live-follow.css",
+        "static/dist/live-remote/live-remote.js",
+        "static/dist/live-remote/live-remote.css",
+        "static/dist/live-setup/live-setup.js",
+        "static/dist/live-setup/live-setup.css",
     ):
         try:
             latest = max(latest, os.path.getmtime(rel))

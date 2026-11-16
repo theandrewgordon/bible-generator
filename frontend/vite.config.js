@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 
-const pages = ['browse', 'gathering', 'worksheet', 'history', 'games', 'worship', 'song-editor', 'deck-review', 'presentation-review', 'presentation-upload', 'live-follow'];
+const pages = ['browse', 'gathering', 'worksheet', 'history', 'games', 'worship', 'song-editor', 'deck-review', 'presentation-review', 'presentation-upload', 'live-follow', 'live-remote', 'live-setup'];
 export default defineConfig({
   build: {
     outDir: '../static/dist',

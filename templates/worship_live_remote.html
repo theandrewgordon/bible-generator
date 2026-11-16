@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="robots" content="noindex,nofollow">
   <title>{{ live.name }} · Remote</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dist/live-remote/live-remote.css', v=static_v) }}">
   <style>
     *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
     html,body{margin:0;min-height:100%;background:#07111f;color:#f8fafc;font-family:Arial,Helvetica,sans-serif}
@@ -105,6 +106,7 @@
     </div></details>
     <p class="wr-help">Tap the previous or next slide preview, swipe the live slide, or use arrows, Page Up/Down, or Space. This remote expires automatically.</p>
     </div>
+    <div id="live-remote-connection"></div>
   </main>
   <script src="{{ url_for('static', filename='js/worship-display-status.js') }}"></script>
   <script>
@@ -119,7 +121,7 @@
     var timerMode={{ live.stage_timer_mode|default('')|tojson }},timerStarted=Number({{ live.stage_timer_started_epoch|default(0)|tojson }})||0,timerDuration=Number({{ live.stage_timer_duration|default(0)|tojson }})||0,serverOffset=0,loopSeconds=Number({{ live.loop_seconds|default(0)|tojson }})||0,loopStarted=Number({{ live.loop_started_epoch|default(0)|tojson }})||0,loopIndices=({{ live.loop_indices|default([])|tojson }}||[]).map(Number),audienceTimer={{ live.audience_timer|default(false)|tojson }};
     var revision={{ live.revision|int }},deckRevision=Number({{ live.deck_revision|default(0)|tojson }})||0;
     var preview=document.getElementById('wr-preview'),statusEl=document.getElementById('wr-status'),offlineAlert=document.getElementById('wr-offline'),progress=document.getElementById('wr-progress'),slideMeta=document.getElementById('wr-slide-meta'),previousPreview=document.getElementById('wr-previous-preview'),previousTitle=document.getElementById('wr-previous-title'),previousLines=document.getElementById('wr-previous-lines'),nextPreview=document.getElementById('wr-next-preview'),nextTitle=document.getElementById('wr-next-title'),nextLines=document.getElementById('wr-next-lines'),navContext=document.getElementById('wr-nav-context'),jump=document.getElementById('wr-jump'),previousBtn=document.getElementById('wr-previous'),nextBtn=document.getElementById('wr-next'),blankBtn=document.getElementById('wr-blank'),clearBtn=document.getElementById('wr-clear'),awakeBtn=document.getElementById('wr-awake'),chorusBtn=document.getElementById('wr-chorus'),nextItemBtn=document.getElementById('wr-next-item'),undoBtn=document.getElementById('wr-undo'),sectionsEl=document.getElementById('wr-sections'),stageMessageInput=document.getElementById('wr-stage-message'),stageStatus=document.getElementById('wr-stage-status'),videoTools=document.getElementById('wr-video-tools'),editLines=document.getElementById('wr-edit-lines'),splitAfter=document.getElementById('wr-split-after'),editStatus=document.getElementById('wr-edit-status');
-    var wakeLock=null,pollTimer=null,sending=false,ended=false,offlineLocked=false,messageDirty=false,editDirty=false,pendingStageMessage='',jumpHistory=[],lastSectionTarget=-1,commandQueue=Promise.resolve(),pendingCommands=0,swipeStart=null,needsReconcile=false;
+    var transport=null,stageTicker=null,sending=false,ended=false,offlineLocked=true,messageDirty=false,editDirty=false,pendingStageMessage='',jumpHistory=[],lastSectionTarget=-1,commandQueue=Promise.resolve(),pendingCommands=0,swipeStart=null,needsReconcile=false;
     var confirmed={current:current,blank:blank,clearWords:clearWords};
     function partKey(slide){return String((slide||{}).part||(slide||{}).part_label||'').toLowerCase().replace(/[\s_-]+/g,'');}
     function isChorusSlide(slide){return !!slide&&slide.kind==='lyric'&&/^chorus\d*$/.test(partKey(slide));}
@@ -211,10 +213,7 @@
       updateNavigation();updateSections();updateSmartButtons();updateStageStatus();syncEditForm();
     }
     function connected(ok){offlineLocked=!ok;lockControls();if(!ok)document.getElementById('wr-display-status').textContent='Audience report unavailable while reconnecting';statusEl.classList.toggle('is-offline',!ok);statusEl.textContent=ok?(pendingCommands?'Sending…':'Session connected'):'Session reconnecting';offlineAlert.hidden=ok;updateNavigation();updateSections();updateSmartButtons();syncEditForm();}
-    function requestWakeLock(showFailure){
-      if(wakeLock)return;if(!('wakeLock'in navigator)){if(showFailure)awakeBtn.textContent='Not supported';return;}
-      navigator.wakeLock.request('screen').then(function(lock){wakeLock=lock;awakeBtn.textContent='Screen stays awake';lock.addEventListener('release',function(){wakeLock=null;awakeBtn.textContent='Keep screen awake';});}).catch(function(){wakeLock=null;if(showFailure)awakeBtn.textContent='Could not enable';});
-    }
+    function requestWakeLock(showFailure){if(transport)transport.wantAwake();}
     function lockControls(){var off=sending||ended||offlineLocked;document.querySelectorAll('[data-action]:not(.wr-btn),[data-smart],[data-video-action],.wr-stage-action,#wr-end').forEach(function(btn){btn.disabled=off;});jump.disabled=off;stageMessageInput.disabled=off;}
     function setSending(value){sending=!!value;lockControls();updateNavigation();syncEditForm();if(!statusEl.classList.contains('is-offline'))connected(true);}
     function send(action,index,extra){
@@ -222,10 +221,10 @@
       if(action==='next')draw(current+1,blank,clearWords);else if(action==='previous')draw(current-1,blank,clearWords);else if(action==='toggle_blank')draw(current,!blank,clearWords);else if(action==='toggle_clear')draw(current,blank,!clearWords);else if(action==='index')draw(index,blank,clearWords);
       var body={action:action,index:index};Object.keys(extra||{}).forEach(function(key){body[key]=extra[key];});
       pendingCommands++;setSending(true);if(navigator.vibrate)navigator.vibrate(10);
-      commandQueue=commandQueue.then(function(){return fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},body:JSON.stringify(body),credentials:'same-origin'})
-        .then(function(r){return r.json().then(function(data){if(!r.ok||!data.ok){var error=new Error(data.error||'Remote command failed.');error.commandRejected=true;throw error;}return data;});})
-        .then(function(data){var nextRevision=Number(data.revision)||0;if(nextRevision>=revision){revision=nextRevision;deckRevision=Number(data.deck_revision)||deckRevision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;loopSeconds=Number(data.loop_seconds)||0;loopStarted=Number(data.loop_started_epoch)||0;loopIndices=(data.loop_indices||[]).map(Number);audienceTimer=!!data.audience_timer;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(action==='set_message'){messageDirty=false;stageMessageInput.value=stageMessage;}else if(!messageDirty)stageMessageInput.value=stageMessage;confirmed={current:Number(data.current_index)||0,blank:!!data.blank,clearWords:!!data.clear_words};if(pendingCommands===1)draw(confirmed.current,confirmed.blank,confirmed.clearWords);}connected(true);if(['edit_slide','split_slide','insert_scripture'].includes(action)){editStatus.textContent='Live deck updated. Refreshing displays…';setTimeout(function(){window.location.reload();},80);}})
-        .catch(function(error){if(error.commandRejected){editStatus.textContent=error.message;connected(true);return;}needsReconcile=true;draw(confirmed.current,confirmed.blank,confirmed.clearWords);connected(false);})
+      commandQueue=commandQueue.then(function(){if(ended)return null;return fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},body:JSON.stringify(body),credentials:'same-origin'})
+        .then(function(r){return r.json().then(function(data){if(!r.ok||!data.ok){var error=new Error(data.error||'Remote command failed.');error.commandRejected=true;error.ended=r.status===410;throw error;}return data;});})
+        .then(function(data){if(!data||ended)return;var nextRevision=Number(data.revision)||0;if(nextRevision>=revision){revision=nextRevision;deckRevision=Number(data.deck_revision)||deckRevision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;loopSeconds=Number(data.loop_seconds)||0;loopStarted=Number(data.loop_started_epoch)||0;loopIndices=(data.loop_indices||[]).map(Number);audienceTimer=!!data.audience_timer;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(action==='set_message'){messageDirty=false;stageMessageInput.value=stageMessage;}else if(!messageDirty)stageMessageInput.value=stageMessage;confirmed={current:Number(data.current_index)||0,blank:!!data.blank,clearWords:!!data.clear_words};if(pendingCommands===1)draw(confirmed.current,confirmed.blank,confirmed.clearWords);}connected(true);if(['edit_slide','split_slide','insert_scripture'].includes(action)){editStatus.textContent='Live deck updated. Refreshing displays…';setTimeout(function(){window.location.reload();},80);}})
+        .catch(function(error){if(ended)return;if(error.ended){endLocally();return;}if(error.commandRejected){draw(confirmed.current,confirmed.blank,confirmed.clearWords);editStatus.textContent=error.message;connected(true);return;}needsReconcile=true;draw(confirmed.current,confirmed.blank,confirmed.clearWords);connected(false);})
         .finally(function(){pendingCommands=Math.max(0,pendingCommands-1);setSending(pendingCommands>0);updateSections();updateSmartButtons();if(!pendingCommands&&needsReconcile){needsReconcile=false;poll();}});});
       return commandQueue;
     }
@@ -253,7 +252,7 @@
       else if(event.key==='c'||event.key==='C'){event.preventDefault();send('toggle_clear');}
       else if(event.key==='b'||event.key==='B'){event.preventDefault();send('toggle_blank');}
     });
-    awakeBtn.addEventListener('click',function(){requestWakeLock(true);});
+    awakeBtn.addEventListener('click',function(){if(transport)transport.toggleAwake();});
     var sendMessageBtn=document.getElementById('wr-send-message');stageMessageInput.addEventListener('input',function(){messageDirty=true;});stageMessageInput.addEventListener('blur',function(){if(stageMessageInput.value!==stageMessage)messageDirty=true;});
     sendMessageBtn.addEventListener('pointerdown',function(){pendingStageMessage=stageMessageInput.value;messageDirty=true;});sendMessageBtn.addEventListener('click',function(){var message=pendingStageMessage||stageMessageInput.value;pendingStageMessage='';send('set_message',null,{message:message});});
     stageMessageInput.addEventListener('keydown',function(event){if(event.key==='Enter'){event.preventDefault();send('set_message',null,{message:stageMessageInput.value});}});
@@ -265,16 +264,28 @@
     document.getElementById('wr-update-slide').addEventListener('click',function(){var value=editLines.value.split(/\r?\n/);if(!value.some(function(line){return line.trim();})){editStatus.textContent='Enter at least one line.';return;}send('edit_slide',current,{lines:value});});
     document.getElementById('wr-split-slide').addEventListener('click',function(){send('split_slide',current,{split_after:Number(splitAfter.value)||0});});
     document.getElementById('wr-insert-scripture').addEventListener('click',function(){var title=document.getElementById('wr-scripture-title').value.trim(),version=document.getElementById('wr-scripture-version').value.trim(),text=document.getElementById('wr-scripture-text').value;if(!text.trim()){editStatus.textContent='Paste the authorized Scripture text first.';return;}send('insert_scripture',current,{title:title||'Scripture',version:version,lines:text.split(/\r?\n/)});});
-    function schedulePoll(delay){clearTimeout(pollTimer);if(!ended&&document.visibilityState!=='hidden')pollTimer=setTimeout(poll,delay);}
-    function endLocally(){ended=true;clearTimeout(pollTimer);if(wakeLock){var lock=wakeLock;wakeLock=null;lock.release().catch(function(){});}draw(current,true,clearWords);document.getElementById('wr-screen-state').textContent='ENDED';offlineAlert.hidden=true;statusEl.classList.add('is-offline');statusEl.textContent='Session ended';document.querySelectorAll('button,select,input,textarea').forEach(function(el){el.disabled=true;});}
-    function poll(){fetch('/worship/live/state/'+encodeURIComponent(sessionId),{cache:'no-store',credentials:'same-origin'}).then(function(r){if(r.status===410)throw new Error('ended');return r.json();}).then(function(data){if(data.ok){WorshipDisplayStatus(document.getElementById('wr-display-status'),data);var nextDeckRevision=Number(data.deck_revision)||0;if(nextDeckRevision>deckRevision){window.location.reload();return;}var nextRevision=Number(data.revision)||0;if(!sending&&nextRevision>=revision){revision=nextRevision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;loopSeconds=Number(data.loop_seconds)||0;loopStarted=Number(data.loop_started_epoch)||0;loopIndices=(data.loop_indices||[]).map(Number);audienceTimer=!!data.audience_timer;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(!messageDirty&&document.activeElement!==stageMessageInput)stageMessageInput.value=stageMessage;confirmed={current:Number(data.current_index)||0,blank:!!data.blank,clearWords:!!data.clear_words};draw(confirmed.current,confirmed.blank,confirmed.clearWords);}connected(true);}else connected(false);schedulePoll(3000);}).catch(function(error){connected(false);if(error.message==='ended'){endLocally();return;}schedulePoll(3000);});}
-    document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){requestWakeLock(false);poll();}else clearTimeout(pollTimer);});
+    function poll(){if(transport)transport.refresh();}
+    function endLocally(){ended=true;if(transport)transport.stop();clearInterval(stageTicker);draw(current,true,clearWords);document.getElementById('wr-screen-state').textContent='ENDED';offlineAlert.hidden=true;statusEl.classList.add('is-offline');statusEl.textContent='Session ended';document.querySelectorAll('button,select,input,textarea').forEach(function(el){el.disabled=true;});}
+    document.addEventListener('worship:remote-connect',function(event){event.detail.start({
+      sessionId:sessionId,
+      ready:function(api){transport=api;connected(false);},
+      pause:function(){clearInterval(stageTicker);},
+      resume:function(){clearInterval(stageTicker);if(!ended)stageTicker=setInterval(updateStageStatus,500);},
+      onStatus:function(status){if(ended)return;if(status==='ended'){endLocally();return;}connected(status==='following');},
+      onData:function(data){
+        if(ended)return false;
+        var nextDeckRevision=Number(data.deck_revision)||0;if(nextDeckRevision>deckRevision){window.location.reload();return false;}
+        var nextRevision=Number(data.revision)||0;if(nextRevision<revision)return;
+        WorshipDisplayStatus(document.getElementById('wr-display-status'),data);
+        if(!sending&&nextRevision>=revision){revision=nextRevision;stageMessage=data.stage_message||'';timerMode=data.stage_timer_mode||'';timerStarted=Number(data.stage_timer_started_epoch)||0;timerDuration=Number(data.stage_timer_duration)||0;loopSeconds=Number(data.loop_seconds)||0;loopStarted=Number(data.loop_started_epoch)||0;loopIndices=(data.loop_indices||[]).map(Number);audienceTimer=!!data.audience_timer;if(data.server_epoch)serverOffset=Number(data.server_epoch)-Date.now()/1000;if(!messageDirty&&document.activeElement!==stageMessageInput)stageMessageInput.value=stageMessage;confirmed={current:Number(data.current_index)||0,blank:!!data.blank,clearWords:!!data.clear_words};draw(confirmed.current,confirmed.blank,confirmed.clearWords);}
+      }
+    });});
     document.getElementById('wr-end').addEventListener('click',function(){if(ended||!window.confirm('End this Live Worship session for everyone?'))return;fetch('/worship/live/control/'+encodeURIComponent(sessionId),{method:'POST',headers:{'Content-Type':'application/json','X-Worship-Live':'1'},credentials:'same-origin',body:JSON.stringify({action:'end'})}).then(function(r){return r.json();}).then(function(data){if(!data.ok)throw new Error();endLocally();}).catch(function(){connected(false);});});
     var modeButton=document.getElementById('wr-mode');
     function setSimple(simple){document.body.classList.toggle('is-simple',simple);modeButton.textContent=simple?'Full controls':'Simple controls';modeButton.setAttribute('aria-pressed',simple?'false':'true');}
     try{setSimple(localStorage.getItem('worship-remote-mode')!=='full');}catch(e){setSimple(true);}
     modeButton.addEventListener('click',function(){var simple=!document.body.classList.contains('is-simple');setSimple(simple);try{localStorage.setItem('worship-remote-mode',simple?'simple':'full');}catch(e){}});
-    stageMessageInput.value=stageMessage;draw(current,blank,clearWords);setInterval(updateStageStatus,500);poll();
+    stageMessageInput.value=stageMessage;draw(current,blank,clearWords);stageTicker=setInterval(updateStageStatus,500);
     (function(){
       var copyBtn=document.getElementById('wr-follow-copy'),shareBtn=document.getElementById('wr-follow-share');
       copyBtn.addEventListener('click',function(){if(navigator.clipboard){navigator.clipboard.writeText(followUrl).then(function(){copyBtn.textContent='Copied';setTimeout(function(){copyBtn.textContent='Copy link';},1800);});}else{window.prompt('Copy this follow-along link',followUrl);}});
@@ -282,5 +293,6 @@
     })();
   })();
   </script>
+  <script type="module" src="{{ url_for('static', filename='dist/live-remote/live-remote.js', v=static_v) }}"></script>
 </body>
 </html>

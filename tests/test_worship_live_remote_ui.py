@@ -79,7 +79,10 @@ class WorshipLiveRemoteUiTests(unittest.TestCase):
         self.assertIn("!sending&&nextRevision>=revision", self.template)
 
     def test_connected_remote_refreshes_and_retries_outages_promptly(self):
-        self.assertIn("schedulePoll(3000)", self.template)
+        self.assertIn("worship:remote-connect", self.template)
+        root = Path(__file__).parents[1]
+        controller = (root / "frontend/src/live-remote.jsx").read_text()
+        self.assertIn("interval:3000", controller)
         self.assertIn("Session reconnecting", self.template)
         self.assertIn("draw(confirmed.current,confirmed.blank,confirmed.clearWords)", self.template)
 
