@@ -6,7 +6,9 @@
   "overlapping_families": [
     [
       "lake",
-      "pond"
+      "pond",
+      "oxbow lake",
+      "reservoir"
     ],
     [
       "river",
@@ -23,7 +25,8 @@
     [
       "canyon",
       "gorge",
-      "chasm"
+      "chasm",
+      "valley"
     ],
     [
       "cape",
@@ -33,7 +36,9 @@
       "bay",
       "gulf",
       "inlet",
-      "cove"
+      "cove",
+      "fjord",
+      "harbor"
     ],
     [
       "summit",
@@ -68,6 +73,25 @@
       "shore",
       "coast",
       "shoreline"
+    ],
+    [
+      "spring",
+      "hot spring",
+      "geyser"
+    ],
+    [
+      "wetland",
+      "marsh",
+      "swamp",
+      "bog"
+    ],
+    [
+      "volcano",
+      "cinder cone"
+    ],
+    [
+      "island",
+      "atoll"
     ]
   ],
   "sources": [
@@ -82,6 +106,10 @@
     {
       "title": "USGS Topo Map Symbol Guide",
       "url": "https://www.usgs.gov/ngp-standards-and-specifications/us-topo-map-symbol-guide"
+    },
+    {
+      "title": "NPS Yellowstone hydrothermal features and geysers as hot springs",
+      "url": "https://www.nps.gov/yell/learn/nature/hydrothermal-features.htm"
     }
   ]
 }

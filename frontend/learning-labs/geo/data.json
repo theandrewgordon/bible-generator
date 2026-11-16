@@ -174,7 +174,7 @@
       ],
       "choices": [
         "delta",
-        "locks",
+        "lock",
         "levee"
       ],
       "art": "art-delta",
@@ -458,7 +458,7 @@
       "choices": [
         "delta",
         "river source",
-        "locks"
+        "lock"
       ],
       "art": "art-mountain",
       "example": "A mountain spring may be a river's source.",
@@ -577,7 +577,7 @@
         "I am a direction, not a sediment-built landform."
       ],
       "choices": [
-        "locks",
+        "lock",
         "upstream",
         "delta"
       ],
@@ -617,7 +617,7 @@
         "I am a rotating flow pattern, rather than a chamber that raises boats."
       ],
       "choices": [
-        "locks",
+        "lock",
         "river source",
         "whirlpool"
       ],
@@ -1613,7 +1613,7 @@
         "floodplain"
       ],
       "art": "art-river",
-      "example": "I am adjoining land, not the flowing channel itself.",
+      "example": "When a river overtops its banks, water spreads across the low ground beside it.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Water & coasts"
@@ -1695,7 +1695,7 @@
         "river source"
       ],
       "art": "art-river",
-      "example": "A series of my curves gives a river a winding path.",
+      "example": "A river curves through its floodplain in a series of sweeping bends.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Water & coasts"
@@ -1715,7 +1715,7 @@
         "river source"
       ],
       "art": "art-lake",
-      "example": "I preserve part of a former meander rather than marking a river's source.",
+      "example": "A river cuts across a bend, leaving a curved lake beside its newer, straighter channel.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Water & coasts"
@@ -1755,7 +1755,7 @@
         "aquifer"
       ],
       "art": "art-stream",
-      "example": "I describe water reaching the surface, rather than the underground material storing it.",
+      "example": "Groundwater emerges on a hillside and feeds a small stream.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Water & coasts"
@@ -1959,8 +1959,8 @@
         "moraine",
         "dune"
       ],
-      "art": "art-glacier",
-      "example": "My glacial origin distinguishes me from a dune built chiefly by wind.",
+      "art": "art-diagram-moraine",
+      "example": "A ridge of mixed stones and sediment remains along the margin of a retreating glacier.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Land & ice"
@@ -2041,7 +2041,7 @@
         "plateau"
       ],
       "art": "art-marsh",
-      "example": "My plants and soils are adapted to saturated conditions.",
+      "example": "Waterlogged ground supports plants adapted to saturated soil.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Living landscapes"
@@ -2069,7 +2069,7 @@
     {
       "id": "g92",
       "level": "explorer",
-      "answer": "locks",
+      "answer": "lock",
       "clues": [
         "I am a gated water chamber used to raise or lower boats.",
         "Water fills or drains from my chamber to match the next level.",
@@ -2077,10 +2077,10 @@
       ],
       "choices": [
         "river",
-        "locks",
+        "lock",
         "whirlpool"
       ],
-      "art": "art-river",
+      "art": "art-diagram-lock",
       "example": "Canal locks raise and lower boats using gates.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2163,7 +2163,7 @@
         "map key"
       ],
       "art": "art-diagram-compass",
-      "example": "I help a reader orient a map; I do not measure distance.",
+      "example": "A compass rose on a park map helps a walker identify north, south, east and west.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2183,7 +2183,7 @@
         "map scale"
       ],
       "art": "art-diagram-contour",
-      "example": "Closely spaced examples usually indicate a steeper slope than widely spaced ones.",
+      "example": "A contour labeled 100 meters joins map positions at that elevation.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2203,7 +2203,7 @@
         "map scale"
       ],
       "art": "art-diagram-map",
-      "example": "Different coordinate systems use different axes and units.",
+      "example": "A map location can be specified with a latitude such as 20°N and a longitude such as 10°E.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2244,7 +2244,7 @@
         "North Pole"
       ],
       "art": "art-diagram-globe",
-      "example": "It divides the Northern and Southern Hemispheres.",
+      "example": "On a classroom globe, zero degrees latitude circles the middle between the poles.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2264,7 +2264,7 @@
         "longitude"
       ],
       "art": "art-diagram-globe",
-      "example": "An eastern or western half of Earth is another way to describe me.",
+      "example": "The equator divides a globe into northern and southern halves.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2284,7 +2284,7 @@
         "latitude"
       ],
       "art": "art-diagram-globe",
-      "example": "On a globe, parallels mark positions with the same value of me.",
+      "example": "A point at 20°N is north of the equator; a point at 20°S is south of it.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2304,7 +2304,7 @@
         "latitude"
       ],
       "art": "art-diagram-globe",
-      "example": "Latitude uses north-south distance from the equator; I use east-west position.",
+      "example": "Two locations at 10°E lie on the same meridian, even if one is farther north.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2324,7 +2324,7 @@
         "map scale"
       ],
       "art": "art-diagram-map",
-      "example": "Map legend is another name for me.",
+      "example": "A map key might explain that a dotted line marks a walking path and a blue patch marks water.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2344,7 +2344,7 @@
         "map scale"
       ],
       "art": "art-diagram-map",
-      "example": "If one centimeter stands for one kilometer, that relationship is an example of me.",
+      "example": "If a map uses 1 centimeter for 1 kilometer, a 3-centimeter route represents 3 kilometers.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2364,7 +2364,7 @@
         "North Pole"
       ],
       "art": "art-diagram-globe",
-      "example": "The geographic point named here is different from the moving magnetic north pole.",
+      "example": "The northern end of Earth’s rotation axis meets the surface at the North Pole.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2384,7 +2384,7 @@
         "equator"
       ],
       "art": "art-diagram-globe",
-      "example": "My geographic point lies on Antarctica, rather than in the Arctic Ocean.",
+      "example": "The southern end of Earth’s rotation axis meets the surface at the South Pole.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2404,7 +2404,7 @@
         "topographic map"
       ],
       "art": "art-diagram-contour",
-      "example": "I can help a walker locate ridges, valleys, and steep slopes.",
+      "example": "A walker uses contour patterns on a topographic map to spot a steep hillside.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Maps & our planet"
@@ -2424,7 +2424,7 @@
         "aquifer"
       ],
       "art": "art-diagram-aquifer",
-      "example": "A well can draw groundwater from me; I am not necessarily an underground lake.",
+      "example": "A well draws groundwater from water-filled pores in sand or cracks in rock.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Changing Earth"
@@ -2444,7 +2444,7 @@
         "deposition"
       ],
       "art": "art-delta",
-      "example": "I build sediment deposits rather than carrying them away.",
+      "example": "A river slows and leaves a sandbar beside its channel.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Changing Earth"
@@ -2464,7 +2464,7 @@
         "deposition"
       ],
       "art": "art-river",
-      "example": "Weathering breaks material down; I carry it away.",
+      "example": "After rain, a stream carries loosened sand downstream.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Changing Earth"
@@ -2479,15 +2479,16 @@
         "Old Faithful is a named example."
       ],
       "choices": [
-        "hot spring",
+        "volcano",
         "waterfall",
         "geyser"
       ],
       "art": "art-diagram-geyser",
-      "example": "Old Faithful is a named example.",
+      "example": "Hot water erupts periodically from a vent at the ground’s surface.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Changing Earth"
+      "topic": "Changing Earth",
+      "note": "A geyser is a kind of hot spring; it is distinguished by its erupting water and steam."
     },
     {
       "id": "g123",
@@ -2500,14 +2501,15 @@
       ],
       "choices": [
         "hot spring",
-        "geyser",
+        "aquifer",
         "glacier"
       ],
       "art": "art-diagram-spring",
-      "example": "Unlike a geyser, I need not erupt periodically.",
+      "example": "Groundwater heated below the surface emerges in a warm pool.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Changing Earth"
+      "topic": "Changing Earth",
+      "note": "A geyser is a kind of hot spring. A hot spring does not have to erupt periodically."
     },
     {
       "id": "g116",
@@ -2524,7 +2526,7 @@
         "erosion"
       ],
       "art": "art-cliff",
-      "example": "Erosion involves transport; I do not require the broken material to move away.",
+      "example": "Water freezes inside a rock crack and helps widen it without transporting the rock away.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Changing Earth"
@@ -3340,7 +3342,7 @@
       ],
       "arts": [
         "art-glacier",
-        "art-mountain"
+        "art-diagram-moraine"
       ],
       "explanation": "A glacier is moving land ice. A moraine is debris transported or deposited by glacier ice.",
       "example": "Try explaining the relationship in your own words, then name an example.",
@@ -3404,7 +3406,7 @@
       ],
       "arts": [
         "art-dune",
-        "art-glacier"
+        "art-diagram-moraine"
       ],
       "explanation": "A dune is shaped chiefly by wind-deposited sand. A moraine consists of debris associated with a glacier.",
       "example": "Try explaining the relationship in your own words, then name an example.",
