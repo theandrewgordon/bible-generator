@@ -51,3 +51,9 @@ Validation covers per-learner review isolation, clearing mastered review cases, 
 The original attached illustrated Geo Detectives reference remains the visual guide: fox mascot, scroll title, colorful team flags, pinned parchment clues, green choice buttons, red wax-seal reveal, and watercolor landscapes. Geo now adds illustrated Quest / Compare / Explore again entry cards and its own invitation copy. The shared practice components accept subject-specific headings and introductory copy, so shared behavior supports each game's distinct visual identity. Existing progress, review, Undo, and five-question sessions remain intact.
 
 For the independent-content replacement, sources, and public-history limitation, see [shareable-learning-release.md](content/shareable-learning-release.md).
+
+## Playable Geo expedition board
+
+Geo's November 16 follow-up moves the illustrated adventure into the controls themselves. A landscape map selects six actual question themes, with a responsive mission postcard, visible solo/two-team switch, and five-stop discovery trail. Clues open as individually sealed envelopes; opening later clues still reduces the score and remains remembered after reload, navigation and Undo. A responding fox guide offers the next clue, a keyboard-accessible field lens enlarges the landscape, and solved cases receive an animated journal stamp. Motion respects the device's reduced-motion preference. The original reviewed question collection and independent sharing policy are retained.
+
+`tests/geo_expedition_browser.cjs` checks the map-to-deck selection, loaded illustrations, envelope scoring, saved help, lens Escape/focus behavior, actual trail navigation, Undo, automatic team turns and comparison judging at desktop, tablet and phone widths in Chromium and WebKit. Existing all-three-game browser checks cover continued shared behavior.
