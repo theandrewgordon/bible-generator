@@ -1,0 +1,1688 @@
+{
+  "title": "FaithSparks Latin: Everyday Words and Language Tools",
+  "version": "2026-11-16-original-1",
+  "provenance": {
+    "selection": "Independently selected by everyday-word topics and grammatical coverage; not a transcription or sequence from a commercial curriculum.",
+    "prompts": "Newly authored FaithSparks prompts and explanations.",
+    "fact_references": [
+      {
+        "title": "Lewis and Short, A Latin Dictionary (1879)",
+        "url": "https://logeion.uchicago.edu/"
+      },
+      {
+        "title": "Allen and Greenough, New Latin Grammar (1903 original edition)",
+        "url": "https://archive.org/details/allengreenoughsn01alle"
+      }
+    ]
+  },
+  "nouns_and_pronouns": [
+    [
+      "fs-n-001",
+      "noun",
+      "aqua",
+      "aquae",
+      "water",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-002",
+      "noun",
+      "terra",
+      "terrae",
+      "earth; land",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-003",
+      "noun",
+      "silva",
+      "silvae",
+      "forest; woodland",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-004",
+      "noun",
+      "via",
+      "viae",
+      "road; way",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-005",
+      "noun",
+      "porta",
+      "portae",
+      "gate",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-006",
+      "noun",
+      "insula",
+      "insulae",
+      "island",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-007",
+      "noun",
+      "stella",
+      "stellae",
+      "star",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-008",
+      "noun",
+      "lūna",
+      "lūnae",
+      "moon",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-009",
+      "noun",
+      "rosa",
+      "rosae",
+      "rose",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-010",
+      "noun",
+      "herba",
+      "herbae",
+      "grass; herb",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-011",
+      "noun",
+      "fābula",
+      "fābulae",
+      "story; tale",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-012",
+      "noun",
+      "epistula",
+      "epistulae",
+      "letter; message",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-013",
+      "noun",
+      "fenestra",
+      "fenestrae",
+      "window",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-014",
+      "noun",
+      "mēnsa",
+      "mēnsae",
+      "table",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-015",
+      "noun",
+      "schola",
+      "scholae",
+      "school",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-016",
+      "noun",
+      "puella",
+      "puellae",
+      "girl",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-017",
+      "noun",
+      "nauta",
+      "nautae",
+      "sailor",
+      "1st",
+      "masculine"
+    ],
+    [
+      "fs-n-018",
+      "noun",
+      "agricola",
+      "agricolae",
+      "farmer",
+      "1st",
+      "masculine"
+    ],
+    [
+      "fs-n-019",
+      "noun",
+      "poēta",
+      "poētae",
+      "poet",
+      "1st",
+      "masculine"
+    ],
+    [
+      "fs-n-020",
+      "noun",
+      "familia",
+      "familiae",
+      "household; family",
+      "1st",
+      "feminine"
+    ],
+    [
+      "fs-n-021",
+      "noun",
+      "amīcus",
+      "amīcī",
+      "friend",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-022",
+      "noun",
+      "fīlius",
+      "fīliī",
+      "son",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-023",
+      "noun",
+      "servus",
+      "servī",
+      "servant; slave",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-024",
+      "noun",
+      "equus",
+      "equī",
+      "horse",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-025",
+      "noun",
+      "lupus",
+      "lupī",
+      "wolf",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-026",
+      "noun",
+      "ventus",
+      "ventī",
+      "wind",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-027",
+      "noun",
+      "hortus",
+      "hortī",
+      "garden",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-028",
+      "noun",
+      "oculus",
+      "oculī",
+      "eye",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-029",
+      "noun",
+      "digitus",
+      "digitī",
+      "finger",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-030",
+      "noun",
+      "mūrus",
+      "mūrī",
+      "wall",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-031",
+      "noun",
+      "ager",
+      "agrī",
+      "field",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-032",
+      "noun",
+      "puer",
+      "puerī",
+      "boy",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-033",
+      "noun",
+      "liber",
+      "librī",
+      "book",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-034",
+      "noun",
+      "magister",
+      "magistrī",
+      "teacher",
+      "2nd",
+      "masculine"
+    ],
+    [
+      "fs-n-035",
+      "noun",
+      "caelum",
+      "caelī",
+      "sky; heaven",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "fs-n-036",
+      "noun",
+      "bellum",
+      "bellī",
+      "war",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "fs-n-037",
+      "noun",
+      "dōnum",
+      "dōnī",
+      "gift",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "fs-n-038",
+      "noun",
+      "oppidum",
+      "oppidī",
+      "town",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "fs-n-039",
+      "noun",
+      "templum",
+      "templī",
+      "temple",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "fs-n-040",
+      "noun",
+      "verbum",
+      "verbī",
+      "word",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "fs-n-041",
+      "noun",
+      "vīnum",
+      "vīnī",
+      "wine",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "fs-n-042",
+      "noun",
+      "lignum",
+      "lignī",
+      "wood; timber",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "fs-n-043",
+      "noun",
+      "bracchium",
+      "bracchiī",
+      "arm",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "fs-n-044",
+      "noun",
+      "folium",
+      "foliī",
+      "leaf",
+      "2nd",
+      "neuter"
+    ],
+    [
+      "fs-n-045",
+      "noun",
+      "rēx",
+      "rēgis",
+      "king",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "fs-n-046",
+      "noun",
+      "lēx",
+      "lēgis",
+      "law",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-047",
+      "noun",
+      "pāx",
+      "pācis",
+      "peace",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-048",
+      "noun",
+      "lūx",
+      "lūcis",
+      "light",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-049",
+      "noun",
+      "vōx",
+      "vōcis",
+      "voice",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-050",
+      "noun",
+      "nox",
+      "noctis",
+      "night",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-051",
+      "noun",
+      "urbs",
+      "urbis",
+      "city",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-052",
+      "noun",
+      "pars",
+      "partis",
+      "part; portion",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-053",
+      "noun",
+      "ars",
+      "artis",
+      "skill; art",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-054",
+      "noun",
+      "māter",
+      "mātris",
+      "mother",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-055",
+      "noun",
+      "pater",
+      "patris",
+      "father",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "fs-n-056",
+      "noun",
+      "frāter",
+      "frātris",
+      "brother",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "fs-n-057",
+      "noun",
+      "soror",
+      "sorōris",
+      "sister",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-058",
+      "noun",
+      "leō",
+      "leōnis",
+      "lion",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "fs-n-059",
+      "noun",
+      "mōns",
+      "montis",
+      "mountain",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "fs-n-060",
+      "noun",
+      "pōns",
+      "pontis",
+      "bridge",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "fs-n-061",
+      "noun",
+      "flūmen",
+      "flūminis",
+      "river",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "fs-n-062",
+      "noun",
+      "nōmen",
+      "nōminis",
+      "name",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "fs-n-063",
+      "noun",
+      "corpus",
+      "corporis",
+      "body",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "fs-n-064",
+      "noun",
+      "tempus",
+      "temporis",
+      "time",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "fs-n-065",
+      "noun",
+      "caput",
+      "capitis",
+      "head",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "fs-n-066",
+      "noun",
+      "mare",
+      "maris",
+      "sea",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "fs-n-067",
+      "noun",
+      "animal",
+      "animālis",
+      "animal",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "fs-n-068",
+      "noun",
+      "iter",
+      "itineris",
+      "journey; route",
+      "3rd",
+      "neuter"
+    ],
+    [
+      "fs-n-069",
+      "noun",
+      "arbor",
+      "arboris",
+      "tree",
+      "3rd",
+      "feminine"
+    ],
+    [
+      "fs-n-070",
+      "noun",
+      "lapis",
+      "lapidis",
+      "stone",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "fs-n-071",
+      "noun",
+      "sōl",
+      "sōlis",
+      "sun",
+      "3rd",
+      "masculine"
+    ],
+    [
+      "fs-n-072",
+      "noun",
+      "manus",
+      "manūs",
+      "hand",
+      "4th",
+      "feminine"
+    ],
+    [
+      "fs-n-073",
+      "noun",
+      "frūctus",
+      "frūctūs",
+      "fruit; produce",
+      "4th",
+      "masculine"
+    ],
+    [
+      "fs-n-074",
+      "noun",
+      "portus",
+      "portūs",
+      "harbor; port",
+      "4th",
+      "masculine"
+    ],
+    [
+      "fs-n-075",
+      "noun",
+      "cornū",
+      "cornūs",
+      "horn",
+      "4th",
+      "neuter"
+    ],
+    [
+      "fs-n-076",
+      "noun",
+      "rēs",
+      "reī",
+      "thing; matter",
+      "5th",
+      "feminine"
+    ],
+    [
+      "fs-n-077",
+      "noun",
+      "spēs",
+      "speī",
+      "hope",
+      "5th",
+      "feminine"
+    ],
+    [
+      "fs-n-078",
+      "noun",
+      "faciēs",
+      "faciēī",
+      "face; appearance",
+      "5th",
+      "feminine"
+    ],
+    [
+      "fs-n-079",
+      "noun",
+      "aciēs",
+      "aciēī",
+      "sharp edge; battle line",
+      "5th",
+      "feminine"
+    ],
+    [
+      "fs-n-080",
+      "noun",
+      "fīlia",
+      "fīliae",
+      "daughter",
+      "1st",
+      "feminine"
+    ]
+  ],
+  "verbs": [
+    [
+      "fs-v-001",
+      "amō",
+      "amāre",
+      "amāvī",
+      "amātum",
+      "love",
+      "1st"
+    ],
+    [
+      "fs-v-002",
+      "ambulō",
+      "ambulāre",
+      "ambulāvī",
+      "ambulātum",
+      "walk",
+      "1st"
+    ],
+    [
+      "fs-v-003",
+      "cantō",
+      "cantāre",
+      "cantāvī",
+      "cantātum",
+      "sing",
+      "1st"
+    ],
+    [
+      "fs-v-004",
+      "clāmō",
+      "clāmāre",
+      "clāmāvī",
+      "clāmātum",
+      "shout; cry out",
+      "1st"
+    ],
+    [
+      "fs-v-005",
+      "cōgitō",
+      "cōgitāre",
+      "cōgitāvī",
+      "cōgitātum",
+      "think; consider",
+      "1st"
+    ],
+    [
+      "fs-v-006",
+      "cūrō",
+      "cūrāre",
+      "cūrāvī",
+      "cūrātum",
+      "care for; attend to",
+      "1st"
+    ],
+    [
+      "fs-v-007",
+      "dōnō",
+      "dōnāre",
+      "dōnāvī",
+      "dōnātum",
+      "give as a gift; present",
+      "1st"
+    ],
+    [
+      "fs-v-008",
+      "habitō",
+      "habitāre",
+      "habitāvī",
+      "habitātum",
+      "live; dwell",
+      "1st"
+    ],
+    [
+      "fs-v-009",
+      "labōrō",
+      "labōrāre",
+      "labōrāvī",
+      "labōrātum",
+      "work; toil",
+      "1st"
+    ],
+    [
+      "fs-v-010",
+      "laudō",
+      "laudāre",
+      "laudāvī",
+      "laudātum",
+      "praise",
+      "1st"
+    ],
+    [
+      "fs-v-011",
+      "nārrō",
+      "nārrāre",
+      "nārrāvī",
+      "nārrātum",
+      "tell; recount",
+      "1st"
+    ],
+    [
+      "fs-v-012",
+      "nāvigō",
+      "nāvigāre",
+      "nāvigāvī",
+      "nāvigātum",
+      "sail",
+      "1st"
+    ],
+    [
+      "fs-v-013",
+      "nūntiō",
+      "nūntiāre",
+      "nūntiāvī",
+      "nūntiātum",
+      "announce; report",
+      "1st"
+    ],
+    [
+      "fs-v-014",
+      "ornō",
+      "ornāre",
+      "ornāvī",
+      "ornātum",
+      "decorate; equip",
+      "1st"
+    ],
+    [
+      "fs-v-015",
+      "parō",
+      "parāre",
+      "parāvī",
+      "parātum",
+      "prepare; get ready",
+      "1st"
+    ],
+    [
+      "fs-v-016",
+      "portō",
+      "portāre",
+      "portāvī",
+      "portātum",
+      "carry",
+      "1st"
+    ],
+    [
+      "fs-v-017",
+      "pugnō",
+      "pugnāre",
+      "pugnāvī",
+      "pugnātum",
+      "fight",
+      "1st"
+    ],
+    [
+      "fs-v-018",
+      "rogō",
+      "rogāre",
+      "rogāvī",
+      "rogātum",
+      "ask; request",
+      "1st"
+    ],
+    [
+      "fs-v-019",
+      "salūtō",
+      "salūtāre",
+      "salūtāvī",
+      "salūtātum",
+      "greet",
+      "1st"
+    ],
+    [
+      "fs-v-020",
+      "spectō",
+      "spectāre",
+      "spectāvī",
+      "spectātum",
+      "watch; look at",
+      "1st"
+    ],
+    [
+      "fs-v-021",
+      "vocō",
+      "vocāre",
+      "vocāvī",
+      "vocātum",
+      "call; summon",
+      "1st"
+    ],
+    [
+      "fs-v-022",
+      "vulnerō",
+      "vulnerāre",
+      "vulnerāvī",
+      "vulnerātum",
+      "wound; injure",
+      "1st"
+    ],
+    [
+      "fs-v-023",
+      "habeō",
+      "habēre",
+      "habuī",
+      "habitum",
+      "have; hold",
+      "2nd"
+    ],
+    [
+      "fs-v-024",
+      "moneō",
+      "monēre",
+      "monuī",
+      "monitum",
+      "warn; advise",
+      "2nd"
+    ],
+    [
+      "fs-v-025",
+      "moveō",
+      "movēre",
+      "mōvī",
+      "mōtum",
+      "move",
+      "2nd"
+    ],
+    [
+      "fs-v-026",
+      "teneō",
+      "tenēre",
+      "tenuī",
+      "tentum",
+      "hold; keep",
+      "2nd"
+    ],
+    [
+      "fs-v-027",
+      "videō",
+      "vidēre",
+      "vīdī",
+      "vīsum",
+      "see",
+      "2nd"
+    ],
+    [
+      "fs-v-028",
+      "dēleō",
+      "dēlēre",
+      "dēlēvī",
+      "dēlētum",
+      "destroy; erase",
+      "2nd"
+    ],
+    [
+      "fs-v-029",
+      "doceō",
+      "docēre",
+      "docuī",
+      "doctum",
+      "teach",
+      "2nd"
+    ],
+    [
+      "fs-v-030",
+      "maneō",
+      "manēre",
+      "mānsī",
+      "mānsum",
+      "remain; stay",
+      "2nd"
+    ],
+    [
+      "fs-v-031",
+      "sedeō",
+      "sedēre",
+      "sēdī",
+      "sessum",
+      "sit",
+      "2nd"
+    ],
+    [
+      "fs-v-032",
+      "respondeō",
+      "respondēre",
+      "respondī",
+      "respōnsum",
+      "reply; answer",
+      "2nd"
+    ],
+    [
+      "fs-v-033",
+      "rīdeō",
+      "rīdēre",
+      "rīsī",
+      "rīsum",
+      "laugh",
+      "2nd"
+    ],
+    [
+      "fs-v-034",
+      "terreō",
+      "terrēre",
+      "terruī",
+      "territum",
+      "frighten; terrify",
+      "2nd"
+    ],
+    [
+      "fs-v-035",
+      "impleō",
+      "implēre",
+      "implēvī",
+      "implētum",
+      "fill",
+      "2nd"
+    ],
+    [
+      "fs-v-036",
+      "agō",
+      "agere",
+      "ēgī",
+      "āctum",
+      "do; drive",
+      "3rd"
+    ],
+    [
+      "fs-v-037",
+      "dūcō",
+      "dūcere",
+      "dūxī",
+      "ductum",
+      "lead",
+      "3rd"
+    ],
+    [
+      "fs-v-038",
+      "mittō",
+      "mittere",
+      "mīsī",
+      "missum",
+      "send",
+      "3rd"
+    ],
+    [
+      "fs-v-039",
+      "legō",
+      "legere",
+      "lēgī",
+      "lēctum",
+      "read; gather",
+      "3rd"
+    ],
+    [
+      "fs-v-040",
+      "scrībō",
+      "scrībere",
+      "scrīpsī",
+      "scrīptum",
+      "write",
+      "3rd"
+    ],
+    [
+      "fs-v-041",
+      "vincō",
+      "vincere",
+      "vīcī",
+      "victum",
+      "conquer; defeat",
+      "3rd"
+    ],
+    [
+      "fs-v-042",
+      "pōnō",
+      "pōnere",
+      "posuī",
+      "positum",
+      "put; place",
+      "3rd"
+    ],
+    [
+      "fs-v-043",
+      "trahō",
+      "trahere",
+      "trāxī",
+      "tractum",
+      "draw; drag",
+      "3rd"
+    ],
+    [
+      "fs-v-044",
+      "gerō",
+      "gerere",
+      "gessī",
+      "gestum",
+      "carry on; manage",
+      "3rd"
+    ],
+    [
+      "fs-v-045",
+      "petō",
+      "petere",
+      "petīvī",
+      "petītum",
+      "seek; request",
+      "3rd"
+    ],
+    [
+      "fs-v-046",
+      "quaerō",
+      "quaerere",
+      "quaesīvī",
+      "quaesītum",
+      "look for; inquire",
+      "3rd"
+    ],
+    [
+      "fs-v-047",
+      "regō",
+      "regere",
+      "rēxī",
+      "rēctum",
+      "rule; guide",
+      "3rd"
+    ],
+    [
+      "fs-v-048",
+      "frangō",
+      "frangere",
+      "frēgī",
+      "frāctum",
+      "break",
+      "3rd"
+    ],
+    [
+      "fs-v-049",
+      "claudō",
+      "claudere",
+      "clausī",
+      "clausum",
+      "close; shut",
+      "3rd"
+    ],
+    [
+      "fs-v-050",
+      "emō",
+      "emere",
+      "ēmī",
+      "ēmptum",
+      "buy",
+      "3rd"
+    ],
+    [
+      "fs-v-051",
+      "audiō",
+      "audīre",
+      "audīvī",
+      "audītum",
+      "hear; listen to",
+      "4th"
+    ],
+    [
+      "fs-v-052",
+      "aperiō",
+      "aperīre",
+      "aperuī",
+      "apertum",
+      "open; uncover",
+      "4th"
+    ],
+    [
+      "fs-v-053",
+      "dormiō",
+      "dormīre",
+      "dormīvī",
+      "dormītum",
+      "sleep",
+      "4th"
+    ],
+    [
+      "fs-v-054",
+      "fīniō",
+      "fīnīre",
+      "fīnīvī",
+      "fīnītum",
+      "finish; limit",
+      "4th"
+    ],
+    [
+      "fs-v-055",
+      "mūniō",
+      "mūnīre",
+      "mūnīvī",
+      "mūnītum",
+      "fortify; build defenses",
+      "4th"
+    ],
+    [
+      "fs-v-056",
+      "pūniō",
+      "pūnīre",
+      "pūnīvī",
+      "pūnītum",
+      "punish",
+      "4th"
+    ],
+    [
+      "fs-v-057",
+      "sentiō",
+      "sentīre",
+      "sēnsī",
+      "sēnsum",
+      "feel; perceive",
+      "4th"
+    ],
+    [
+      "fs-v-058",
+      "veniō",
+      "venīre",
+      "vēnī",
+      "ventum",
+      "come",
+      "4th"
+    ],
+    [
+      "fs-v-059",
+      "inveniō",
+      "invenīre",
+      "invēnī",
+      "inventum",
+      "find; discover",
+      "4th"
+    ],
+    [
+      "fs-v-060",
+      "capiō",
+      "capere",
+      "cēpī",
+      "captum",
+      "take; capture",
+      "3rd (-iō)"
+    ],
+    [
+      "fs-v-061",
+      "faciō",
+      "facere",
+      "fēcī",
+      "factum",
+      "make; do",
+      "3rd (-iō)"
+    ],
+    [
+      "fs-v-062",
+      "iaciō",
+      "iacere",
+      "iēcī",
+      "iactum",
+      "throw",
+      "3rd (-iō)"
+    ],
+    [
+      "fs-v-063",
+      "accipiō",
+      "accipere",
+      "accēpī",
+      "acceptum",
+      "receive; accept",
+      "3rd (-iō)"
+    ]
+  ],
+  "conjunctions": [
+    [
+      "fs-c-001",
+      "et",
+      "and"
+    ],
+    [
+      "fs-c-002",
+      "sed",
+      "but"
+    ],
+    [
+      "fs-c-003",
+      "aut",
+      "or; or else"
+    ],
+    [
+      "fs-c-004",
+      "vel",
+      "or; even"
+    ],
+    [
+      "fs-c-005",
+      "neque",
+      "and not; nor"
+    ],
+    [
+      "fs-c-006",
+      "atque",
+      "and; and also"
+    ],
+    [
+      "fs-c-007",
+      "autem",
+      "however; but"
+    ],
+    [
+      "fs-c-008",
+      "enim",
+      "for; indeed"
+    ],
+    [
+      "fs-c-009",
+      "nam",
+      "for; because"
+    ],
+    [
+      "fs-c-010",
+      "sī",
+      "if"
+    ],
+    [
+      "fs-c-011",
+      "nisi",
+      "unless; if not"
+    ],
+    [
+      "fs-c-012",
+      "quia",
+      "because"
+    ]
+  ],
+  "grammar": [
+    [
+      "fs-g-001",
+      "Which noun case commonly names the subject of a simple Latin sentence?",
+      "nominative"
+    ],
+    [
+      "fs-g-002",
+      "Which noun case commonly expresses possession, as in “of the sailor”?",
+      "genitive"
+    ],
+    [
+      "fs-g-003",
+      "Which noun case commonly names an indirect object, as in giving something “to the girl”?",
+      "dative"
+    ],
+    [
+      "fs-g-004",
+      "Which noun case commonly marks a direct object in a simple active sentence?",
+      "accusative"
+    ],
+    [
+      "fs-g-005",
+      "Which noun case is used when directly addressing someone?",
+      "vocative"
+    ],
+    [
+      "fs-g-006",
+      "Which case often expresses means or accompaniment in Latin?",
+      "ablative"
+    ],
+    [
+      "fs-g-007",
+      "Which of a noun’s two dictionary forms gives the genitive singular?",
+      "second form"
+    ],
+    [
+      "fs-g-008",
+      "Which noun-declension number has the usual genitive singular ending -ae?",
+      "first"
+    ],
+    [
+      "fs-g-009",
+      "Which noun-declension number has the usual genitive singular ending -ī?",
+      "second"
+    ],
+    [
+      "fs-g-010",
+      "Which noun-declension number has the usual genitive singular ending -is?",
+      "third"
+    ],
+    [
+      "fs-g-011",
+      "Which noun-declension number has the usual genitive singular ending -ūs?",
+      "fourth"
+    ],
+    [
+      "fs-g-012",
+      "Which noun-declension number has the usual genitive singular ending -eī or -ēī?",
+      "fifth"
+    ],
+    [
+      "fs-g-013",
+      "What grammatical number refers to one person or thing?",
+      "singular"
+    ],
+    [
+      "fs-g-014",
+      "What grammatical number refers to more than one person or thing?",
+      "plural"
+    ],
+    [
+      "fs-g-015",
+      "Does a Latin noun’s grammatical gender always describe a living creature’s sex?",
+      "no"
+    ],
+    [
+      "fs-g-016",
+      "In the same number, are a neuter noun’s nominative and accusative forms alike or different?",
+      "alike"
+    ],
+    [
+      "fs-g-017",
+      "What letter ends the nominative and accusative plural of most Latin neuter nouns?",
+      "a"
+    ],
+    [
+      "fs-g-018",
+      "What part of speech typically modifies a noun?",
+      "adjective"
+    ],
+    [
+      "fs-g-019",
+      "In which three grammatical features does a Latin adjective agree with its noun?",
+      "gender, number, and case"
+    ],
+    [
+      "fs-g-020",
+      "What part of speech names an action, occurrence, or state?",
+      "verb"
+    ],
+    [
+      "fs-g-021",
+      "What part of speech joins words or clauses, as et does?",
+      "conjunction"
+    ],
+    [
+      "fs-g-022",
+      "What part of speech can stand in place of a noun?",
+      "pronoun"
+    ],
+    [
+      "fs-g-023",
+      "What part of speech commonly modifies a verb, adjective, or another word of the same kind?",
+      "adverb"
+    ],
+    [
+      "fs-g-024",
+      "What does the infinitive amāre mean in English?",
+      "to love"
+    ],
+    [
+      "fs-g-025",
+      "What is the first-person singular present active form in amō, amāre, amāvī, amātum?",
+      "amō"
+    ],
+    [
+      "fs-g-026",
+      "Which principal part is the present active infinitive in a regular four-part active verb entry?",
+      "second"
+    ],
+    [
+      "fs-g-027",
+      "Which principal part supplies the perfect active stem in a regular four-part active verb entry?",
+      "third"
+    ],
+    [
+      "fs-g-028",
+      "What is the present active infinitive ending characteristic of the first conjugation?",
+      "-āre"
+    ],
+    [
+      "fs-g-029",
+      "What is the present active infinitive ending characteristic of the second conjugation?",
+      "-ēre"
+    ],
+    [
+      "fs-g-030",
+      "What is the present active infinitive ending characteristic of the third conjugation?",
+      "-ere"
+    ],
+    [
+      "fs-g-031",
+      "What is the present active infinitive ending characteristic of the fourth conjugation?",
+      "-īre"
+    ],
+    [
+      "fs-g-032",
+      "What person of a verb describes the speaker, as in “I walk”?",
+      "first"
+    ],
+    [
+      "fs-g-033",
+      "What person of a verb addresses the listener, as in “you walk”?",
+      "second"
+    ],
+    [
+      "fs-g-034",
+      "What person of a verb refers to someone being discussed, as in “she walks”?",
+      "third"
+    ],
+    [
+      "fs-g-035",
+      "What mood commonly gives a command, as in “Listen!”?",
+      "imperative"
+    ],
+    [
+      "fs-g-036",
+      "Does a macron mark a long vowel or a short vowel?",
+      "long vowel"
+    ]
+  ],
+  "grammar_alternatives": {
+    "fs-g-001": [
+      "nominative case"
+    ],
+    "fs-g-002": [
+      "genitive case"
+    ],
+    "fs-g-003": [
+      "dative case"
+    ],
+    "fs-g-004": [
+      "accusative case"
+    ],
+    "fs-g-005": [
+      "vocative case"
+    ],
+    "fs-g-006": [
+      "ablative case"
+    ],
+    "fs-g-007": [
+      "second",
+      "genitive form"
+    ],
+    "fs-g-008": [
+      "1st",
+      "first declension",
+      "1"
+    ],
+    "fs-g-009": [
+      "2nd",
+      "second declension",
+      "2"
+    ],
+    "fs-g-010": [
+      "3rd",
+      "third declension",
+      "3"
+    ],
+    "fs-g-011": [
+      "4th",
+      "fourth declension",
+      "4"
+    ],
+    "fs-g-012": [
+      "5th",
+      "fifth declension",
+      "5"
+    ],
+    "fs-g-013": [],
+    "fs-g-014": [],
+    "fs-g-015": [
+      "not always"
+    ],
+    "fs-g-016": [
+      "same",
+      "the same"
+    ],
+    "fs-g-017": [
+      "-a"
+    ],
+    "fs-g-018": [
+      "an adjective"
+    ],
+    "fs-g-019": [],
+    "fs-g-020": [
+      "a verb"
+    ],
+    "fs-g-021": [
+      "a conjunction"
+    ],
+    "fs-g-022": [
+      "a pronoun"
+    ],
+    "fs-g-023": [
+      "an adverb"
+    ],
+    "fs-g-024": [
+      "love"
+    ],
+    "fs-g-025": [
+      "amo"
+    ],
+    "fs-g-026": [
+      "2nd",
+      "second principal part",
+      "2"
+    ],
+    "fs-g-027": [
+      "3rd",
+      "third principal part",
+      "3"
+    ],
+    "fs-g-028": [
+      "āre",
+      "are"
+    ],
+    "fs-g-029": [
+      "ēre",
+      "long ere"
+    ],
+    "fs-g-030": [
+      "ere",
+      "short ere"
+    ],
+    "fs-g-031": [
+      "īre",
+      "ire"
+    ],
+    "fs-g-032": [
+      "1st",
+      "first person"
+    ],
+    "fs-g-033": [
+      "2nd",
+      "second person"
+    ],
+    "fs-g-034": [
+      "3rd",
+      "third person"
+    ],
+    "fs-g-035": [
+      "imperative mood"
+    ],
+    "fs-g-036": [
+      "long"
+    ]
+  },
+  "unresolved": [],
+  "counts": {
+    "nouns_and_pronouns": 80,
+    "verbs": 63,
+    "conjunctions": 12,
+    "grammar_cards": 36,
+    "total_identified": 191
+  }
+}
