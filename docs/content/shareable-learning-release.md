@@ -21,8 +21,18 @@ All 125 Geo clue triples were authored for this release, grouped into independen
 
 This is a documented risk-reduction process, not a legal clearance or promise of zero legal risk. CC's own guidance places restrictions on distributing creations using its content; this public release therefore replaces the earlier collection rather than relying on a disclaimer or a purchaser-only assumption.
 
-## Historical public repository copies — separate decision
+## Authorized historical cleanup — executed November 16, 2026
 
-The repository is PUBLIC. Prior revisions of `faithsparks/content/latin_quest/cards.json`, its memory-link file, the embedded Math bank, and old generated artifacts remain retrievable through Git history. A new deployment does not erase that history. The original local references were preserved outside the repository before replacement.
+The user explicitly authorized coordinated removal from public history. A complete private recovery mirror and the independent release archive are stored outside the repository in an owner-only directory; the recovery mirror has a disabled push URL. The related active FaithSparks chat was notified before the rewrite.
 
-A historical cleanup would require a fresh mirror, an external backup, a reviewed path/commit inventory, history filtering across affected refs, regeneration of source bundles from the independent content, coordinated updates to open checkouts and branches, and a force-with-lease push. GitHub caches, forks and existing clones may need additional handling; rewriting origin cannot guarantee their removal. The user explicitly authorized coordinated history cleanup on November 16, 2026. A recovery mirror is being preserved outside the public repository, and the related active FaithSparks chat has been notified to avoid pushes from old history. Repository visibility and sharing permissions are unchanged. An execution report will record the actual results and any GitHub cache/PR limitations.
+The historical Latin content directory, embedded Math bank source, Geo question data, former standalone games and all generated learning bundles were removed from all locally mirrored refs. The independently authored current files were then restored. Before publication, the full application tree matched the tested release exactly (`9a350824c0fb36eb0b01ac5f5043f8f4a93f5789`). No unrelated file changed on any affected branch.
+
+An atomic push with an explicit old-tip lease for each branch updated all 10 affected published branches, preserving the other 26 branch tips. A subsequent fetch and reachability check confirmed that none of the 36 published branch heads reaches any of the 369 replaced commits. The sanitized application release is `65d0bf8c2ce970056d5806b0195ded5763c1350b`. This checkout now follows that history, and a local push guard rejects branches containing the first removed ancestor. Other checkouts must preserve uncommitted work and rebase or re-clone; merging an old branch would republish removed history.
+
+### GitHub-retained copies remain a platform limitation
+
+This is **not a complete erasure of all public historical copies**. GitHub retains read-only pull-request references; after the branch rewrite, affected older refs were still advertised for PRs 2 (merge ref), 3–11 and 13. A direct historical raw-content URL also returned HTTP 200. Branch force pushes cannot delete those references or GitHub caches. No public forks were listed at the time of the audit; independently retained clones are outside this repository's control.
+
+A factual platform-support request and recovery instructions are prepared outside the public repository. GitHub's sensitive-data documentation says its support process does not remove non-sensitive data, so this copyright/content cleanup must be described accurately and may require a different platform process. No legal infringement finding is asserted, and no takedown notice was submitted on the user's behalf.
+
+See GitHub's explanation of retained pull refs, caches and clone coordination: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository
