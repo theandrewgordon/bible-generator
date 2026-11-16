@@ -67,3 +67,10 @@
 .art-diagram-peak{background-image:url("./art/diagram-peak.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-current{background-image:url("./art/diagram-current.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-cove{background-image:url("./art/diagram-cove.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
+.art-diagram-compass{background-image:url("./art/shared-compass.svg");background-size:contain;background-repeat:no-repeat;background-color:#f1eedb}
+.art-diagram-map{background-image:url("./art/shared-map.svg");background-size:contain;background-repeat:no-repeat;background-color:#f1eedb}
+.art-diagram-contour{background-image:url("./art/shared-contour.svg");background-size:contain;background-repeat:no-repeat;background-color:#f1eedb}
+.art-diagram-aquifer{background-image:url("./art/shared-aquifer.svg");background-size:contain;background-repeat:no-repeat;background-color:#f1eedb}
+.art-diagram-spring{background-image:url("./art/shared-spring.svg");background-size:contain;background-repeat:no-repeat;background-color:#f1eedb}
+.art-diagram-geyser{background-image:url("./art/shared-geyser.svg");background-size:contain;background-repeat:no-repeat;background-color:#f1eedb}
+.art-diagram-globe{background-image:url("./art/shared-globe.svg");background-size:contain;background-repeat:no-repeat;background-color:#f0eddb}

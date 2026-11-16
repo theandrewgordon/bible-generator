@@ -33,23 +33,23 @@ def client(monkeypatch):
     return c, store, limits, budget, factory, speech
 
 def post(client, body=None, **headers):
-    return client[0].post('/labs/latin-quest/tts', json=body or {'cue':'noun-001:meaning:details','voice':'coral','pronunciation':'classical'}, headers={'X-CSRF-Token':'test-token', **headers})
+    return client[0].post('/labs/latin-quest/tts', json=body or {'cue':'fs-n-042:meaning:details','voice':'coral','pronunciation':'classical'}, headers={'X-CSRF-Token':'test-token', **headers})
 
-def test_approved_source_and_practice_variations():
-    assert sum(len(cards.SOURCE[k]) for k in ['nouns_and_pronouns','verbs','conjunctions','grammar']) == 140
-    assert len(cards.SOURCE['unresolved']) == 1
-    assert len([q for q in cards.QUESTIONS if q['mode']=='meaning']) == 120
-    assert len([q for q in cards.QUESTIONS if q['mode']=='reverse']) == 120
-    assert len([q for q in cards.QUESTIONS if q['mode']=='grammar']) == 20
+def test_independent_source_and_practice_variations():
+    assert sum(len(cards.SOURCE[k]) for k in ['nouns_and_pronouns','verbs','conjunctions','grammar']) == 191
+    assert len(cards.SOURCE['unresolved']) == 0
+    assert len([q for q in cards.QUESTIONS if q['mode']=='meaning']) == 155
+    assert len([q for q in cards.QUESTIONS if q['mode']=='reverse']) == 155
+    assert len([q for q in cards.QUESTIONS if q['mode']=='grammar']) == 36
     assert len({q['id'] for q in cards.QUESTIONS}) == len(cards.QUESTIONS)
     assert not any('unresolved' in q['id'] for q in cards.QUESTIONS)
-    assert 'second declension. neuter' in cards.CUES['noun-001:meaning:details']
-    assert cards.CUES['noun-004:meaning:details'].startswith('Noun. first declension. masculine.')
-    assert cards.CUES['verb-001:meaning:details'].startswith('Verb. first conjugation.')
+    assert 'second declension. neuter' in cards.CUES['fs-n-042:meaning:details']
+    assert cards.CUES['fs-n-017:meaning:details'].startswith('Noun. first declension. masculine.')
+    assert cards.CUES['fs-v-017:meaning:details'].startswith('Verb. first conjugation.')
     # Answers are not leaked by announcing grammatical details in recall modes.
-    assert cards.QUESTION_MAP['noun-001:nouns-gender']['details'] == ''
-    assert 'cibus' in cards.QUESTION_MAP['noun-007:reverse']['answers']
-    assert 'or, ris, tur, mur, minī, ntur' in cards.QUESTION_MAP['grammar-verb-001:grammar']['answers']
+    assert cards.QUESTION_MAP['fs-n-042:nouns-gender']['details'] == ''
+    assert 'teneō' in cards.QUESTION_MAP['fs-v-023:reverse']['answers']
+    assert cards.QUESTION_MAP['fs-g-029:grammar']['preserveVowelLength'] is True
     assert 'score-140' in cards.CUES and 'count-140' in cards.CUES
     assert next(e for e in cards.STUDY if e['word']=='terra' and e['fact']=='gender')['answer']=='feminine'
 
@@ -64,7 +64,7 @@ def test_voice_is_generated_once_then_reused_without_paid_call(client, monkeypat
     client[4].assert_called_once()
     client[3].assert_called_once_with('latin_quest_tts', 3)
     assert client[4].call_args.kwargs['max_retries'] == 0
-    assert client[5].call_args.kwargs['input'] == cards.CUES['noun-001:meaning:details']
+    assert client[5].call_args.kwargs['input'] == cards.CUES['fs-n-042:meaning:details']
     assert 'immutable' in second.headers['Cache-Control']
 
 def test_cache_key_covers_voice_pronunciation_and_content(client):
@@ -72,7 +72,7 @@ def test_cache_key_covers_voice_pronunciation_and_content(client):
     assert len(paths)==2
     assert cards.cache_path('correct','coral','classical') != cards.cache_path('welcome','coral','classical')
     post(client)
-    assert post(client,{'cue':'noun-001:meaning:details','voice':'marin','pronunciation':'classical'}).status_code == 200
+    assert post(client,{'cue':'fs-n-042:meaning:details','voice':'marin','pronunciation':'classical'}).status_code == 200
     assert client[4].call_count == 2
 
 @pytest.mark.parametrize('payload', [[], 'answer', {'cue':[]}, {'cue':'unknown','voice':'coral','pronunciation':'classical'}, {'cue':'welcome','voice':'fake','pronunciation':'church'}, {'text':'private answer','cue':'welcome','voice':'coral','pronunciation':'classical'}])
@@ -144,8 +144,8 @@ def test_choice_audio_is_fixed_card_text_and_cached(client):
 
 
 def test_option_audio_keeps_english_and_latin_distinct():
-    assert 'English meaning' in cards.speech_instructions('option:noun-001:meaning', 'classical')
-    assert 'isolated Latin word' in cards.speech_instructions('option:noun-001:reverse', 'classical')
+    assert 'English meaning' in cards.speech_instructions('option:fs-n-042:meaning', 'classical')
+    assert 'isolated Latin word' in cards.speech_instructions('option:fs-n-042:reverse', 'classical')
     assert cards.speech_instructions('welcome', 'classical') == cards.INSTRUCTIONS['classical']
 
 
@@ -183,19 +183,36 @@ def test_memory_links_are_sourced_help_not_answers():
         assert any(q['card'] == cid for q in cards.QUESTIONS)
         assert memory['source'].startswith('https://')
         assert cards.CUES['memory:' + cid] == memory['text']
-    eye = next(q for q in cards.QUESTIONS if q['id'] == 'noun-021:meaning')
+    eye = next(q for q in cards.QUESTIONS if q['id'] == 'fs-n-028:meaning')
     assert 'ocular' not in eye['answers']
 
 
 def test_both_flashcard_directions_use_only_card_material():
     qs = [q for q in cards.QUESTIONS if q['mode'] in {'meaning', 'reverse'}]
-    assert len(qs) == 240
+    assert len(qs) == 310
     for q in qs:
         assert cards.CUES['flash:' + q['id'] + ':front'] == q['flash_front']
         assert cards.CUES['flash:' + q['id'] + ':back'] == q['flash_back']
-    latin = next(q for q in qs if q['id'] == 'noun-021:meaning')
-    english = next(q for q in qs if q['id'] == 'noun-021:reverse')
+    latin = next(q for q in qs if q['id'] == 'fs-n-028:meaning')
+    english = next(q for q in qs if q['id'] == 'fs-n-028:reverse')
     assert latin['flash_front'] == english['flash_back'] == 'oculus, oculī'
     assert latin['flash_back'] == english['flash_front'] == 'eye'
-    assert 'English meaning' in cards.speech_instructions('flash:noun-021:meaning:back', 'classical')
-    assert 'isolated Latin' in cards.speech_instructions('flash:noun-021:reverse:back', 'classical')
+    assert 'English meaning' in cards.speech_instructions('flash:fs-n-028:meaning:back', 'classical')
+    assert 'isolated Latin' in cards.speech_instructions('flash:fs-n-028:reverse:back', 'classical')
+
+
+def test_public_curriculum_is_independent_and_uses_new_identifiers():
+    assert cards.SOURCE['version'] == '2026-11-16-original-1'
+    assert cards.CARD_COUNT == 191
+    assert all(q['card'].startswith('fs-') for q in cards.QUESTIONS)
+    assert len({q['prompt'] for q in cards.QUESTIONS}) == len(cards.QUESTIONS)
+    assert 'Classical Conversations' not in str(cards.INSTRUCTIONS)
+    assert cards.SOURCE['provenance']['fact_references']
+
+
+def test_long_and_short_infinitive_questions_preserve_vowel_length(tmp_path):
+    import json, subprocess
+    qs=[cards.QUESTION_MAP['fs-g-029:grammar'],cards.QUESTION_MAP['fs-g-030:grammar']]
+    program="const assert=require('assert/strict');const core=require('./static/js/latin-quest-core.js');const [long,short]=JSON.parse(process.argv[1]);assert(core.matches(long,'ēre'));assert(!core.matches(long,'ere'));assert(core.matches(long,'long ere'));assert(core.matches(short,'ere'));assert(!core.matches(short,'ēre'));"
+    result=subprocess.run(['node','-e',program,json.dumps(qs)],cwd=Path(__file__).resolve().parents[1],capture_output=True,text=True)
+    assert result.returncode == 0, result.stdout+result.stderr

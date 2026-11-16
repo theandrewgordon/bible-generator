@@ -1,4 +1,4 @@
-"""Question bank from the approved photographed cards. No generated vocabulary."""
+"""Independent FaithSparks Latin curriculum: original selection and prompts using standard language facts."""
 from __future__ import annotations
 import hashlib
 import json
@@ -12,7 +12,7 @@ VOICES = ('coral', 'marin')
 SPEED = 0.85
 INSTRUCTIONS = {
  'classical': (
-    'Warm, patient Latin tutor for Classical Conversations practice. '
+    'Warm, patient Latin tutor for independent FaithSparks practice. '
     'Speak English instructions naturally, but switch to restored Classical Latin for every Latin word and principal part. '
     'Never use ecclesiastical or English spelling pronunciations for Latin. '
     'Latin c is always hard k; g is always hard as in get; consonantal v sounds like English w; '
@@ -36,6 +36,8 @@ SYNONYMS = {
  'weep': ['cry'], 'get up': ['stand up'], 'conquer': ['defeat'],
  'you (plural)': ['you all', 'all of you', 'yall'], 'you (singular)': ['you'],
 }
+CARD_COUNT = sum(len(SOURCE[k]) for k in ('nouns_and_pronouns','verbs','conjunctions','grammar'))
+VOCABULARY_COUNT = CARD_COUNT-len(SOURCE['grammar'])
 QUESTIONS = []
 
 def ordinal(value):
@@ -61,8 +63,8 @@ def add(card, kind, prompt, answers, hint, details='', latin=False):
 
 for cid, pos, first, second, meaning, decl, gender in SOURCE['nouns_and_pronouns']:
     details = f'Noun. {ordinal(decl)} declension. {gender}.' if pos == 'noun' else 'Pronoun.'
-    add(cid, 'meaning', f'What does {first} mean in English?', meaning, 'Think of the English meaning on your card.', details)
-    add(cid, 'reverse', f'What is the Latin word for {meaning.replace(";", " or")}?', first, 'Picture the Latin side of this card.', details, True)
+    add(cid, 'meaning', f'Give an English meaning of the Latin noun {first}.', meaning, 'Think of the English meaning on your card.', details)
+    add(cid, 'reverse', f'Give the nominative singular Latin noun for {meaning.replace(";", " or")}.', first, 'Picture the Latin side of this card.', details, True)
     if pos != 'noun':
         continue
     base = decl.split()[0]
@@ -73,8 +75,8 @@ for cid, pos, first, second, meaning, decl, gender in SOURCE['nouns_and_pronouns
 
 for cid, p1, p2, p3, p4, meaning, conj in SOURCE['verbs']:
     details = f'Verb. {ordinal(conj)} conjugation.'
-    add(cid, 'meaning', f'What does {p1} mean in English?', meaning, 'Think of the action on your card.', details)
-    add(cid, 'reverse', f'What is the Latin verb for {meaning.replace(";", " or")}?', p1, 'Picture the first principal part.', details, True)
+    add(cid, 'meaning', f'Give an English meaning of the Latin verb {p1}.', meaning, 'Think of the action on your card.', details)
+    add(cid, 'reverse', f'Give the first-person singular present Latin verb for {meaning.replace(";", " or")} (the I-form).', p1, 'Picture the first principal part.', details, True)
     base = conj.split()[0]
     add(cid, 'verbs-conjugation', f'What conjugation is {p1}, {p2}?', [conj, base, ordinal(base), f'{ordinal(base)} conjugation'], 'Listen to the infinitive, the second principal part.')
     for n, part in enumerate([p1, p2, p3, p4], 1):
@@ -84,27 +86,13 @@ for cid, latin, meaning in SOURCE['conjunctions']:
     add(cid, 'meaning', f'What does {latin} mean in English?', meaning, 'Think of how it connects ideas.', 'Conjunction.')
     add(cid, 'reverse', f'Which Latin conjunction means {meaning.replace(";", " or")}?', latin, 'Picture the Latin side of this card.', 'Conjunction.', True)
 
-GRAMMAR_ALTERNATIVES = {
- 'grammar-noun-001': ['ae', 'genitive ends in ae', 'genitive singular ae'],
- 'grammar-noun-002': ['i', 'genitive ends in i', 'genitive singular i'],
- 'grammar-noun-003': ['is', 'genitive ends in is', 'genitive singular is'],
- 'grammar-noun-004': ['us', 'genitive ends in us', 'genitive singular us'],
- 'grammar-noun-005': ['ei', 'genitive ends in ei', 'genitive singular ei'],
- 'grammar-noun-006': ['first', '1st', 'first declension'],
- 'grammar-noun-007': ['second', '2nd', 'second declension'],
- 'grammar-noun-008': ['third', '3rd', 'third declension'],
- 'grammar-noun-009': ['fourth', '4th', 'fourth declension'],
- 'grammar-noun-010': ['fifth', '5th', 'fifth declension'],
- 'grammar-verb-001': ['or, ris, tur, mur, minī, ntur'],
- 'grammar-verb-002': ['are', 'infinitive ends in are', 'second principal part ends in are'],
- 'grammar-verb-003': ['long ere', 'infinitive ends in long ere', 'second principal part ends in long ere'],
- 'grammar-verb-004': ['short ere', 'infinitive ends in short ere', 'second principal part ends in short ere'],
- 'grammar-verb-005': ['ire', 'infinitive ends in ire', 'second principal part ends in ire'],
-}
+GRAMMAR_ALTERNATIVES = SOURCE.get('grammar_alternatives', {})
 for cid, prompt, answer in SOURCE['grammar']:
-    add(cid, 'grammar', prompt, [answer, *GRAMMAR_ALTERNATIVES.get(cid, [])], 'Take your time. Reveal the answer to study this card together.')
+    add(cid, 'grammar', prompt, [answer, *GRAMMAR_ALTERNATIVES.get(cid, [])], 'Think about the grammatical job described. Reveal the answer if you need to study the idea.')
+    if cid in {'fs-g-029','fs-g-030'}: QUESTIONS[-1]['preserveVowelLength'] = True
+    if cid == 'fs-g-019': QUESTIONS[-1]['listAnswer'] = True
 
-# Several photographed cards share an English meaning (for example cibus/esca).
+# Standard Latin vocabulary can share English meanings; accept matching entries fairly.
 # A reverse prompt accepts another approved Latin word matching any offered meaning.
 reverse_cards = [q for q in QUESTIONS if q['mode'] == 'reverse']
 meanings = {q['card']: set(q['answers']) for q in QUESTIONS if q['mode'] == 'meaning'}
@@ -153,7 +141,7 @@ for cid, word, meaning in SOURCE['conjunctions']:
         CUES[cue] = f'{word}. {fact.capitalize()}: {value}.'
         STUDY.append({'id':cid,'word':word,'aliases':[word],'fact':fact,'answer':value,'cue':cue})
 # Compose results from reusable number clips rather than one clip per score pair.
-for number in range(141):
+for number in range(CARD_COUNT+1):
     CUES[f'score-{number}'] = f'{number} correct without hints.'
     CUES[f'count-{number}'] = f'{number} questions completed.'
 

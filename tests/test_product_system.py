@@ -39,8 +39,8 @@ def test_geo_detectives_is_an_illustrated_guess_first_root_lab():
     assert b'/static/labs/learning/geo/main-' in game.data
     import json
     data = json.loads((ROOT / 'frontend/learning-labs/geo/data.json').read_text())
-    assert len(data['quest']) == 101
-    assert len(data['compare']) == 40
+    assert len(data['quest']) == 125
+    assert len(data['compare']) == 55
     assert all(q['answer'] in q['choices'] for q in data['quest'])
     assert all(q['arts'][0] != q['arts'][1] for q in data['compare'])
 

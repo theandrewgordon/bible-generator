@@ -80,17 +80,17 @@ PRODUCTS = (
     {
         "id": "latin-quest", "name": "Latin Quest", "area": "labs",
         "maturity": "sandbox", "path": "/labs/latin-quest", "accent": "forest",
-        "description": "The Word Notebook: translate, listen, or flip flashcards across 140 approved Latin cards, with individual progress and gentle review.",
+        "description": "The Word Notebook: translate, listen, or flip flashcards across 191 original Latin practice cards, with individual progress and gentle review.",
     },
     {
         "id": "math-fact-rally", "name": "Math Fact Adventure", "area": "labs",
         "maturity": "sandbox", "path": "/labs/math-fact-adventure", "accent": "blue",
-        "description": "The Discovery Journal: say or type your answers, explore five fluency stages, and grow with smart review for 1–4 learners.",
+        "description": "The Discovery Journal: solve number sentences, missing-number puzzles, or story problems across five stages, with verbal, typed, and choice answers.",
     },
     {
         "id": "geo-detectives", "name": "Geo Detectives!", "area": "labs",
         "maturity": "sandbox", "path": "/labs/geo-detectives", "accent": "gold",
-        "description": "The Field Atlas: solve 101 landscape mysteries and explore 40 comparisons, with automatic two-team scoring and watercolor scenes.",
+        "description": "The Field Atlas: solve 125 landscape mysteries and explore 55 comparisons, with automatic two-team scoring and watercolor scenes.",
     },
     {
         "id": "games-lab", "name": "Games Lab", "area": "labs",

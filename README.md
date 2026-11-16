@@ -119,9 +119,8 @@ unknown study question is not graded as a wrong quiz answer.
 (the default), English → Latin, noun declension/gender/case forms, verb
 conjugations/principal parts, grammar cards, and mixed sessions. Vocabulary prompts
 can announce part of speech and noun declension/gender or verb conjugation.
-The bank comes only from the supplied 140 photographed cards in
-`faithsparks/content/latin_quest/cards.json`; the additional unresolved card is
-retained as provenance but never quizzed. The Quizlet verification list is not used.
+The public bank is independently selected FaithSparks practice: 191 cards covering 155 everyday vocabulary entries and 36 newly written grammar prompts. New card IDs keep earlier personal records separate.
+The independently authored source and reference notes are in `faithsparks/content/latin_quest/cards.json`. No photographed commercial deck or course sequence is distributed by the current game.
 
 One listed English meaning or a reviewed equivalent is sufficient. Answers are
 checked in the browser; no learner answers or recordings are stored by the server
@@ -130,7 +129,7 @@ can explicitly accept an equivalent using “My answer was also correct.” Prac
 counts are shared within one browser profile and stored in localStorage. They do
 not sync with Jarvis/Home Assistant or across devices. Review missed cards uses
 the selected practice mode. Longer sessions stop at the number of distinct cards
-in the chosen mode (up to 140 for mixed practice). Microphone input uses the browser's speech-recognition
+in the chosen mode (up to 191 for mixed practice). Microphone input uses the browser's speech-recognition
 service; typed input remains available when voice recognition is unsupported.
 
 #### Reusable OpenAI audio
@@ -138,7 +137,7 @@ service; typed input remains available when voice recognition is unsupported.
 Only fixed server-owned cue IDs can request audio. `gpt-4o-mini-tts` uses the existing
 `OPENAI_API_KEY`, with coral/marin voices and restored Classical pronunciation
 instructions. Pronunciation is an AI approximation and needs teacher review.
-The game uses Classical pronunciation only for CC practice; explicit consonant, diphthong, vowel-length, and stress instructions guide generation, but clips still require teacher listening review. Changing those instructions invalidates both browser and cloud audio caches.
+The game uses Classical Latin pronunciation for general practice; explicit consonant, diphthong, vowel-length, and stress instructions guide generation, but clips still require teacher listening review. Changing those instructions invalidates both browser and cloud audio caches.
 Audio is labeled AI-generated. Cache identity includes model, voice, pronunciation,
 instructions, speed and text. Generated MP3s persist in the existing private
 Firebase/Google Cloud Storage bucket under `latin_quest/audio/v1/`, and are reused

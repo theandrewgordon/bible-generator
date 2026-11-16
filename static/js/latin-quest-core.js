@@ -5,12 +5,13 @@ function normalize(value){return String(value||'').normalize('NFD').replace(/[\u
 function answerText(value,q){let s=normalize(value).replace(/^(it means|the word means|it is|it s) /,'');if(q.mode==='meaning'){s=s.replace(/^(a|an|the) /,'');if(q.details.startsWith('Verb.'))s=s.replace(/^(i |to )/,'');}return s;}
 function matches(q,input){
  const raw=String(input||'').trim().toLowerCase();
+ if(q.preserveVowelLength){const vowelForm=x=>String(x).normalize('NFC').toLowerCase().replace(/[^a-zāēīōūȳ]/g,'');return q.answers.some(a=>vowelForm(a)===vowelForm(input));}
  if(q.id==='grammar-verb-003:grammar'&&raw==='ēre')return true;
  if(q.id==='grammar-verb-004:grammar'&&raw==='ere')return true;
  const got=answerText(input,q);if(!got)return false;
  if(q.answers.some(a=>answerText(a,q)===got))return true;
  // Attribute lists can be recited in any order; no partial-list credit.
- if(['grammar-noun-011:grammar','grammar-verb-006:grammar'].includes(q.id)){
+ if(q.listAnswer||['grammar-noun-011:grammar','grammar-verb-006:grammar'].includes(q.id)){
   const words=s=>normalize(s).split(' ').filter(x=>x!=='and').sort().join(' ');
   return words(input)===words(q.answers[0]);
  }
@@ -27,7 +28,7 @@ function resetProgress(stats,questions,mode,response){
  const ids=new Set(questions.filter(q=>mode==='mixed'?q.mode!=='reverse':q.mode===mode).map(q=>q.id+(['choice','flash'].includes(response)?':'+response:'')));
  return Object.fromEntries(Object.entries(stats).filter(([id])=>!ids.has(id)));
 }
-// Distractors come only from approved vocabulary; never offer another accepted answer.
+// Distractors come only from the independent vocabulary collection; never offer another accepted answer.
 function choicesFor(q,questions,random=Math.random){
  if(!['meaning','reverse'].includes(q.mode))return [];
  const seen=new Set(q.answers.map(a=>answerText(a,q)));

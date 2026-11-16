@@ -1,0 +1,79 @@
+{
+  "revision": "2026-11-16",
+  "quest_count": 125,
+  "compare_count": 55,
+  "authors": "FaithSparks independently authored wording and topic selection",
+  "overlapping_families": [
+    [
+      "lake",
+      "pond"
+    ],
+    [
+      "river",
+      "stream",
+      "creek",
+      "brook",
+      "branch",
+      "tributary"
+    ],
+    [
+      "forest",
+      "woods"
+    ],
+    [
+      "canyon",
+      "gorge",
+      "chasm"
+    ],
+    [
+      "cape",
+      "headland"
+    ],
+    [
+      "bay",
+      "gulf",
+      "inlet",
+      "cove"
+    ],
+    [
+      "summit",
+      "peak"
+    ],
+    [
+      "altitude",
+      "elevation"
+    ],
+    [
+      "drainage basin",
+      "watershed"
+    ],
+    [
+      "pier",
+      "wharf"
+    ],
+    [
+      "field",
+      "meadow",
+      "prairie"
+    ],
+    [
+      "mountain",
+      "hill"
+    ],
+    [
+      "plateau",
+      "mesa"
+    ],
+    [
+      "shore",
+      "coast",
+      "shoreline"
+    ]
+  ],
+  "sources": [
+    {
+      "title": "USGS geographic feature naming and ambiguous terms",
+      "url": "https://www.usgs.gov/media/audio/what-difference-between-lake-and-pond-mountain-and-hill-or-river-and-creek"
+    }
+  ]
+}
