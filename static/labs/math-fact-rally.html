@@ -30,7 +30,46 @@ body{background:radial-gradient(ellipse at 5% 25%,#d3e5cb,transparent 44%),radia
 .nature-grid p{font-size:.74rem;color:#617565;line-height:1.35;margin:0}
 @media(max-width:600px){.nature-grid svg{height:68px}.nature-grid{gap:5px}.nature-grid article{padding:7px 4px}.nature-grid small{font-size:.53rem}.nature-grid p{font-size:.66rem}}
 @media(max-width:420px){.nature-grid{grid-template-columns:1fr}.nature-grid article{display:flex;text-align:left;align-items:center;gap:12px;padding:9px 12px}.nature-grid svg{width:76px;min-width:76px;height:56px;margin:0}.nature-grid strong{font-size:.91rem}.nature-grid p{font-size:.73rem}.nature-ornament{width:58px;height:92px}}
-@media(prefers-reduced-motion:reduce){.nature-grid svg{filter:none}}</style></head><body><div id="labs-family" data-game="math"></div><main>
+@media(prefers-reduced-motion:reduce){.nature-grid svg{filter:none}}</style><style id="discovery-controls-v1">
+/* Discovery Journal watercolor buttons: styles only; no event handlers or behavior changes */
+main button{
+ font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,sans-serif!important;
+ font-weight:800!important;letter-spacing:.01em;border-radius:12px!important;
+ background:linear-gradient(160deg,#fffdf2,#e9eddc)!important;color:#365c4e!important;
+ border:1px solid #91a58a!important;border-bottom:3px solid #728a70!important;
+ box-shadow:inset 0 1px #ffffffd9,0 2px 4px #52684a22!important;
+ text-shadow:none!important;touch-action:manipulation;
+ transition:transform .15s ease,filter .15s ease,box-shadow .15s ease
+}
+main button.green,#quickFive.main-cta,#math-quick button,#correct,#start,#next,#checkTyped{
+ background:linear-gradient(155deg,#4f9379,#2c6b51)!important;color:#fffdf3!important;
+ border-color:#316c56!important;border-bottom-color:#20513e!important;
+ text-shadow:0 1px #245240!important
+}
+main button.yellow,#reveal{
+ background:linear-gradient(155deg,#f9e9b1,#e5bd69)!important;color:#4b3c24!important;
+ border-color:#bd9a57!important;border-bottom-color:#987844!important
+}
+main button.orange,#incorrect,#clearProgress{
+ background:linear-gradient(155deg,#bd7e65,#985541)!important;color:#fffdf4!important;
+ border-color:#915b45!important;border-bottom-color:#723e30!important
+}
+main button.gray,#hintBtn,#assisted,#undo,#restart,#homePlay,#homeEdit,#homeReport,#reportBack{
+ background:linear-gradient(155deg,#75988a,#4c7268)!important;color:#fffdf3!important;
+ border-color:#4b7064!important;border-bottom-color:#34564c!important
+}
+#mathChoices button{
+ background:linear-gradient(165deg,#fffdf5,#ebeedc)!important;color:#365d51!important;
+ border-color:#9eb496!important;border-bottom-color:#829d7f!important;
+ font-family:Georgia,serif!important;font-size:clamp(1.2rem,3vw,1.75rem)!important;
+ font-variant-numeric:tabular-nums
+}
+main button:hover:not(:disabled){filter:brightness(1.05);transform:translateY(-1px)}
+main button:active:not(:disabled){filter:brightness(.97);transform:translateY(1px);box-shadow:inset 0 2px 5px #36524140!important}
+main button:focus-visible{outline:3px solid #aa783d!important;outline-offset:3px!important}
+main button:disabled{opacity:.55!important;filter:saturate(.55);cursor:default}
+@media(prefers-reduced-motion:reduce){main button{transition:none!important}main button:hover:not(:disabled),main button:active:not(:disabled){transform:none!important}}
+</style></head><body><div id="labs-family" data-game="math"></div><main>
 <header class="journal-banner"><img src="/static/labs/learning/math/journal-1-BJ0317FD.webp" alt="Math Fact Adventure — The Discovery Journal. A watercolor mountain valley with a compass, field notebook, and golden morning sun." decoding="async" fetchpriority="high"></header>
 <div id="error" class="hidden" role="alert"></div>
 <section id="home" class="journal-page"><label class="answer-style">Who’s practicing?<select id="math-learner"></select></label><div id="math-quick"></div><div id="homePlayers" class="home-players"></div><p id="resumeInfo" class="resume-note" aria-live="polite"></p><details id="homeOptions" class="home-options"><summary>Practice options</summary><label class="answer-style">Answer with<select id="answerStyle"><option value="aloud">Say it aloud · parent marks answers</option><option value="type">Type my answer</option><option value="choice">Choose an answer</option></select></label><label class="answer-style">Challenge style<select id="exerciseStyle"><option value="calculate">Number sentences</option><option value="missing">Missing numbers</option><option value="story">Story problems</option><option value="mixed">Mix all three</option></select></label><div class="home-secondary"><button id="homePlay" class="gray">Play saved length</button><button id="homeEdit" class="gray">⚙ Edit players</button><button id="homeReport" class="gray">✎ Learning journal</button></div></details><div class="nature-gallery" aria-label="Math in nature"><div class="nature-heading">✧ NATURE’S NUMBER NOTEBOOK ✧<span>Little discoveries from the world outside</span></div><div class="nature-grid"><article><svg viewBox="0 0 160 100" aria-hidden="true"><g fill="#e8c482" stroke="#ad8454" stroke-width="2"><path d="M45 10l19 10v20l-19 10-19-10v-20z"/><path d="M87 10l19 10v20l-19 10-19-10v-20z"/><path d="M66 42l19 10v20l-19 10-19-10v-20z"/><path d="M108 42l19 10v20l-19 10-19-10v-20z"/><path d="M24 42l19 10v20l-19 10-19-10v-20z"/></g><g fill="#fff2cb" opacity=".6"><circle cx="43" cy="25" r="4"/><circle cx="88" cy="27" r="4"/></g></svg><div><small>01 · GEOMETRY</small><strong>Honeycomb hexagons</strong><p>Six sides, repeating patterns.</p></div></article><article><svg viewBox="0 0 160 100" aria-hidden="true"><defs><linearGradient id="l-wash"><stop stop-color="#d7df99"/><stop offset="1" stop-color="#72a68a"/></linearGradient></defs><path d="M79 92V10" stroke="#577e61" stroke-width="3"/><path d="M80 9Q24 30 37 65Q64 98 80 66Q96 98 123 65Q136 30 80 9Z" fill="url(#l-wash)" stroke="#699070" stroke-width="2"/><path d="M80 22V83M80 42L50 31M80 54L42 54M80 68L57 79M80 42l30-11M80 54l38 0M80 68l23 11" stroke="#e5ecc5" stroke-width="2" fill="none"/></svg><div><small>02 · SYMMETRY</small><strong>Leaf symmetry</strong><p>Look for a central line and matching sides.</p></div></article><article><svg viewBox="0 0 160 100" aria-hidden="true"><path d="M80 5Q117 7 113 54Q108 88 80 96Q52 88 47 54Q43 7 80 5Z" fill="#b58a60" stroke="#8d6748" stroke-width="2"/><g fill="#e5c699" stroke="#835c3d" stroke-width="1.4"><path d="M80 2l19 14-19 16-19-16z"/><path d="M61 21l19 14-19 16-19-16z"/><path d="M99 21l19 14-19 16-19-16z"/><path d="M80 38l19 14-19 16-19-16z"/><path d="M59 52l19 14-19 16-19-16z"/><path d="M101 52l19 14-19 16-19-16z"/><path d="M80 67l19 14-19 16-19-16z"/></g><path d="M61 19Q30 43 55 79Q80 104 114 77" fill="none" stroke="#f4e3b8" stroke-width="2" stroke-dasharray="2 5"/></svg><div><small>03 · PATTERNS</small><strong>Pinecone spirals</strong><p>Overlapping scales make winding patterns.</p></div></article></div></div></section><section id="report" class="hidden journal-page"><span class="journal-eyebrow">✎ Explorer field notes</span><h2>Learning journal</h2><p class="nature-subtitle">Like the rings of a tree, each practice session shows a little more growth.</p><div id="reportContent" class="report-list"></div><div class="actions"><button id="reportBack" class="gray">← Home</button></div></section><section id="setup" class="hidden journal-page"><span class="journal-eyebrow">⚙ Field notebook settings</span><h2>Choose your explorers</h2><p class="nature-subtitle">Each learner follows a different trail. Choose the skills that fit.</p><div class="controls"><label class="field">Players <select id="playerCount"><option value="1">1 player</option><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option></select></label><label class="field">Questions per player <select id="rounds"><option value="5">5</option><option value="10" selected="">10</option><option value="15">15</option><option value="20">20</option></select></label><input id="source" type="hidden" value="fresh"></div>
