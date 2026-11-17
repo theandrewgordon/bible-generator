@@ -52,3 +52,15 @@ const nounChoices=choicesFor(subtypeBank[0],subtypeBank);
 assert.equal(nounChoices.length,4);assert.equal(nounChoices.filter(a=>matches(subtypeBank[0],a)).length,1);
 const genderBank=['masculine','feminine','neuter'].map((a,i)=>({...meaning,id:'g'+i+':nouns-gender',card:'g'+i,mode:'nouns',answers:[a]}));
 assert.deepEqual(choicesFor(genderBank[0],genderBank),[],'insufficient choices safely uses typed recall');
+
+const {filterPractice,reviewedCards}=require('../static/js/latin-quest-core.js');
+const filterBank=[{id:'n:meaning',card:'n',mode:'meaning',details:'Noun. first declension.',answers:['road']},{id:'n:reverse',card:'n',mode:'reverse',details:'',answers:['via']},{id:'n:nouns-gender',card:'n',mode:'nouns',details:'',answers:['feminine']},{id:'v:meaning',card:'v',mode:'meaning',details:'Verb. first conjugation.',answers:['carry']},{id:'v:reverse',card:'v',mode:'reverse',details:'',answers:['porto']},{id:'p:meaning',card:'p',mode:'meaning',details:'Pronoun.',answers:['I']}];
+assert.deepEqual(filterPractice(filterBank,{wordType:'noun'}).map(q=>q.id),['n:meaning','n:reverse','n:nouns-gender']);
+assert.deepEqual(filterPractice(filterBank,{wordType:'verb'}).map(q=>q.id),['v:meaning','v:reverse']);
+assert.equal(filterPractice(filterBank,{reviewedOnly:true}).length,0);
+assert.deepEqual(filterPractice(filterBank,{reviewedOnly:true,reviewed:['n']}).map(q=>q.card),['n','n','n']);
+assert.equal(filterPractice(filterBank,{wordType:'verb',reviewedOnly:true,reviewed:['n']}).length,0);
+assert.deepEqual([...reviewedCards(filterBank,{'v:reverse:flash':{attempts:1,correct:0}},['n','unknown'])].sort(),['n','v']);
+assert.equal(filterPractice(filterBank,{wordType:'verb',reviewedOnly:true},{'v:reverse:flash':{attempts:1}}).length,2);
+assert.equal(filterPractice(filterBank,{reviewedOnly:true},{'n:meaning':{attempts:10,correct:10}}).length,0,'quiz attempts alone do not unlock flashcard review');
+console.log('Word-type and reviewed-flashcard filters passed, including alternate directions, ungraded flips and earlier flashcard records.');

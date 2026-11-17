@@ -67,5 +67,9 @@ function lookupStudy(entries,text,contextCard=null){
  return [];
 }
 function isStudyQuestion(text){return /^(what|which|how|is|does|tell me|give me|define)\b/.test(normalize(text));}
-const api={normalize,matches,shuffled,buildQueue,resetProgress,choicesFor,record,lookupStudy,isStudyQuestion};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LatinQuestCore=api;
+// Vocabulary filters follow the word card across translation and form questions.
+function wordTypes(questions){const types=new Map();for(const q of questions){if(q.mode==='meaning'){const kind=String(q.details||'').match(/^(noun|verb|pronoun|conjunction)\b/i);if(kind)types.set(q.card,kind[1].toLowerCase())}}return types;}
+function reviewedCards(questions,stats={},seen=[]){const known=new Set(questions.map(q=>q.card)),reviewed=new Set(Array.from(seen).filter(id=>known.has(id)));for(const q of questions)if((stats[q.id+':flash']?.attempts||0)>0)reviewed.add(q.card);return reviewed;}
+function filterPractice(questions,{wordType='all',reviewedOnly=false,reviewed=[]}={},stats={}){const types=wordTypes(questions),seen=reviewedCards(questions,stats,reviewed);return questions.filter(q=>(wordType==='all'||types.get(q.card)===wordType)&&(!reviewedOnly||seen.has(q.card)));}
+const api={wordTypes,reviewedCards,filterPractice,normalize,matches,shuffled,buildQueue,resetProgress,choicesFor,record,lookupStudy,isStudyQuestion};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LatinQuestCore=api;
 })(typeof window!=='undefined'?window:globalThis);
