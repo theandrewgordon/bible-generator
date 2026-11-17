@@ -260,6 +260,18 @@ def math_fact_rally():
     return response
 
 
+@bp.get('/labs/grammar-grove')
+def grammar_grove():
+    """Original browser-based English grammar and diagramming game."""
+    game_file = Path(__file__).resolve().parents[2] / 'static' / 'labs' / 'grammar-grove.html'
+    response = send_file(game_file, mimetype='text/html')
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
 @bp.get('/labs/geo-detectives')
 def geo_detectives():
     """Standalone illustrated geography practice in Faith Sparks Labs."""
