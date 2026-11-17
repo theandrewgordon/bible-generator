@@ -71,5 +71,14 @@ function isStudyQuestion(text){return /^(what|which|how|is|does|tell me|give me|
 function wordTypes(questions){const types=new Map();for(const q of questions){if(q.mode==='meaning'){const kind=String(q.details||'').match(/^(noun|verb|pronoun|conjunction)\b/i);if(kind)types.set(q.card,kind[1].toLowerCase())}}return types;}
 function reviewedCards(questions,stats={},seen=[]){const known=new Set(questions.map(q=>q.card)),reviewed=new Set(Array.from(seen).filter(id=>known.has(id)));for(const q of questions)if((stats[q.id+':flash']?.attempts||0)>0)reviewed.add(q.card);return reviewed;}
 function filterPractice(questions,{wordType='all',reviewedOnly=false,reviewed=[]}={},stats={}){const types=wordTypes(questions),seen=reviewedCards(questions,stats,reviewed);return questions.filter(q=>(wordType==='all'||types.get(q.card)===wordType)&&(!reviewedOnly||seen.has(q.card)));}
-const api={wordTypes,reviewedCards,filterPractice,normalize,matches,shuffled,buildQueue,resetProgress,choicesFor,record,lookupStudy,isStudyQuestion};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LatinQuestCore=api;
+function restoreQuestSnapshot(value,questions){
+ if(!value||value.version!==1||!Array.isArray(value.ids)||!value.ids.length||value.ids.length>1000||new Set(value.ids).size!==value.ids.length)return null;
+ const known=new Set(questions.map(q=>q.id));if(value.ids.some(id=>!known.has(id)))return null;
+ if(!Number.isInteger(value.position)||value.position<0||value.position>=value.ids.length||typeof value.resolved!=='boolean')return null;
+ if(!Number.isInteger(value.completed)||value.completed!==value.position+(value.resolved?1:0))return null;
+ if(!Number.isInteger(value.score)||value.score<0||value.score>value.completed||!Number.isInteger(value.assisted)||value.assisted<0||value.score+value.assisted>value.completed)return null;
+ const settings=value.settings;if(!settings||!['recall','choice','flash'].includes(settings.response)||!['meaning','reverse','nouns','verbs','grammar','mixed'].includes(settings.mode)||!['coral','marin'].includes(settings.voice)||settings.pronunciation!=='classical')return null;
+ return {...value,helped:value.helped===true,flashSeen:value.flashSeen===true,flashBack:value.flashBack===true,draft:typeof value.draft==='string'?value.draft.slice(0,200):''};
+}
+const api={restoreQuestSnapshot,wordTypes,reviewedCards,filterPractice,normalize,matches,shuffled,buildQueue,resetProgress,choicesFor,record,lookupStudy,isStudyQuestion};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LatinQuestCore=api;
 })(typeof window!=='undefined'?window:globalThis);

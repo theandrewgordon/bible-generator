@@ -4,6 +4,10 @@ on:
     paths:
       - 'frontend/learning-labs/**'
       - 'static/js/labs-voice.js'
+      - 'static/js/labs-navigation.js'
+      - 'static/labs/learning-nav.css'
+      - 'static/labs/latin-quest-theme.css'
+      - 'tests/learning_navigation.cjs'
       - 'static/js/latin-quest*.js'
       - 'static/labs/grammar-grove.html'
       - 'faithsparks/services/lab_voice.py'
@@ -25,6 +29,7 @@ jobs:
       - run: npm ci --prefix frontend/learning-labs
       - run: npm test --prefix frontend/learning-labs
       - run: npm run build --prefix frontend/learning-labs
+      - run: node tests/learning_navigation.cjs
       - run: node tests/learning_labs_mixing.cjs
       - run: node tests/math_fact_adventure_levels.cjs
       - run: node tests/latin_quest_core.cjs

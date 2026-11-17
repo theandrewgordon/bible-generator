@@ -64,3 +64,9 @@ assert.deepEqual([...reviewedCards(filterBank,{'v:reverse:flash':{attempts:1,cor
 assert.equal(filterPractice(filterBank,{wordType:'verb',reviewedOnly:true},{'v:reverse:flash':{attempts:1}}).length,2);
 assert.equal(filterPractice(filterBank,{reviewedOnly:true},{'n:meaning':{attempts:10,correct:10}}).length,0,'quiz attempts alone do not unlock flashcard review');
 console.log('Word-type and reviewed-flashcard filters passed, including alternate directions, ungraded flips and earlier flashcard records.');
+
+const {restoreQuestSnapshot}=require('../static/js/latin-quest-core.js');
+const savedQuest={version:1,ids:['n:meaning','v:meaning'],position:1,completed:1,score:1,assisted:0,resolved:false,settings:{mode:'meaning',response:'recall',voice:'coral',pronunciation:'classical'}};
+assert(restoreQuestSnapshot(savedQuest,filterBank));
+for(const bad of [{...savedQuest,ids:['missing']},{...savedQuest,position:9},{...savedQuest,score:3},{...savedQuest,ids:['n:meaning','n:meaning']},{...savedQuest,completed:0},{...savedQuest,settings:{}}])assert.equal(restoreQuestSnapshot(bad,filterBank),null);
+console.log('Saved Latin rounds reject invalid question IDs, counters and settings.');

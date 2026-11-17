@@ -200,3 +200,15 @@
  .lq .lq-row button{flex:1 1 auto}
 }
 @media(prefers-reduced-motion:reduce){.lq button{transition:none}.lq button:not(:disabled):hover{transform:none}}
+
+/* Keep the ancient-world identity while bringing the practice controls into view. */
+.lq>header.lq-hero{min-height:0;padding:24px 32px}
+.lq .lq-hero-paper{padding:22px 38px}
+.lq>header.lq-hero h1{font-size:clamp(2.6rem,6vw,4.4rem);margin:.35rem 0 .6rem}
+.lq .lq-hero-ornament{margin-bottom:5px}
+.lq .lq-primary-options .lq-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.lq .lq-primary-options .lq-small{margin:.45rem 0;font-size:12px}
+.lq .lq-primary-options{border-bottom:1px solid #cdb68d;padding-bottom:14px;margin-bottom:6px}
+@media(max-width:620px){.lq>header.lq-hero{padding:16px}.lq .lq-hero-paper{padding:18px 20px}.lq .lq-primary-options .lq-grid{grid-template-columns:1fr}.lq>header.lq-hero h1{font-size:2.7rem}}
+
+.lq>header.lq-hero{padding:18px 24px}.lq .lq-hero-paper{padding:18px 32px}.lq .lq-hero-ornament{display:none}.lq>header .lq-tag{margin:0 0 .4rem}.lq>header.lq-hero h1{margin:.35rem 0 .5rem}.lq>header.lq-hero .lq-intro{font-size:15px;line-height:1.4;margin:.5rem auto 0}@media(max-width:620px){.lq>header.lq-hero{padding:16px}.lq .lq-hero-paper{padding:18px 20px}}
