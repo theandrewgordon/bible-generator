@@ -1,0 +1,11 @@
+/* The Grove carries its woodland palette through the learning controls. */
+.hero{background-image:linear-gradient(90deg,#f9ebc9e8,#f9ebc96b),url('/static/labs/grove-canopy.webp')}
+.hero:after{background:linear-gradient(0deg,#a8bc6e33,transparent)}
+.card{position:relative;background:linear-gradient(135deg,#fff9e5,#e1e8c6);border:2px solid #718453;border-radius:7px 27px 7px 27px;box-shadow:0 5px 0 #52704444;transition:transform .15s}
+.card:hover{transform:translateY(-4px)}
+.card>span{font-size:32px}
+#play{border:3px solid #9ca46e;background:repeating-linear-gradient(0deg,transparent 0 37px,#81955f0a 37px 38px),linear-gradient(145deg,#fffae9,#f3e8c4)}
+.tile,.slot{border-color:#789058;background:linear-gradient(135deg,#fffbe7,#dbe8bf);border-radius:6px 18px 6px 18px}
+.tile.selected{outline:3px solid #426b49;background:#cae6ac}
+#play-area input{display:block;width:100%;padding:13px;margin-top:9px;border:2px solid #9da777;border-radius:9px;background:#fffef1;color:#3c5039;font:21px Georgia}
+.labs-voice-status{display:block;font:12px/1.4 system-ui;color:#49644c;margin:4px}

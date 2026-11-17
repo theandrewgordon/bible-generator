@@ -4,9 +4,9 @@ const places=[
  {topic:'Water & coasts',icon:'≈',art:'art-beach',x:18,y:65,description:'Follow the water from quiet shores to the open sea.'},
  {topic:'Land & ice',icon:'△',art:'art-mountain',x:46,y:19,description:'Head for the heights, icy valleys and wide-open land.'},
  {topic:'Living landscapes',icon:'♧',art:'art-forest',x:74,y:39,description:'Step into green places and discover what grows there.'},
- {topic:'People & structures',icon:'⌂',art:'art-diagram-dam',x:79,y:76,description:'Explore the places and structures people build.'},
- {topic:'Maps & our planet',icon:'✥',art:'art-diagram-map',x:45,y:78,description:'Find your bearings and see our world in a new way.'},
- {topic:'Changing Earth',icon:'✦',art:'art-diagram-geyser',x:18,y:22,description:'Look for the forces that shape a changing planet.'}
+ {topic:'People & structures',icon:'⌂',art:'art-canal',x:79,y:76,description:'Explore the places and structures people build.'},
+ {topic:'Maps & our planet',icon:'✥',art:'art-altitude expedition-atlas',x:45,y:78,description:'Find your bearings and see our world in a new way.'},
+ {topic:'Changing Earth',icon:'✦',art:'art-volcano',x:18,y:22,description:'Look for the forces that shape a changing planet.'}
 ];
 export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,resume,pending,onReview,available}){
  const place=places.find(p=>p.topic===topic);
