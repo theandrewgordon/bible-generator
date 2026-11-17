@@ -46,3 +46,9 @@ assert.deepEqual(Object.keys(resetProgress(resetStats,[meaning],'meaning','choic
 const mastered=Object.fromEntries(qs.map(q=>[q.id,{attempts:5,correct:5,streak:5}]));
 assert.equal(buildQueue(qs,'meaning',20,{},false).length,20,'retest includes known cards');
 assert.equal(buildQueue(qs,'meaning',20,mastered,true).length,0,'review excludes mastered cards');
+
+const subtypeBank=['rosa','terra','silva','aqua','via'].map((a,i)=>({...meaning,id:'n'+i+':nouns-genitive',card:'n'+i,mode:'nouns',answers:[a]}));
+const nounChoices=choicesFor(subtypeBank[0],subtypeBank);
+assert.equal(nounChoices.length,4);assert.equal(nounChoices.filter(a=>matches(subtypeBank[0],a)).length,1);
+const genderBank=['masculine','feminine','neuter'].map((a,i)=>({...meaning,id:'g'+i+':nouns-gender',card:'g'+i,mode:'nouns',answers:[a]}));
+assert.deepEqual(choicesFor(genderBank[0],genderBank),[],'insufficient choices safely uses typed recall');

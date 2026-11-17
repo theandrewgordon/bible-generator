@@ -112,8 +112,7 @@ for q in QUESTIONS:
     CUES[f'{q["id"]}:details'] = f'{q["details"]} {q["prompt"]}'.strip()
     CUES[f'{q["id"]}:hint'] = q['hint']
     CUES[f'{q["id"]}:answer'] = f'The card answer is: {q["answer"]}.'
-    if q['mode'] in {'meaning', 'reverse'}:
-        CUES[f'option:{q["id"]}'] = q['answers'][0]
+    CUES[f'option:{q["id"]}'] = q['answers'][0]
 
 # Spoken study answers are fixed card facts, not model-generated tutoring.
 STUDY = []
@@ -153,6 +152,9 @@ for card_id, memory in MEMORY_LINKS.items():
 
 for question in QUESTIONS:
     if question['mode'] not in {'meaning', 'reverse'}:
+        question['flash_front'], question['flash_back'] = question['prompt'], question['answer']
+        CUES['flash:' + question['id'] + ':front'] = question['flash_front']
+        CUES['flash:' + question['id'] + ':back'] = question['flash_back']
         continue
     cid = question['card']
     meaning = next(q['answer'] for q in QUESTIONS if q['card'] == cid and q['mode'] == 'meaning')
@@ -168,10 +170,16 @@ OPTION_INSTRUCTIONS = {
 }
 
 def speech_instructions(cue, pronunciation):
-    extra = OPTION_INSTRUCTIONS.get(cue.rsplit(':', 1)[-1], '') if cue.startswith('option:') else ''
+    extra = ''
+    if cue.startswith('option:'):
+        question = QUESTION_MAP.get(cue[7:])
+        if question:
+            extra = OPTION_INSTRUCTIONS['reverse' if question.get('latin') else 'meaning']
     if cue.startswith('flash:'):
         _, card, mode, side = cue.split(':')
         english = (mode == 'meaning' and side == 'back') or (mode == 'reverse' and side == 'front')
+        if mode not in {'meaning', 'reverse'}:
+            english = side == 'front' or not QUESTION_MAP.get(f'{card}:{mode}', {}).get('latin')
         extra = OPTION_INSTRUCTIONS['meaning' if english else 'reverse']
     return INSTRUCTIONS[pronunciation] + (' ' + extra if extra else '')
 

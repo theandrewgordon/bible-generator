@@ -2,3 +2,16 @@ body{background:radial-gradient(ellipse at top right,#e1ebd3,transparent 60%),#f
 #home .home-options{text-align:left}#home .labs-quick{padding-top:0;text-align:center}#home .labs-quick h2{font-size:30px}.math-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0}.math-choices button{font:28px Georgia,serif;background:#f4f4e6;border:1px solid #a7baa0;border-radius:12px;min-height:64px;color:#294b43}.math-choices button:disabled{opacity:.6}.math-choices button:focus-visible{outline:3px solid #b28a3e;outline-offset:3px}#turn,#who,#adventureProgress{display:none}#game .question:has(#math:empty){display:none}.home-secondary{justify-content:flex-start}#homePlayers{margin-top:20px}
 main{--green:#34745e;--ink:#294b43;--paper:#fffcf5}#home .labs-quick,#math-summary .labs-summary{border:0;box-shadow:none;background:transparent;border-radius:0;padding-inline:0;margin:0}#math-summary .labs-summary{padding-top:12px;padding-bottom:12px}
 #math.story-question{font:500 clamp(24px,3.5vw,36px)/1.5 Georgia,serif!important;letter-spacing:0;max-width:820px;margin:auto;overflow-wrap:anywhere}#math.story-question~.small{margin-top:12px}
+
+/* Discovery journal: pressed leaf tabs and field-note answer cards. The masthead is unchanged. */
+.journal-page{border:2px solid #b7955b;box-shadow:0 7px 0 #b7955b22,0 12px 30px #355b3c18}
+.math-choices button{border:2px solid #67825a;border-radius:8px 22px 8px 22px;background:linear-gradient(135deg,#fffce9,#e1edca);box-shadow:0 4px 0 #66815955;font-family:Georgia,serif;transition:transform .15s}
+.math-choices button:hover:not(:disabled){transform:translateY(-3px)}
+.op-choice:has(input:checked){background:linear-gradient(135deg,#c5dbad,#f1edcc);outline:2px solid #6e895a}
+.question{background:repeating-linear-gradient(0deg,transparent 0 35px,#b99d5a10 35px 36px),linear-gradient(125deg,#fffbee,#f8edce);border:2px solid #bda56e;border-radius:20px;padding:24px 16px}
+#mathHintVoice,#mathAnswerVoice{font-size:14px;margin:8px}
+.question:has(#hint.hidden) #mathHintVoice{display:none}
+.question:has(#next.hidden) #mathAnswerVoice{display:none}
+#game:has(#next.hidden) #mathAnswerVoice{display:none}
+#mathVoice{font-size:15px;border-radius:24px;margin-bottom:10px}
+.labs-voice-status{display:block;font:12px/1.4 system-ui;color:#52684b;min-height:1em}

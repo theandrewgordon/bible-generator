@@ -40,7 +40,7 @@ function setup(response='recall',initialStats={},customQuestions=null,extraStora
  const saved=JSON.parse(b.storage['faithsparks.latinQuest.player.player-1.progress.v1']);assert(Object.keys(saved).every(id=>id.endsWith(':choice')));
  b.nodes['lq-next'].click();await tick();await tick();assert.equal(b.nodes['lq-round'].textContent,'Question 2 of 20');assert(b.nodes['lq-options'].children.every(n=>!n.children[0].disabled));
  b.nodes['lq-stop'].click();await tick();await tick();assert.match(b.nodes['lq-result-copy'].textContent,/tracked separately/);
- b.nodes['lq-again'].click();b.nodes['lq-mode'].value='grammar';b.nodes['lq-mode'].change();assert.equal(b.nodes['lq-response'].disabled,true);assert.equal(b.nodes['lq-response'].value,'recall');
+ b.nodes['lq-again'].click();b.nodes['lq-mode'].value='grammar';b.nodes['lq-mode'].change();assert.equal(b.nodes['lq-response'].disabled,false);assert.equal(b.nodes['lq-response'].value,'choice');
  const c=setup('recall',{'noun-0:meaning':{attempts:2,correct:2,streak:2},'noun-0:meaning:choice':{attempts:1,correct:1,streak:1},'verb-0:reverse':{attempts:3,correct:1,streak:0}});
  c.nodes['lq-reset-deck'].click();assert(JSON.parse(c.storage['faithsparks.latinQuest.player.player-1.progress.v1'])['noun-0:meaning']);c.nodes['lq-reset-cancel'].click();assert.equal(c.nodes['lq-reset-confirm'].hidden,true);c.nodes['lq-reset-deck'].click();c.nodes['lq-reset-accept'].click();let reset=JSON.parse(c.storage['faithsparks.latinQuest.player.player-1.progress.v1']);assert(!reset['noun-0:meaning']);assert(reset['noun-0:meaning:choice']);assert(reset['verb-0:reverse']);assert.equal(c.nodes['lq-undo-reset'].hidden,false);
  c.nodes['lq-undo-reset'].click();assert(JSON.parse(c.storage['faithsparks.latinQuest.player.player-1.progress.v1'])['noun-0:meaning']);
@@ -60,11 +60,11 @@ function setup(response='recall',initialStats={},customQuestions=null,extraStora
  const d=setup('choice');d.nodes['lq-start'].click();await tick();await tick();d.nodes['lq-reveal'].click();await tick();await tick();assert.equal(d.nodes['lq-options'].children.filter(n=>n.children[0].dataset.result==='correct').length,1,'reveals highlight the correct choice');
  if(process.env.LATIN_QUEST_BANK){
   const bank=JSON.parse(fs.readFileSync(process.env.LATIN_QUEST_BANK,'utf8'));
-  for(const mode of ['meaning','reverse','nouns','verbs','grammar','mixed'])for(const response of (['meaning','reverse'].includes(mode)?['recall','choice']:['recall'])){
+  for(const mode of ['meaning','reverse','nouns','verbs','grammar','mixed'])for(const response of ['recall','choice']){
    const run=setup(response,{},bank);run.nodes['lq-mode'].value=mode;run.nodes['lq-size'].value='191';run.nodes['lq-retest'].click();await tick();await tick();let answered=0;
    while(!run.nodes['lq-session'].hidden&&answered<192){
     const prompt=run.nodes['lq-question'].textContent,q=bank.find(q=>q.prompt===prompt&&(mode==='mixed'?q.mode!=='reverse':q.mode===mode));assert(q,'visible prompt must match an approved card');
-    if(response==='choice'){const row=run.nodes['lq-options'].children.find(row=>core.matches(q,row.children[0].value));assert(row);row.children[0].click();row.children[0].click();}
+    if(response==='choice'){const row=run.nodes['lq-options'].children.find(row=>core.matches(q,row.children[0].value));if(row){row.children[0].click();row.children[0].click();}else{run.nodes['lq-answer'].value=q.answers[0];run.nodes['lq-form'].submit({preventDefault(){}});}}
     else{run.nodes['lq-answer'].value=q.answers.at(-1);run.nodes['lq-form'].submit({preventDefault(){}});run.nodes['lq-form'].submit({preventDefault(){}});}
     await tick();await tick();assert.match(run.nodes['lq-feedback'].textContent,/Correct/);answered++;run.nodes['lq-next'].click();await tick();await tick();
    }
@@ -78,7 +78,7 @@ function setup(response='recall',initialStats={},customQuestions=null,extraStora
   }
   console.log('Every approved question variant passed:',bank.length);
  }
- const handlers={},deleted=[];vm.runInNewContext(fs.readFileSync('static/service-worker.js','utf8').replace('__STATIC_VERSION__','test-deploy'),{self:{addEventListener:(n,f)=>handlers[n]=f,clients:{claim(){}},skipWaiting(){}},caches:{keys:async()=>['faithsparks-old','faithsparks-test-deploy','faithsparks-latin-voice-v1','other-app'],delete:async name=>deleted.push(name)}});let activation;handlers.activate({waitUntil:p=>activation=p});await activation;assert.deepEqual(deleted,['faithsparks-old'],'deploy cleanup must preserve Latin audio');
+ const handlers={},deleted=[];vm.runInNewContext(fs.readFileSync('static/service-worker.js','utf8').replace('__STATIC_VERSION__','test-deploy'),{self:{addEventListener:(n,f)=>handlers[n]=f,clients:{claim(){}},skipWaiting(){}},caches:{keys:async()=>['faithsparks-old','faithsparks-test-deploy','faithsparks-latin-voice-v1','faithsparks-learning-voice-v1','other-app'],delete:async name=>deleted.push(name)}});let activation;handlers.activate({waitUntil:p=>activation=p});await activation;assert.deepEqual(deleted,['faithsparks-old'],'deploy cleanup must preserve all learning audio');
  const undo=setup();undo.nodes['lq-start'].click();await tick();undo.nodes['lq-answer'].value='earth';undo.nodes['lq-form'].submit({preventDefault(){}});await tick();undo.nodes['lq-next'].click();await tick();assert.equal(undo.nodes['lq-round'].textContent,'Question 2 of 20');undo.nodes['lq-undo-answer'].click();await tick();assert.equal(undo.nodes['lq-round'].textContent,'Question 1 of 20');assert.equal(Object.keys(JSON.parse(undo.storage['faithsparks.latinQuest.player.player-1.progress.v1'])).length,0);assert.equal(undo.nodes['lq-answer'].disabled,false);assert.equal(undo.nodes['lq-undo-answer'].disabled,true);
 console.log('Resume, reveal highlighting, reset confirmation/cancel/undo, quiet feedback, and deploy-safe audio caching passed.');
  console.log('Latin Quest voice: spoken study lookup, fixed-cue audio, repeat reuse, unknown words, denied mic fallback 20-question start, in-session follow-ups, and assisted scoring passed.');

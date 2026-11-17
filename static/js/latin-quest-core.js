@@ -30,9 +30,9 @@ function resetProgress(stats,questions,mode,response){
 }
 // Distractors come only from the independent vocabulary collection; never offer another accepted answer.
 function choicesFor(q,questions,random=Math.random){
- if(!['meaning','reverse'].includes(q.mode))return [];
+ if(!q.answers?.length)return [];
  const seen=new Set(q.answers.map(a=>answerText(a,q)));
- const pool=shuffled(questions.filter(other=>other.mode===q.mode&&other.card!==q.card),random)
+ const pool=shuffled(questions.filter(other=>other.mode===q.mode&&other.card!==q.card&&(!['nouns','verbs'].includes(q.mode)||other.id.split(':').at(-1)===q.id.split(':').at(-1))),random)
   .sort((a,b)=>Number(b.details.split('.')[0]===q.details.split('.')[0])-Number(a.details.split('.')[0]===q.details.split('.')[0]));
  const wrong=[];
  for(const other of pool){

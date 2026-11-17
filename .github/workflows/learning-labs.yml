@@ -1,0 +1,42 @@
+name: Learning Labs
+on:
+  pull_request:
+    paths:
+      - 'frontend/learning-labs/**'
+      - 'static/js/labs-voice.js'
+      - 'static/js/latin-quest*.js'
+      - 'static/labs/grammar-grove.html'
+      - 'faithsparks/services/lab_voice.py'
+      - 'tests/learning_labs*'
+      - 'tests/test_lab_voice.py'
+      - '.github/workflows/learning-labs.yml'
+      - 'Dockerfile'
+permissions:
+  contents: read
+jobs:
+  learning-labs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix frontend/learning-labs
+      - run: npm test --prefix frontend/learning-labs
+      - run: npm run build --prefix frontend/learning-labs
+      - run: node tests/learning_labs_mixing.cjs
+      - run: node tests/math_fact_adventure_levels.cjs
+      - run: node tests/latin_quest_core.cjs
+      - run: node tests/latin_quest_voice.cjs
+      - name: Install test browser
+        working-directory: frontend/learning-labs
+        run: npx playwright install --with-deps chromium
+      - run: node tests/learning_labs_browser.cjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: python -m compileall -q faithsparks
+      - run: python -m pytest -q tests/test_lab_voice.py tests/test_latin_quest.py

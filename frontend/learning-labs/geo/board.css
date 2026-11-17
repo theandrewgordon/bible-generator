@@ -297,3 +297,18 @@ body{background-attachment:scroll}.all-trails[aria-pressed=true]:hover:not(:disa
   }
   .atlas .guide-speech{padding:9px 10px}
 }
+
+/* Illustrated expedition postcards, readable controls, and a matching field-note entry. */
+.mission-picture .landscape{position:relative;background-size:cover;background-position:center;aspect-ratio:1.8}
+.expedition-atlas:after{content:'N';position:absolute;right:12px;bottom:12px;width:75px;height:75px;display:grid;place-items:center;background:#fff4d6e8 url('./art/shared-compass.svg') center/contain no-repeat;border:3px double #a57937;border-radius:50%;font-size:0;box-shadow:0 3px 8px #35493866}
+.mission-picture{border-radius:8px 24px 8px 24px}
+.map-stop-icon{background:radial-gradient(circle at 35% 25%,#fff9de,#e5c27a);box-shadow:inset 0 0 0 3px #fff4cb,0 4px 0 #78572b60}
+.map-stop.selected .map-stop-icon{background:radial-gradient(circle at 35% 25%,#4a8f9f,#1c5275)}
+.geo-typed{padding:20px;margin-top:20px;background:#fff8df;border:2px solid #bca269;border-radius:8px 20px 8px 20px}
+.geo-typed label{display:block;font:bold italic 23px Georgia;margin-bottom:12px}
+.geo-typed>div{display:flex;gap:10px;flex-wrap:wrap}
+.geo-typed input{flex:1;min-width:130px;border:2px solid #a68a57;border-radius:9px;padding:12px;font:21px Georgia;color:#234c64;background:#fffef4}
+.labs-read-aloud{margin:12px 0;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.atlas .labs-voice-button{border:2px solid #ae884d;background:linear-gradient(140deg,#fff9df,#edd7a5);color:#214f6c;border-radius:24px;min-height:44px;padding:9px 16px;box-shadow:0 3px 0 #97743d33;font:700 14px system-ui}
+.labs-voice-status{display:block;font:12px/1.4 system-ui;color:#486550}
+@media(max-width:650px){.mission-picture{display:block;max-width:270px;margin:0 auto 12px}.mission-picture .landscape{aspect-ratio:2.3}.expedition-atlas:after{width:50px;height:50px}.geo-typed{padding:14px}}

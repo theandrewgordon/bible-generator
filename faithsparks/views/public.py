@@ -1611,3 +1611,14 @@ def _get_game_of_week():
         return games[0] if games else None
     except Exception:
         return None
+
+# The standalone Labs share the same bounded, cached OpenAI narration service.
+@bp.get('/labs/voice/session')
+def learning_voice_session():
+    from faithsparks.services.lab_voice import voice_session
+    return voice_session()
+
+@bp.post('/labs/voice/tts')
+def learning_voice_tts():
+    from faithsparks.services.lab_voice import speak
+    return speak()
