@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 520" role="img" aria-label="Watercolor-inspired ancient Roman landscape with a stone arch, temple, aqueduct, laurel and scrolls">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#77afcd"/><stop offset=".48" stop-color="#c6d7d0"/><stop offset="1" stop-color="#f5dbb4"/></linearGradient>
+ <linearGradient id="stone" x2=".8" y2=".8"><stop stop-color="#f6e2bd"/><stop offset=".48" stop-color="#cba675"/><stop offset="1" stop-color="#8a6644"/></linearGradient>
+ <linearGradient id="earth" x2="0" y2="1"><stop stop-color="#a9a580"/><stop offset="1" stop-color="#6d7452"/></linearGradient>
+ <linearGradient id="archstone" x2="1" y2="1"><stop stop-color="#f8e4c0"/><stop offset=".55" stop-color="#b88e61"/><stop offset="1" stop-color="#80664c"/></linearGradient>
+ <linearGradient id="road" x2="0" y2="1"><stop stop-color="#d5b78a"/><stop offset="1" stop-color="#f8e6c6"/></linearGradient>
+ <filter id="wash"><feTurbulence type="fractalNoise" baseFrequency=".009 .014" numOctaves="3" seed="5" result="noise"/><feColorMatrix in="noise" type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".1"/></feComponentTransfer><feBlend in="SourceGraphic" mode="multiply"/></filter>
+ <filter id="soft"><feGaussianBlur stdDeviation="9"/></filter>
+ <g id="cypress"><path d="M0 0C-21 36-20 74-12 102L0 122 12 102C20 74 21 36 0 0Z" fill="#374b36"/><path d="M0 12C-7 45-5 80-2 111" fill="none" stroke="#7b8a61" stroke-width="4"/></g>
+ <g id="arch"><path d="M0 120V40Q0-10 52-10Q104-10 104 40V120H80V47Q80 14 52 14Q24 14 24 47V120Z" fill="#b68b5c" stroke="#8b6746" stroke-width="3"/><path d="M4 43H99M4 64H24M80 64H101" stroke="#f6dbad" stroke-width="5"/></g>
+ <g id="leaf"><path d="M0 0C20-12 28-24 27-38C7-38-1-22 0 0Z" fill="#6a7147" stroke="#48583b" stroke-width="2"/></g>
+</defs>
+<g filter="url(#wash)">
+ <path fill="url(#sky)" d="M0 0H1600V520H0Z"/>
+ <g fill="#f8efe0" opacity=".74"><ellipse cx="310" cy="90" rx="230" ry="42"/><ellipse cx="1085" cy="111" rx="175" ry="31"/><ellipse cx="1255" cy="74" rx="205" ry="40"/><ellipse cx="740" cy="64" rx="110" ry="21"/></g>
+ <path d="M0 280L90 236 188 276 310 205 428 254 555 221 672 275 792 226 928 265 1076 205 1170 249 1278 200 1400 258 1505 203 1600 240V520H0Z" fill="#93a6a0" opacity=".6"/>
+ <path d="M0 324C210 251 327 350 526 300S956 288 1130 302 1425 260 1600 317V520H0Z" fill="#9eab82"/>
+ <path d="M0 372C193 292 360 402 584 343S968 367 1166 333 1447 332 1600 352V520H0Z" fill="url(#earth)"/>
+ <path d="M0 437C205 355 387 472 590 409 860 335 1002 423 1214 380S1430 385 1600 403V520H0Z" fill="#68734e"/>
+ <g opacity=".83" transform="translate(935 240) scale(.84)"><rect x="-10" y="-10" width="590" height="28" fill="#ccae80"/><use href="#arch" x="4" y="0"/><use href="#arch" x="114" y="0"/><use href="#arch" x="224" y="0"/><use href="#arch" x="334" y="0"/><use href="#arch" x="444" y="0"/><path d="M-15 9H573" stroke="#e9d2a7" stroke-width="9"/></g>
+ <g transform="translate(1300 162)" fill="#e9d9b6" stroke="#8e7858" stroke-width="5"><path d="M0 38 107-14 214 38Z"/><rect x="20" y="42" width="174" height="9"/><rect x="35" y="57" width="25" height="91"/><rect x="94" y="57" width="25" height="91"/><rect x="153" y="57" width="25" height="91"/><rect x="22" y="147" width="175" height="13"/><rect x="8" y="160" width="201" height="13"/></g>
+ <path d="M1240 520C1305 457 1381 440 1506 401L1600 381V520Z" fill="url(#road)" stroke="#bc9764" stroke-width="4"/>
+ <path d="M1278 518 1443 446M1340 520 1504 435M1438 518 1570 418" stroke="#b49a74" stroke-width="4" opacity=".7"/>
+ <g><use href="#cypress" transform="translate(1080 301) scale(.54)"/><use href="#cypress" transform="translate(1160 289) scale(.75)"/><use href="#cypress" transform="translate(1374 316) scale(.8)"/><use href="#cypress" transform="translate(1480 294) scale(.68)"/></g>
+ <g transform="translate(-50 -35)" stroke="#957b58" stroke-width="7"><rect x="39" y="0" width="125" height="480" rx="6" fill="url(#stone)"/><rect x="24" y="14" width="155" height="35" fill="#e8cda6"/><rect x="17" y="62" width="162" height="25" fill="#eddbbb"/><path d="M64 94V440M88 94V440M119 94V440M144 94V440" stroke="#ab8a60" stroke-width="10" opacity=".6"/><rect x="23" y="430" width="154" height="34" fill="#e6c9a0"/></g>
+ <g transform="translate(1420 -20)" stroke="#96754f" stroke-width="8" fill="url(#archstone)"><rect x="112" y="0" width="82" height="520"/><path d="M-60 0H240V110H180Q102 18 0 110H-60Z"/><path d="M-55 22H155M150 24L100 69" fill="none" stroke="#efd6aa" stroke-width="15"/></g>
+ <g fill="#364b33" opacity=".94"><path d="M0 7C54 63 97 37 149 63 94 70 51 103 0 61Z"/><path d="M1470 0C1514 80 1579 28 1600 99V0Z"/></g>
+ <g transform="translate(79 398)" stroke-linejoin="round"><path d="M19 60Q-2 25 20 12 43 0 68 7 94 20 82 58L63 93H27Z" fill="#a45d35" stroke="#6d472d" stroke-width="6"/><path d="M20 19Q56-4 82 20" fill="none" stroke="#edb976" stroke-width="8"/><path d="M30 53Q53 29 78 53" fill="none" stroke="#dfb57b" stroke-width="6"/></g>
+ <g transform="translate(50 50) rotate(-10)" stroke="#647248" stroke-width="5" fill="none"><path d="M0 0C82 47 114 97 138 165"/><use href="#leaf" transform="translate(36 24) rotate(7)"/><use href="#leaf" transform="translate(66 53) rotate(-35)"/><use href="#leaf" transform="translate(86 82) rotate(9)"/><use href="#leaf" transform="translate(117 122) rotate(-35)"/></g>
+ <g transform="translate(1550 12) scale(-1 1)" stroke="#647248" stroke-width="5" fill="none"><path d="M0 0C82 47 114 97 138 165"/><use href="#leaf" transform="translate(36 24) rotate(7)"/><use href="#leaf" transform="translate(66 53) rotate(-35)"/><use href="#leaf" transform="translate(86 82) rotate(9)"/><use href="#leaf" transform="translate(117 122) rotate(-35)"/></g>
+ <g transform="translate(115 454)" fill="#f4deac" stroke="#9d7347" stroke-width="4"><path d="M0 26Q55 4 126 21V44Q62 29 0 52Z"/><circle cx="0" cy="38" r="22"/><circle cx="126" cy="32" r="21"/></g>
+ <path d="M0 492C290 460 434 480 600 490S1136 465 1600 489V520H0Z" fill="#6a5c42" opacity=".45"/>
+</g>
+</svg>
