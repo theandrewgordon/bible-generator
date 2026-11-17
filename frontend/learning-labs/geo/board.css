@@ -116,3 +116,100 @@ body{background-attachment:scroll}.all-trails[aria-pressed=true]:hover:not(:disa
   .atlas-fox{width:88px;height:145px}
   .atlas-hero h1{font-size:26px}
 }
+
+
+/* November 17: aligned learning surfaces and an unobstructed fox field guide. */
+.atlas, .atlas * { box-sizing:border-box; }
+.atlas .case-card,
+.atlas .clues,
+.atlas .mystery-scene,
+.atlas .mission-card,
+.atlas .discovery-map,
+.atlas .expedition-home > .labs-options,
+.atlas .expedition-home > .labs-summary,
+.atlas .expedition-home > .geo-help {
+  transform:none!important;
+}
+.atlas .case-card,
+.atlas .clues,
+.atlas .mission-card,
+.atlas .discovery-map,
+.atlas .expedition-home > .labs-options,
+.atlas .expedition-home > .labs-summary {
+  min-width:0;
+}
+.atlas .case-meta,
+.atlas .trail-caption,
+.atlas .expedition-setup,
+.atlas .expedition-status {
+  flex-wrap:wrap;
+  align-items:center;
+}
+.atlas .case-meta > span,
+.atlas .trail-caption > * { min-width:0; }
+.atlas .mission-tabs { align-items:stretch; }
+.atlas .mission-tabs button { min-width:0; text-align:center; }
+.atlas .comparison { align-items:start; }
+.atlas .comparison figure {
+  transform:none!important;
+  min-width:0;
+  margin-block:0;
+  text-align:center;
+}
+.atlas .comparison figcaption { text-align:center; overflow-wrap:anywhere; }
+.atlas .mystery-board .quest-content { align-items:start; }
+.atlas .mystery-board .clues,
+.atlas .mystery-board .mystery-scene { transform:none!important; }
+.atlas .mystery-board .clues h2,
+.atlas .compare-title { text-align:center; text-wrap:balance; }
+.atlas .fox-guide {
+  display:grid;
+  grid-template-columns: minmax(74px,104px) minmax(0,1fr);
+  align-items:center;
+  gap:14px;
+  min-height:136px;
+  margin-top:16px;
+  isolation:isolate;
+}
+.atlas .guide-portrait {
+  width:100%;
+  height:132px;
+  min-width:0;
+  flex:none;
+  background-size:contain;
+  background-repeat:no-repeat;
+  background-position:center bottom;
+  border-radius:0;
+  mask-image:none;
+  position:relative;
+  z-index:0;
+}
+.atlas .guide-speech {
+  min-width:0;
+  max-width:100%;
+  width:100%;
+  position:relative;
+  z-index:1;
+  overflow-wrap:break-word;
+  padding:14px 16px;
+  margin:0;
+  transform:none!important;
+}
+.atlas .guide-speech > small { display:block; line-height:1.35; }
+.atlas .guide-speech p { margin:7px 0; }
+@media(max-width:900px){
+  .atlas .fox-guide { grid-template-columns:74px minmax(0,1fr); gap:10px; }
+  .atlas .guide-portrait { height:112px; }
+}
+@media(max-width:650px){
+  .atlas .fox-guide { grid-template-columns:74px minmax(0,1fr); gap:10px; min-height:110px; margin-top:12px; }
+  .atlas .guide-portrait { height:106px; }
+  .atlas .guide-speech { padding:11px 12px; }
+  .atlas .case-meta { align-items:flex-start; }
+  .atlas .comparison { gap:12px; }
+}
+@media(max-width:370px){
+  .atlas .fox-guide { grid-template-columns:62px minmax(0,1fr); gap:8px; }
+  .atlas .guide-portrait { height:94px; }
+  .atlas .guide-speech { padding:9px 10px; }
+}
