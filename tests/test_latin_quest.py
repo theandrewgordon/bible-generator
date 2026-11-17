@@ -162,7 +162,7 @@ def test_full_approved_decks_follow_student_flow(tmp_path):
     env = {**os.environ, 'LATIN_QUEST_BANK': str(bank)}
     result = subprocess.run([node, 'tests/latin_quest_voice.cjs'], cwd=Path(__file__).resolve().parents[1], env=env, capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert result.stdout.count('Full approved-deck playthrough:') == 8
+    assert result.stdout.count('Full approved-deck playthrough:') == 12
 
 
 def test_page_uses_content_versioned_scripts():
