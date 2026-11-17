@@ -63,6 +63,6 @@ document.querySelectorAll('[data-start]').forEach(function(b){b.onclick=function
 </script><script type="module">
 import * as voice from '/static/js/labs-voice.js';
 window.LabsVoice=voice;
-voice.attachVoice(document.getElementById('grammar-read'),'grammar',()=>['challenge-title','instruction','sentence'].map(id=>document.getElementById(id).textContent).join('. '));
+voice.attachVoice(document.getElementById('grammar-read'),'grammar',()=>['challenge-title','instruction','sentence'].map(id=>document.getElementById(id).textContent).join('. ')+([...document.querySelectorAll('#options [data-choice]')].length?'. Choices: '+[...document.querySelectorAll('#options [data-choice]')].map(n=>n.textContent).join(', '):''));
 voice.attachVoice(document.getElementById('grammar-read-feedback'),'grammar',()=>document.getElementById('feedback').textContent);
 </script></body></html>

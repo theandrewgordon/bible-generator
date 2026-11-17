@@ -3,6 +3,77 @@ body{background:radial-gradient(ellipse at top right,#e1ebd3,transparent 60%),#f
 main{--green:#34745e;--ink:#294b43;--paper:#fffcf5}#home .labs-quick,#math-summary .labs-summary{border:0;box-shadow:none;background:transparent;border-radius:0;padding-inline:0;margin:0}#math-summary .labs-summary{padding-top:12px;padding-bottom:12px}
 #math.story-question{font:500 clamp(24px,3.5vw,36px)/1.5 Georgia,serif!important;letter-spacing:0;max-width:820px;margin:auto;overflow-wrap:anywhere}#math.story-question~.small{margin-top:12px}
 
+/* Discovery Journal — nature notebook extension, masthead unchanged */
+body{background:radial-gradient(ellipse at 5% 25%,#d3e5cb,transparent 44%),radial-gradient(ellipse at 95% 75%,#f0deb6,transparent 38%),#f7f2e5}
+.journal-page{background:linear-gradient(#fffcf4e8,#faf7eaea),repeating-linear-gradient(0deg,transparent 0 32px,#93b09020 33px 34px);border:1px solid #b8c9a6!important;border-top:5px solid #c9a765!important;box-shadow:0 5px 0 #ddd8bd,0 14px 30px #45624a1b!important}
+.journal-page h2{font-family:Georgia,serif!important;color:#365f51!important;letter-spacing:-.02em}
+#home .home-players>div,.person,.report-item,.completion-card{background:linear-gradient(150deg,#f7f8ef,#fff7e5)!important;border:1px solid #c4d2b9!important;box-shadow:0 3px #e1dfc5}
+#home .home-players>div{border-left:5px solid #8caf8d!important}
+.person{border-top:4px solid #b5c5a1!important}.person:nth-child(even){border-top-color:#d5b27a!important}
+#game .question{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(165deg,#fffefa,#f1f3e3)!important;border:1px solid #b2c6a7!important;box-shadow:inset 0 0 0 6px #ffffff9e,0 4px #d9d8be!important}
+#game .question:before{content:"✎ FIELD NOTE · NUMBER DISCOVERY";display:block;color:#83977a;font-size:.64rem;font-weight:800;letter-spacing:.17em;margin:0 0 8px}
+#game .math{color:#2b6259!important;position:relative;z-index:1}
+.nature-ornament{position:absolute;right:8px;bottom:2px;width:82px;height:130px;opacity:.24;z-index:-1;pointer-events:none}.nature-fern{width:100%;height:100%}
+.score{background:linear-gradient(#f3f6e9,#e9efdd)!important;border-color:#acbe9f!important}
+.score.active{background:linear-gradient(#fff1d0,#f5e8bd)!important;border-color:#c09c5d!important}
+#hint{background:#edf4e6!important;border-left:4px solid #88a98a!important}
+#report .report-item{border-left:5px solid #88a98a!important}
+.pill{background:#f5e8c6;border:1px solid #dfc78f}
+.nature-subtitle{font-family:Georgia,serif;font-size:.93rem;font-style:italic;color:#718573;line-height:1.5;margin:0 0 16px}
+.nature-gallery{position:relative;max-width:790px;margin:22px auto 2px;padding:15px 12px;background:linear-gradient(145deg,#fff9e9,#f5f3e3);border:1px solid #d7c8a7;border-radius:14px;box-shadow:inset 0 0 0 3px #ffffff91;text-align:center}
+.nature-heading{font-size:.7rem;letter-spacing:.15em;font-weight:850;color:#708565}
+.nature-heading span{display:block;margin:4px 0 12px;font-family:Georgia,serif;font-style:italic;font-size:.94rem;font-weight:400;letter-spacing:0;color:#5c7a6a}
+.nature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.nature-grid article{min-width:0;background:linear-gradient(#fffcf4,#f0efd9);border:1px solid #d6d2b7;border-radius:11px;padding:9px;box-shadow:0 2px #d8d3b9}
+.nature-grid article:nth-child(2){background:linear-gradient(#f8faef,#e7efde)}
+.nature-grid svg{display:block;width:100%;height:93px;margin:0 auto 5px;filter:drop-shadow(0 4px 3px #3e655323)}
+.nature-grid small{font-size:.6rem;letter-spacing:.13em;color:#917b55;display:block;font-weight:800}
+.nature-grid strong{display:block;color:#476f56;font:600 clamp(.83rem,1.6vw,1rem)/1.25 Georgia,serif;margin:5px 0}
+.nature-grid p{font-size:.74rem;color:#617565;line-height:1.35;margin:0}
+@media(max-width:600px){.nature-grid svg{height:68px}.nature-grid{gap:5px}.nature-grid article{padding:7px 4px}.nature-grid small{font-size:.53rem}.nature-grid p{font-size:.66rem}}
+@media(max-width:420px){.nature-grid{grid-template-columns:1fr}.nature-grid article{display:flex;text-align:left;align-items:center;gap:12px;padding:9px 12px}.nature-grid svg{width:76px;min-width:76px;height:56px;margin:0}.nature-grid strong{font-size:.91rem}.nature-grid p{font-size:.73rem}.nature-ornament{width:58px;height:92px}}
+@media(prefers-reduced-motion:reduce){.nature-grid svg{filter:none}}
+
+/* Discovery Journal watercolor buttons: styles only; no event handlers or behavior changes */
+main button{
+ font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,sans-serif!important;
+ font-weight:800!important;letter-spacing:.01em;border-radius:12px!important;
+ background:linear-gradient(160deg,#fffdf2,#e9eddc)!important;color:#365c4e!important;
+ border:1px solid #91a58a!important;border-bottom:3px solid #728a70!important;
+ box-shadow:inset 0 1px #ffffffd9,0 2px 4px #52684a22!important;
+ text-shadow:none!important;touch-action:manipulation;
+ transition:transform .15s ease,filter .15s ease,box-shadow .15s ease
+}
+main button.green,#quickFive.main-cta,#math-quick button,#correct,#start,#next,#checkTyped{
+ background:linear-gradient(155deg,#4f9379,#2c6b51)!important;color:#fffdf3!important;
+ border-color:#316c56!important;border-bottom-color:#20513e!important;
+ text-shadow:0 1px #245240!important
+}
+main button.yellow,#reveal{
+ background:linear-gradient(155deg,#f9e9b1,#e5bd69)!important;color:#4b3c24!important;
+ border-color:#bd9a57!important;border-bottom-color:#987844!important
+}
+main button.orange,#incorrect,#clearProgress{
+ background:linear-gradient(155deg,#bd7e65,#985541)!important;color:#fffdf4!important;
+ border-color:#915b45!important;border-bottom-color:#723e30!important
+}
+main button.gray,#hintBtn,#assisted,#undo,#restart,#homePlay,#homeEdit,#homeReport,#reportBack{
+ background:linear-gradient(155deg,#75988a,#4c7268)!important;color:#fffdf3!important;
+ border-color:#4b7064!important;border-bottom-color:#34564c!important
+}
+#mathChoices button{
+ background:linear-gradient(165deg,#fffdf5,#ebeedc)!important;color:#365d51!important;
+ border-color:#9eb496!important;border-bottom-color:#829d7f!important;
+ font-family:Georgia,serif!important;font-size:clamp(1.2rem,3vw,1.75rem)!important;
+ font-variant-numeric:tabular-nums
+}
+main button:hover:not(:disabled){filter:brightness(1.05);transform:translateY(-1px)}
+main button:active:not(:disabled){filter:brightness(.97);transform:translateY(1px);box-shadow:inset 0 2px 5px #36524140!important}
+main button:focus-visible{outline:3px solid #aa783d!important;outline-offset:3px!important}
+main button:disabled{opacity:.55!important;filter:saturate(.55);cursor:default}
+@media(prefers-reduced-motion:reduce){main button{transition:none!important}main button:hover:not(:disabled),main button:active:not(:disabled){transform:none!important}}
+
+
 /* Discovery journal: pressed leaf tabs and field-note answer cards. The masthead is unchanged. */
 .journal-page{border:2px solid #b7955b;box-shadow:0 7px 0 #b7955b22,0 12px 30px #355b3c18}
 .math-choices button{border:2px solid #67825a;border-radius:8px 22px 8px 22px;background:linear-gradient(135deg,#fffce9,#e1edca);box-shadow:0 4px 0 #66815955;font-family:Georgia,serif;transition:transform .15s}
