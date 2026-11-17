@@ -5,9 +5,9 @@
       "level": "easy",
       "answer": "bay",
       "clues": [
-        "I am an indentation in a coastline filled with sea or lake water.",
-        "Land curves around my water, leaving an opening to the larger waterbody.",
-        "San Francisco has a famous example of this coastal water feature."
+        "The edge of the land curves inward around my water.",
+        "I open out into a larger lake, sea, or ocean.",
+        "San Francisco has a famous example of me."
       ],
       "choices": [
         "glacier",
@@ -25,9 +25,9 @@
       "level": "easy",
       "answer": "beach",
       "clues": [
-        "I am a strip of loose sand, pebbles, or shells beside water.",
-        "Waves and currents move the loose material along my edge.",
-        "Look for a gently sloping place where land meets a lake or sea, not a sheltered water basin."
+        "I am a stretch of sand, shells, or small stones beside water.",
+        "Waves can move my sand or stones along the shore.",
+        "People often walk or play where my gently sloping land meets the water."
       ],
       "choices": [
         "lagoon",
@@ -45,9 +45,9 @@
       "level": "easy",
       "answer": "brook",
       "clues": [
-        "My everyday name often describes a small stream.",
-        "The word is common for a modest watercourse running between banks.",
-        "Creek and stream overlap with my meaning, so size alone cannot uniquely distinguish us."
+        "I am a natural stream that is often small.",
+        "I may bubble over stones as I flow between banks.",
+        "People may also call me a creek or stream; these names can mean much the same thing."
       ],
       "choices": [
         "dam",
@@ -58,7 +58,7 @@
       "example": "A little brook bubbles over pebbles.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Creek and stream overlap with my meaning, so size alone cannot uniquely distinguish us.",
+      "note": "Brook, creek, and stream are overlapping names. The same waterway may have more than one name.",
       "topic": "Water & coasts"
     },
     {
@@ -66,9 +66,9 @@
       "level": "easy",
       "answer": "cape",
       "clues": [
-        "I am a projecting point of land at a coast.",
-        "My point extends into a sea, ocean, or lake.",
-        "Headland overlaps with my meaning; there is no universal separation between the names."
+        "I am a piece of coastal land that sticks out into the water.",
+        "I can point into a lake, sea, or ocean.",
+        "Cape Cod is a famous example. People may also call this kind of land a headland."
       ],
       "choices": [
         "cape",
@@ -79,7 +79,7 @@
       "example": "Cape Cod reaches out into the Atlantic Ocean.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Headland overlaps with my meaning; there is no universal separation between the names.",
+      "note": "Cape and headland can describe the same piece of coastal land.",
       "topic": "Water & coasts"
     },
     {
@@ -87,9 +87,9 @@
       "level": "easy",
       "answer": "coast",
       "clues": [
-        "I am the zone where land borders an ocean or sea.",
-        "Beaches, cliffs, and estuaries can all occur along me.",
-        "Shore is a broader overlapping word; my name usually points specifically to the sea."
+        "I am the area where land meets an ocean or sea.",
+        "I may have beaches, cliffs, or places where rivers meet the sea.",
+        "I am much like a shore, but my name usually means land beside the sea."
       ],
       "choices": [
         "glacier",
@@ -108,9 +108,9 @@
       "level": "easy",
       "answer": "cove",
       "clues": [
-        "I am a relatively small, sheltered coastal indentation or bay.",
-        "Land or headlands can protect my water from some open-water waves.",
-        "My name is often used for a sheltered inlet, not an island."
+        "I am a small area of water tucked into the coast.",
+        "Nearby land can shelter my water from large waves.",
+        "I am a small, protected bay, not a piece of land surrounded by water."
       ],
       "choices": [
         "glacier",
@@ -128,9 +128,9 @@
       "level": "easy",
       "answer": "creek",
       "clues": [
-        "My everyday name often describes a relatively small natural watercourse.",
-        "People in different regions use my name differently.",
-        "Stream and brook may be equally reasonable names for the same flowing water."
+        "I am a natural flow of water, often smaller than a river.",
+        "I wind through land between two banks.",
+        "Some people would also call me a brook or stream. The names overlap."
       ],
       "choices": [
         "whirlpool",
@@ -141,16 +141,17 @@
       "example": "A creek winds past trees and rocks.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "note": "Creek, brook, and stream are overlapping names. There is no worldwide size cutoff."
     },
     {
       "id": "g32",
       "level": "easy",
       "answer": "current",
       "clues": [
-        "I am water moving in a particular direction.",
-        "I can transport floating objects through a river or ocean.",
-        "I describe water's directed flow, not a floating piece of ice or an apparent skyline."
+        "I am water moving in a steady direction.",
+        "I can carry a floating leaf or boat along.",
+        "I can flow in rivers, lakes, and oceans."
       ],
       "choices": [
         "horizon",
@@ -168,9 +169,9 @@
       "level": "easy",
       "answer": "delta",
       "clues": [
-        "I am a deposit of river-carried sediment near some river mouths.",
-        "Sediment builds up where flowing water slows enough to leave material behind.",
-        "Not every river mouth forms me, and I need not be a perfect triangle."
+        "I can grow where a river meets a lake or sea.",
+        "When the river slows, it may drop sand and mud that build up over time.",
+        "Not every river makes me, and I do not always look like a triangle."
       ],
       "choices": [
         "delta",
@@ -188,9 +189,9 @@
       "level": "easy",
       "answer": "downstream",
       "clues": [
-        "I describe travel in the direction a watercourse flows.",
-        "I point toward its mouth rather than its headwaters.",
-        "I am a direction, not the place where the river begins."
+        "I am the direction the water in a river is flowing.",
+        "A leaf floating with the river moves my way.",
+        "I lead toward where the river ends, not toward where it begins."
       ],
       "choices": [
         "downstream",
@@ -208,9 +209,9 @@
       "level": "easy",
       "answer": "gulf",
       "clues": [
-        "The Gulf of Mexico bears my conventional waterbody name.",
-        "I am an arm of the sea partly enclosed by land.",
-        "Bay and gulf overlap; there is no universal size rule that distinguishes them."
+        "I am part of a sea or ocean with land around some of my sides.",
+        "The Gulf of Mexico is an example.",
+        "My name is similar to bay. There is no exact size rule separating bays and gulfs."
       ],
       "choices": [
         "island",
@@ -229,9 +230,9 @@
       "level": "easy",
       "answer": "harbor",
       "clues": [
-        "I am a sheltered water area where vessels can anchor or find refuge.",
-        "I may be naturally sheltered or protected by built structures.",
-        "A pier or wharf can stand within me, but is not the water area itself."
+        "I am a sheltered place in the water where boats can stay.",
+        "Land or built walls may protect boats from rough waves.",
+        "A pier might be built inside me, but I am the protected water area."
       ],
       "choices": [
         "harbor",
@@ -249,9 +250,9 @@
       "level": "easy",
       "answer": "island",
       "clues": [
-        "Water surrounds this separate piece of land on every side.",
-        "Unlike a peninsula, I have no above-water connection to a larger landmass.",
-        "Madagascar is a large example."
+        "I am land with water on every side.",
+        "You cannot walk to a larger piece of land without crossing water.",
+        "Madagascar and the islands of Hawaii are examples."
       ],
       "choices": [
         "lagoon",
@@ -269,9 +270,9 @@
       "level": "easy",
       "answer": "isthmus",
       "clues": [
-        "I am a narrow strip of land connecting two larger land areas.",
-        "Water lies on two sides of my land connection.",
-        "Panama is a famous example; I am land rather than a water passage."
+        "I am a narrow strip of land joining two larger areas of land.",
+        "There is water on each side of my narrow strip.",
+        "Panama has a famous example. I am land, not a narrow water passage."
       ],
       "choices": [
         "strait",
@@ -282,16 +283,17 @@
       "example": "The Isthmus of Panama links two larger land areas.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "note": "An isthmus is land between bodies of water. A strait is water between areas of land."
     },
     {
       "id": "g4",
       "level": "easy",
       "answer": "lake",
       "clues": [
-        "Lake Superior and Lake Victoria belong to my category of inland waterbodies.",
-        "Land encloses my water, apart from any inlets and outlets.",
-        "My name is commonly used for larger inland waterbodies; the boundary with ponds is not universal."
+        "I am a body of water surrounded by land.",
+        "Rivers and streams may flow into or out of me.",
+        "I am often bigger than what people call a pond, but there is no worldwide size rule."
       ],
       "choices": [
         "volcano",
@@ -310,9 +312,9 @@
       "level": "easy",
       "answer": "ocean",
       "clues": [
-        "I am one of Earth's vast, connected bodies of salt water.",
-        "The Pacific is the largest named example of my category.",
-        "Together my connected waters cover most of Earth's surface."
+        "I am part of Earth's huge connected body of salty water.",
+        "The Pacific is the largest one with my name.",
+        "Together, my waters cover most of our planet."
       ],
       "choices": [
         "ocean",
@@ -330,8 +332,8 @@
       "level": "easy",
       "answer": "peninsula",
       "clues": [
-        "I am a projection of land with water on most sides and a land connection remaining.",
-        "Unlike an island, I am attached to a larger land area.",
+        "Water is on most sides of me, but I am still joined to other land.",
+        "Unlike an island, you can reach me by staying on land.",
         "Florida is a familiar example of my shape."
       ],
       "choices": [
@@ -350,9 +352,9 @@
       "level": "easy",
       "answer": "pond",
       "clues": [
-        "In everyday language, I am a relatively small, often shallow pool of still inland water.",
-        "A small garden waterbody with ducks or water lilies is often given my name.",
-        "My name overlaps with lake; there is no universal size rule separating us."
+        "I am a body of still water surrounded by land.",
+        "I am often small or shallow, with ducks or water plants.",
+        "People sometimes call a similar place a lake. There is no exact size rule."
       ],
       "choices": [
         "strait",
@@ -371,9 +373,9 @@
       "level": "easy",
       "answer": "rapids",
       "clues": [
-        "I am a turbulent, fast-flowing stretch of a river or stream.",
-        "Rocks, channel shape, and a steep gradient can create my rough water.",
-        "I describe a rough reach of water, rather than one distinct waterfall drop."
+        "I am a stretch of river where the water rushes and tumbles.",
+        "Rocks or a steep riverbed can make my water rough.",
+        "Unlike a waterfall, I do not need one clear drop over an edge."
       ],
       "choices": [
         "rapids",
@@ -391,9 +393,9 @@
       "level": "easy",
       "answer": "reef",
       "clues": [
-        "I am a ridge or raised feature of rock, coral, or other material in water.",
-        "My top lies at or near the surface in many examples.",
-        "Coral-built examples provide habitat, but not all reefs are coral reefs."
+        "I am a raised strip or mound beneath or near the water's surface.",
+        "I can be made of rock, coral, or other material.",
+        "Coral reefs are home to many sea creatures, but not every one of me is made of coral."
       ],
       "choices": [
         "reef",
@@ -411,9 +413,9 @@
       "level": "easy",
       "answer": "river",
       "clues": [
-        "I am a natural channel carrying flowing water across land.",
-        "The Amazon and Nile are named examples of my category.",
-        "I carry water toward another river, a lake, or the sea; I am not the direction of travel."
+        "I am a natural flow of water traveling through a channel.",
+        "The Nile and Amazon are famous examples.",
+        "I may flow into another river, a lake, or the sea."
       ],
       "choices": [
         "river",
@@ -431,9 +433,9 @@
       "level": "easy",
       "answer": "river mouth",
       "clues": [
-        "I name the place where a river enters another waterbody.",
-        "A river may enter a lake, another river, or the sea here.",
-        "A delta may form near me, but many river mouths have no delta."
+        "I am the place where a river flows into another body of water.",
+        "The river might enter a lake, another river, or the sea.",
+        "A delta sometimes forms near me, but not every river has one."
       ],
       "choices": [
         "river mouth",
@@ -451,9 +453,9 @@
       "level": "easy",
       "answer": "river source",
       "clues": [
-        "I name the beginning or headwaters of a river.",
-        "A spring, lake, glacier, or several small streams can supply me.",
-        "I am the starting location, not the direction upstream itself."
+        "I am the place where a river begins.",
+        "My water might come from a spring, lake, glacier, or small streams.",
+        "I am the starting place, not the direction called upstream."
       ],
       "choices": [
         "delta",
@@ -471,9 +473,9 @@
       "level": "easy",
       "answer": "sea",
       "clues": [
-        "The Mediterranean is a named example of my category of salt water.",
-        "I am connected to the world ocean and may be partly enclosed by land.",
-        "My name is a conventional waterbody name, not a rule about one exact size."
+        "I am a named part of the world's salty ocean water.",
+        "Land may partly surround me.",
+        "The Mediterranean is a famous example. My name does not tell you an exact size."
       ],
       "choices": [
         "horizon",
@@ -491,9 +493,9 @@
       "level": "easy",
       "answer": "shore",
       "clues": [
-        "I am land immediately beside a body of water.",
-        "You can find me beside an ocean, lake, or river.",
-        "A shoreline is the boundary line; I describe the adjoining strip or area of land."
+        "I am the land right beside water.",
+        "I can be next to a river, lake, or ocean.",
+        "I am the area beside the water; the shoreline is its edge."
       ],
       "choices": [
         "shore",
@@ -511,9 +513,9 @@
       "level": "easy",
       "answer": "shoreline",
       "clues": [
-        "I mark the boundary where water meets land.",
-        "My position can shift as water levels or tides change.",
-        "I describe an edge or line, rather than the whole neighboring shore area."
+        "I am the edge where land meets water.",
+        "My position can move when tides rise or water levels change.",
+        "I mark a boundary, not the whole strip of nearby land."
       ],
       "choices": [
         "lagoon",
@@ -531,9 +533,9 @@
       "level": "easy",
       "answer": "stream",
       "clues": [
-        "I am a general term for a natural flow of water in a channel.",
-        "Rivers, brooks, and creeks can all be described by my broad category.",
-        "Those flowing-water names overlap; my word does not require one fixed size."
+        "I am water flowing naturally in a channel.",
+        "A brook, creek, or river can all be called one of me.",
+        "My name does not mean the water must be one particular size."
       ],
       "choices": [
         "stream",
@@ -552,9 +554,9 @@
       "level": "easy",
       "answer": "tributary",
       "clues": [
-        "My defining relationship is that I flow into another stream or river.",
-        "I can myself be a stream or river; being small is not the defining rule.",
-        "My water joins the receiving watercourse rather than flowing out of it."
+        "I am a stream or river that flows into another stream or river.",
+        "I can be large or small.",
+        "My water joins the other waterway rather than flowing away from it."
       ],
       "choices": [
         "reservoir",
@@ -565,16 +567,17 @@
       "example": "The Missouri River joins the Mississippi River.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "note": "A tributary may be a stream or a river. Its special feature is flowing into another waterway."
     },
     {
       "id": "g53",
       "level": "easy",
       "answer": "upstream",
       "clues": [
-        "I describe travel against a watercourse's flow.",
-        "I point toward its headwaters rather than its mouth.",
-        "I am a direction, not a sediment-built landform."
+        "I am the direction toward a river's beginning.",
+        "A canoe going against the river's flow travels my way.",
+        "I lead toward the headwaters, not toward the river's mouth."
       ],
       "choices": [
         "lock",
@@ -592,9 +595,9 @@
       "level": "easy",
       "answer": "waterfall",
       "clues": [
-        "I occur where flowing water drops abruptly over an edge.",
-        "Water descends from an upper channel to a lower level.",
-        "Unlike a stretch of rapids, I include a distinct drop or series of drops."
+        "I happen where flowing water falls over a steep edge.",
+        "Water drops from a higher place to a lower one.",
+        "Unlike rapids, I have a clear drop or series of drops."
       ],
       "choices": [
         "river source",
@@ -612,9 +615,9 @@
       "level": "easy",
       "answer": "whirlpool",
       "clues": [
-        "My water rotates around a center.",
-        "Meeting currents or obstructions can help produce my swirling movement.",
-        "I am a rotating flow pattern, rather than a chamber that raises boats."
+        "I am water turning around in a circle.",
+        "Currents meeting rocks or other obstacles can help form me.",
+        "I am swirling water, not a machine that moves boats."
       ],
       "choices": [
         "lock",
@@ -632,9 +635,9 @@
       "level": "easy",
       "answer": "canyon",
       "clues": [
-        "I am a deep valley with steep sides, often cut by running water.",
-        "Arizona's Grand Canyon is a named example.",
-        "Gorge overlaps with my meaning; my name does not follow a universal width cutoff."
+        "I am a deep valley with steep sides.",
+        "A river may cut through rock to form me.",
+        "The Grand Canyon is an example. The word gorge can describe similar land."
       ],
       "choices": [
         "canyon",
@@ -653,9 +656,9 @@
       "level": "easy",
       "answer": "cave",
       "clues": [
-        "I am a natural opening or cavity in rock large enough to enter.",
-        "Dissolving limestone can create one kind of me; lava can create another.",
-        "My interior may extend underground, but not every cave is below the surface."
+        "I am a natural hollow or passage in rock.",
+        "Water can slowly dissolve some rock, and flowing lava can leave other kinds.",
+        "I may go underground, but not every one of me is fully underground."
       ],
       "choices": [
         "dune",
@@ -673,9 +676,9 @@
       "level": "easy",
       "answer": "cliff",
       "clues": [
-        "I am a very steep rock or earth face.",
-        "I may border a coast, valley, or plateau.",
-        "A bluff can be a kind of steep bank or cliff; that overlap is not a reason to mark bluff wrong."
+        "I am a very steep face of rock or earth.",
+        "I can stand beside an ocean, valley, or high flat area.",
+        "A bluff can also be a steep face; people sometimes use both names."
       ],
       "choices": [
         "ridge",
@@ -694,9 +697,9 @@
       "level": "easy",
       "answer": "crater",
       "clues": [
-        "I am a bowl-shaped depression associated with an impact or volcanic activity.",
-        "A meteorite impact can form me; a volcanic opening can also have my shape.",
-        "I am the hollow, not a hill of windblown sand."
+        "I am a bowl-shaped hollow in the ground.",
+        "A meteorite striking Earth or a volcano can form me.",
+        "Some volcanoes have one of me near the top."
       ],
       "choices": [
         "ridge",
@@ -714,9 +717,9 @@
       "level": "easy",
       "answer": "dune",
       "clues": [
-        "I am a mound or ridge of sand shaped chiefly by wind.",
-        "You can find me in deserts and beside some coasts.",
-        "Wind deposits and reshapes my sand."
+        "I am a hill or ridge made mainly of sand.",
+        "Wind piles my sand up and changes my shape.",
+        "You can find me in deserts and along some beaches."
       ],
       "choices": [
         "oasis",
@@ -734,9 +737,9 @@
       "level": "easy",
       "answer": "glacier",
       "clues": [
-        "I am a persistent mass of land ice that moves under its own weight.",
-        "Snow accumulates and compresses into the ice that feeds me.",
-        "I flow over land; an iceberg is a detached floating piece of ice."
+        "I am a huge mass of ice on land that moves very slowly.",
+        "I form when snow builds up and gets pressed into ice.",
+        "I move over land; an iceberg is a piece of ice floating in water."
       ],
       "choices": [
         "plateau",
@@ -754,9 +757,9 @@
       "level": "easy",
       "answer": "hill",
       "clues": [
-        "I am a raised landform often described as lower or less imposing than a mountain.",
-        "My shape may be rounded, but that is not a universal rule.",
-        "My name is conventional: there is no single worldwide height limit for hills."
+        "I am raised land, often smaller or less steep than a mountain.",
+        "My top may be rounded, but not always.",
+        "People do not use one worldwide height rule to tell me apart from a mountain."
       ],
       "choices": [
         "hill",
@@ -774,9 +777,9 @@
       "level": "easy",
       "answer": "iceberg",
       "clues": [
-        "I am a detached mass of freshwater ice floating in water.",
-        "I can break off from a glacier or an ice shelf.",
-        "Most of my volume usually lies below the water surface."
+        "I am a large piece of ice floating in the water.",
+        "I can break away from a glacier or an ice shelf.",
+        "Most of my ice is usually hidden below the water."
       ],
       "choices": [
         "iceberg",
@@ -794,9 +797,9 @@
       "level": "easy",
       "answer": "land",
       "clues": [
-        "I am the solid terrestrial part of Earth's surface, contrasted with bodies of water.",
-        "I can include soil, rock, plains, and mountains.",
-        "My word is a broad category, not one particular field or wetland."
+        "I am the solid part of Earth's surface, rather than a body of water.",
+        "I can include soil, rocks, plains, and mountains.",
+        "I am a broad word for the ground, not just one kind of field or wetland."
       ],
       "choices": [
         "current",
@@ -814,9 +817,9 @@
       "level": "easy",
       "answer": "mountain",
       "clues": [
-        "The Himalayas contain many of my high, prominent landforms.",
-        "I rise strongly above the surrounding terrain and may have ridges and a summit.",
-        "The boundary between my name and hill varies; no single worldwide height rule applies."
+        "I rise high above the land around me.",
+        "I may have steep sides, ridges, and a summit.",
+        "The Himalayas have many of me. There is no worldwide height rule separating me from a hill."
       ],
       "choices": [
         "plain",
@@ -834,9 +837,9 @@
       "level": "easy",
       "answer": "mountain range",
       "clues": [
-        "I am a group or chain of related mountains.",
-        "Several summits and valleys can occur within my larger highland system.",
-        "The Andes are a named example of my category."
+        "I am many connected or nearby mountains.",
+        "I may contain several high peaks and valleys.",
+        "The Andes and Rocky Mountains are examples of me."
       ],
       "choices": [
         "dune",
@@ -854,9 +857,9 @@
       "level": "easy",
       "answer": "oasis",
       "clues": [
-        "I am a place with a reliable water source within an otherwise dry region.",
-        "My water can support vegetation and human settlement.",
-        "I am not the whole desert; I am a watered location within it."
+        "I am a place with water in an otherwise dry area.",
+        "Plants and people may be able to live near my water.",
+        "I am a watered spot within a dry region, not the whole desert."
       ],
       "choices": [
         "plateau",
@@ -874,9 +877,9 @@
       "level": "easy",
       "answer": "peak",
       "clues": [
-        "I am a high point, often a pointed top, on a mountain or ridge.",
-        "A mountain can have several of me, with one being its highest summit.",
-        "Peak and summit overlap; I am not defined by a different universal height."
+        "I am a high point on a mountain or ridge.",
+        "I am often pointed, but my shape can vary.",
+        "A mountain may have several of me. One may also be its summit."
       ],
       "choices": [
         "plain",
@@ -895,9 +898,9 @@
       "level": "easy",
       "answer": "plain",
       "clues": [
-        "I am a broad area with relatively low relief.",
-        "My surface is level or gently rolling compared with rugged mountain terrain.",
-        "I need not be at sea level; my broad, fairly even surface is the key clue."
+        "I cover a wide area of fairly level land.",
+        "I may be flat or gently rolling, without many steep hills.",
+        "I do not have to be near sea level. The Great Plains are an example."
       ],
       "choices": [
         "ridge",
@@ -915,9 +918,9 @@
       "level": "easy",
       "answer": "plateau",
       "clues": [
-        "I am a broad elevated area with a relatively level surface.",
-        "My surface stands above some neighboring terrain.",
-        "A mesa can resemble a smaller isolated example; size naming is not universal."
+        "I am a broad area of high land with a fairly level top.",
+        "My surface rises above some land around it.",
+        "I may look like a huge, flat-topped highland; a mesa is often smaller and more separate."
       ],
       "choices": [
         "reef",
@@ -936,9 +939,9 @@
       "level": "easy",
       "answer": "ridge",
       "clues": [
-        "I am an elongated crest of raised ground.",
-        "My narrow high line may connect several summits.",
-        "Lower land usually lies on either side of my crest."
+        "I am a long, raised line of land.",
+        "I may run between several mountain tops.",
+        "The ground usually slopes down on both sides of my narrow high crest."
       ],
       "choices": [
         "lagoon",
@@ -956,9 +959,9 @@
       "level": "easy",
       "answer": "slope",
       "clues": [
-        "I describe a surface's incline or gradient.",
-        "A hillside can have a gentle or steep version of me.",
-        "I describe how ground tilts, rather than a separate mountain group."
+        "I tell how much the ground tilts up or down.",
+        "I can be gentle, like a grassy hill, or steep, like a mountainside.",
+        "I describe slanting ground, not a separate mountain."
       ],
       "choices": [
         "slope",
@@ -976,9 +979,9 @@
       "level": "easy",
       "answer": "summit",
       "clues": [
-        "I am the highest point of a mountain or another elevated feature.",
-        "Climbers may aim to stand at me.",
-        "Peak sometimes overlaps with my meaning; a highest point can be rounded or pointed."
+        "I am the highest point of a mountain or another high place.",
+        "Climbers may try to reach me.",
+        "I can be pointed or rounded; the word peak sometimes means the same thing."
       ],
       "choices": [
         "summit",
@@ -997,9 +1000,9 @@
       "level": "easy",
       "answer": "valley",
       "clues": [
-        "I am an elongated low area between higher hills or mountains.",
-        "A river may follow my floor, or a glacier may have widened me.",
-        "My defining feature is the low corridor between higher sides, not a summit."
+        "I am low land between higher hills or mountains.",
+        "A river may run through me, or moving ice may have shaped me.",
+        "I am the lower area between higher sides, not the top of a mountain."
       ],
       "choices": [
         "ridge",
@@ -1017,9 +1020,9 @@
       "level": "easy",
       "answer": "volcano",
       "clues": [
-        "I am a vent, or a landform around a vent, through which magma may reach the surface.",
-        "Eruptions can release lava, gas, and ash.",
-        "I need not look like a tall cone, and not every mountain is one of me."
+        "I have an opening through which melted rock may reach Earth's surface.",
+        "During an eruption, I may release lava, ash, and gases.",
+        "I do not always look like a cone, and not every mountain is one of me."
       ],
       "choices": [
         "summit",
@@ -1037,9 +1040,9 @@
       "level": "easy",
       "answer": "desert",
       "clues": [
-        "My defining climate feature is very low precipitation.",
-        "I can be cold as well as hot; Antarctica contains an enormous example.",
-        "Sparse rainfall, not the presence of sand or cactus, defines my dry environment."
+        "I am a place that gets very little rain or snow.",
+        "I can be hot or cold; parts of Antarctica are examples.",
+        "Being very dry defines me, not always having sand or cacti."
       ],
       "choices": [
         "desert",
@@ -1057,9 +1060,9 @@
       "level": "easy",
       "answer": "field",
       "clues": [
-        "I am an open land area that may be managed for crops or another use.",
-        "A farmer might plant wheat in me, or people might use me for a sport.",
-        "My name describes an open area or its use, not a landform defined by height."
+        "I am an open area of land.",
+        "People may grow crops on me or use me for sports.",
+        "I describe an open place or how it is used, not how high the land is."
       ],
       "choices": [
         "glacier",
@@ -1077,9 +1080,9 @@
       "level": "easy",
       "answer": "forest",
       "clues": [
-        "I am a land area dominated by trees.",
-        "My trees form habitat for animals, fungi, and smaller plants.",
-        "Woodland and woods overlap with my meaning; they are not automatically wrong names."
+        "I am a large area where trees are the main plants.",
+        "Animals, mushrooms, and smaller plants can live among my trees.",
+        "People may also use the words woods or woodland for similar places."
       ],
       "choices": [
         "desert",
@@ -1098,9 +1101,9 @@
       "level": "easy",
       "answer": "marsh",
       "clues": [
-        "I am a wetland dominated mainly by grasses, reeds, sedges, or similar nonwoody plants.",
-        "My ground is saturated or periodically covered by shallow water.",
-        "Trees are not my dominant vegetation; that helps compare me with many swamps."
+        "I am a wet place where grasses and reeds are the main plants.",
+        "Water may cover my ground for part or all of the year.",
+        "Unlike many swamps, I usually do not have many trees growing through me."
       ],
       "choices": [
         "field",
@@ -1118,9 +1121,9 @@
       "level": "easy",
       "answer": "meadow",
       "clues": [
-        "I am open land mainly covered by grasses and other soft-stemmed plants.",
-        "Wildflowers may grow among my grasses; grazing or mowing can help maintain me.",
-        "I can be a kind of field, so the words are not strict opposites."
+        "I am open land covered mostly with grass and other low plants.",
+        "Wildflowers may grow here, and people may mow or graze animals here.",
+        "I can also be called a kind of field; the words can overlap."
       ],
       "choices": [
         "reef",
@@ -1138,9 +1141,9 @@
       "level": "easy",
       "answer": "natural resource",
       "clues": [
-        "I am naturally occurring material or energy that people can use.",
-        "Fresh water, timber, minerals, and sunlight can be examples.",
-        "I am a use-related category; one example is not the whole category."
+        "I am something found in nature that people can use.",
+        "Fresh water, wood, rocks, and sunlight are examples.",
+        "I can be a material or a source of energy."
       ],
       "choices": [
         "latitude",
@@ -1158,9 +1161,9 @@
       "level": "easy",
       "answer": "soil",
       "clues": [
-        "I am a natural mixture of minerals, organic material, air, and water near the land surface.",
-        "Roots often grow through me and organisms help form me.",
-        "I am more specific than land or earth in general."
+        "I am the mixture of tiny rock pieces, decayed material, air, and water near the ground's surface.",
+        "Plants grow roots through me, and small living things help make me.",
+        "I am more specific than the word land."
       ],
       "choices": [
         "reef",
@@ -1178,9 +1181,9 @@
       "level": "easy",
       "answer": "swamp",
       "clues": [
-        "I am a wetland in which trees or shrubs are prominent.",
-        "Standing or slow-moving water may surround my woody vegetation.",
-        "I differ from a typical marsh in the dominant vegetation, not merely in being wet."
+        "I am a wet area where trees or shrubs grow.",
+        "Water may stand or move slowly around my plants.",
+        "Unlike a marsh, I usually have many woody plants."
       ],
       "choices": [
         "swamp",
@@ -1198,9 +1201,9 @@
       "level": "easy",
       "answer": "vegetation",
       "clues": [
-        "I am the collective plant cover in a place.",
-        "Grasses, shrubs, and trees are all parts of me.",
-        "I name the plants themselves, rather than the ground they grow in."
+        "I am all the plants growing in an area.",
+        "Grasses, bushes, and trees are parts of me.",
+        "I mean the plant cover, not the soil beneath it."
       ],
       "choices": [
         "altitude",
@@ -1218,9 +1221,9 @@
       "level": "easy",
       "answer": "woods",
       "clues": [
-        "My everyday name describes an area with many trees.",
-        "People may use my name for a smaller wooded area, but size is not a fixed rule.",
-        "My meaning overlaps with woodland and forest."
+        "I am an area with many trees.",
+        "People sometimes use my name for a smaller forest.",
+        "There is no exact size rule separating me from a forest."
       ],
       "choices": [
         "woods",
@@ -1239,9 +1242,9 @@
       "level": "easy",
       "answer": "canal",
       "clues": [
-        "I am a waterway built or substantially modified by people.",
-        "People may use me for transport, irrigation, or drainage.",
-        "The Panama waterway is a famous example of my category."
+        "I am a waterway that people build or greatly change.",
+        "Boats may travel through me, or I may carry water to fields.",
+        "The Panama Canal is a famous example."
       ],
       "choices": [
         "canal",
@@ -1259,9 +1262,9 @@
       "level": "easy",
       "answer": "country",
       "clues": [
-        "Japan and Brazil are examples of my political category.",
-        "A government governs territory within my borders.",
-        "I am a political unit, rather than a natural landform."
+        "I am a place with land, borders, and a government.",
+        "Japan and Brazil are examples.",
+        "I am a political place, not a natural land shape."
       ],
       "choices": [
         "continent",
@@ -1279,9 +1282,9 @@
       "level": "easy",
       "answer": "dam",
       "clues": [
-        "I am a barrier built across a watercourse to hold back or control water.",
-        "Water stored behind me can form a reservoir.",
-        "I cross the flow; a flood levee usually runs alongside it."
+        "I am a wall or barrier built across a river or stream.",
+        "I may hold back water and create a reservoir.",
+        "I usually cross the waterway; a levee usually runs beside it."
       ],
       "choices": [
         "tributary",
@@ -1299,9 +1302,9 @@
       "level": "easy",
       "answer": "pier",
       "clues": [
-        "I am a built platform commonly projecting from land out over water.",
-        "Piles or other supports hold my deck above the water.",
-        "Wharf can overlap with my meaning; these structures are named differently in different ports."
+        "I am a platform built out over water from the land.",
+        "Posts or other supports often hold me up.",
+        "People fish or tie up boats on me. Some places use the word wharf for a similar structure."
       ],
       "choices": [
         "bay",
@@ -1320,9 +1323,9 @@
       "level": "easy",
       "answer": "tunnel",
       "clues": [
-        "I am a passage through or beneath an obstruction.",
-        "People build many of me for roads, trains, or water, although natural tunnels also exist.",
-        "I describe a through-passage rather than an elevated flat area."
+        "I am a passage through or under something.",
+        "People build me for cars, trains, or water, though some occur naturally.",
+        "I let something travel through a mountain or under an obstacle."
       ],
       "choices": [
         "glacier",
@@ -1340,9 +1343,9 @@
       "level": "easy",
       "answer": "continent",
       "clues": [
-        "Africa and Antarctica are examples of my category.",
-        "I am one of the major divisions of Earth's land.",
-        "Many classrooms use a seven-part model, although continent models vary."
+        "Africa and Antarctica are examples of me.",
+        "I am one of Earth's very large land divisions.",
+        "Many schools teach seven of me, but other ways of grouping them exist."
       ],
       "choices": [
         "continent",
@@ -1360,9 +1363,9 @@
       "level": "easy",
       "answer": "Earth",
       "clues": [
-        "I am the planet on which we live.",
-        "My surface includes oceans and continents.",
-        "I orbit the Sun and have one natural moon."
+        "I am the planet where we live.",
+        "I have oceans and continents on my surface.",
+        "I travel around the Sun and have one natural moon."
       ],
       "choices": [
         "Earth",
@@ -1380,9 +1383,9 @@
       "level": "easy",
       "answer": "horizon",
       "clues": [
-        "I am the apparent boundary between the visible sky and land or water.",
-        "My position depends on the observer and surrounding terrain.",
-        "I am an apparent visual boundary, not a flow of water."
+        "I am the line where the sky seems to meet land or water.",
+        "What you see of me depends on where you stand.",
+        "I am an edge you see in the distance, not a real line on the ground."
       ],
       "choices": [
         "horizon",
@@ -1401,8 +1404,8 @@
       "answer": "archipelago",
       "clues": [
         "I am a group or chain of islands.",
-        "My members can be volcanic, coral-built, or made by other processes.",
-        "I name the collection rather than one long sea inlet."
+        "My islands can form in different ways, including from volcanoes or coral.",
+        "Indonesia is an example of me."
       ],
       "choices": [
         "fjord",
@@ -1420,9 +1423,9 @@
       "level": "explorer",
       "answer": "atoll",
       "clues": [
-        "I am a ringlike coral reef or coral-island formation surrounding a lagoon.",
-        "I commonly develop in tropical seas as volcanic islands subside and reefs grow.",
-        "My defining clue is the reef-ring and lagoon arrangement."
+        "I am a ring-shaped coral reef or group of coral islands.",
+        "A shallow area of water, called a lagoon, lies inside my ring.",
+        "Many form as coral grows around an island that slowly sinks."
       ],
       "choices": [
         "mountain range",
@@ -1440,9 +1443,9 @@
       "level": "explorer",
       "answer": "bayou",
       "clues": [
-        "My regional name is used for a slow-moving or stagnant waterway, often in lowlands.",
-        "Louisiana has many named examples.",
-        "I can be a channel, creek, or wetland-connected waterway; the name is regional."
+        "I am a slow-moving waterway often found in low, wet places.",
+        "Many of me are found in Louisiana.",
+        "My regional name can describe a creek, channel, or waterway through wetlands."
       ],
       "choices": [
         "bayou",
@@ -1461,9 +1464,9 @@
       "level": "explorer",
       "answer": "branch",
       "clues": [
-        "In a stream network, my word can name a smaller watercourse or fork.",
-        "My channel can connect with other channels in a drainage network.",
-        "My name overlaps with tributary and stream in some regions."
+        "I am a small stream or a fork of a larger waterway.",
+        "I can join other flowing channels.",
+        "In some places, my name means much the same as stream or tributary."
       ],
       "choices": [
         "branch",
@@ -1482,9 +1485,9 @@
       "level": "explorer",
       "answer": "breakers",
       "clues": [
-        "I am waves that become unstable and topple forward.",
-        "My crest collapses into foam, often in shallow water near a shore.",
-        "I name the breaking waves, not the whole ocean."
+        "I am waves that tip forward and crash.",
+        "My tops tumble into white foam, often near shore.",
+        "I am the waves as they break, not all the water in the ocean."
       ],
       "choices": [
         "iceberg",
@@ -1502,9 +1505,9 @@
       "level": "explorer",
       "answer": "channel",
       "clues": [
-        "I am a passage or elongated route through which water flows or vessels travel.",
-        "I may be natural or artificially modified.",
-        "A canal can be a built kind of me; the terms need not be opposites."
+        "I am a route or passage for moving water or boats.",
+        "I may be natural or changed by people.",
+        "A canal is a human-built kind of me."
       ],
       "choices": [
         "continental shelf",
@@ -1522,9 +1525,9 @@
       "level": "explorer",
       "answer": "continental shelf",
       "clues": [
-        "I am the submerged, relatively shallow margin of a continent.",
-        "I extend seaward from the coast toward a steeper continental slope.",
-        "I am underwater continental land, not a narrow connection between landmasses."
+        "I am part of a continent that continues underwater.",
+        "I am often fairly shallow near the coast.",
+        "I stretch out toward deeper water, where the sea floor slopes down more sharply."
       ],
       "choices": [
         "inlet",
@@ -1542,9 +1545,9 @@
       "level": "explorer",
       "answer": "drainage basin",
       "clues": [
-        "I am all the land from which runoff drains to a common outlet.",
-        "Streams within me join a connected drainage system.",
-        "Watershed is often a synonym for me; the two must not be treated as exclusive answers."
+        "I am the land area where rainwater drains toward the same river or outlet.",
+        "Streams in this area may join one another.",
+        "People also call me a watershed in many places."
       ],
       "choices": [
         "drainage basin",
@@ -1555,7 +1558,7 @@
       "example": "Rain over a drainage basin flows to one river.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Watershed is often a synonym for me; the two must not be treated as exclusive answers.",
+      "note": "Watershed and drainage basin usually name the same area of land.",
       "topic": "Water & coasts"
     },
     {
@@ -1563,9 +1566,9 @@
       "level": "explorer",
       "answer": "estuary",
       "clues": [
-        "I am a coastal waterbody where seawater and freshwater mix in many familiar examples.",
-        "Rivers deliver freshwater while the sea supplies salt water.",
-        "Some estuaries have unusual salinity patterns; my common river-sea setting is the clue here."
+        "I am coastal water where a river meets the sea.",
+        "Fresh river water and salty sea water often mix in me.",
+        "Chesapeake Bay is an example. Not every part of me has the same amount of salt."
       ],
       "choices": [
         "headland",
@@ -1583,9 +1586,9 @@
       "level": "explorer",
       "answer": "fjord",
       "clues": [
-        "I am a long, narrow inlet occupying a glacier-carved valley.",
-        "Steep valley walls commonly rise above my sea water.",
-        "My glacial origin distinguishes this example from an ordinary shallow coastal pool."
+        "I am a long, narrow arm of the sea between steep slopes.",
+        "A glacier carved the valley now filled with seawater.",
+        "Norway has many famous examples of me."
       ],
       "choices": [
         "delta",
@@ -1603,9 +1606,9 @@
       "level": "explorer",
       "answer": "floodplain",
       "clues": [
-        "I am relatively flat land alongside a river that can be covered during floods.",
-        "River sediment may build parts of my surface over time.",
-        "I am adjoining land, not the flowing channel itself."
+        "I am low, fairly flat land beside a river.",
+        "River water may spread over me during a flood.",
+        "Over time, floodwater can leave new layers of sand or mud here."
       ],
       "choices": [
         "river mouth",
@@ -1623,9 +1626,9 @@
       "level": "explorer",
       "answer": "headland",
       "clues": [
-        "I am projecting coastal land, often with relatively high or steep sides.",
-        "My land juts beyond neighboring shoreline into water.",
-        "Cape overlaps with my meaning; these coastal names are not strict opposites."
+        "I am coastal land that sticks out beyond the nearby shore.",
+        "I may have high or steep sides.",
+        "People may also call a place like me a cape."
       ],
       "choices": [
         "estuary",
@@ -1644,9 +1647,9 @@
       "level": "explorer",
       "answer": "inlet",
       "clues": [
-        "I am a narrow entry or arm of water extending into land.",
-        "I connect a larger waterbody to a smaller water area or indent the coast.",
-        "Bay and cove can overlap with my meaning; shape and local naming matter."
+        "I am a narrow arm or opening of water reaching into land.",
+        "I may connect a larger body of water to a smaller one.",
+        "Some bays and coves may also be called by my name."
       ],
       "choices": [
         "isthmus",
@@ -1665,9 +1668,9 @@
       "level": "explorer",
       "answer": "lagoon",
       "clues": [
-        "I am relatively shallow water separated from a larger sea by a barrier such as a reef or sandbar.",
-        "My barrier may still leave openings through which water moves.",
-        "The barrier is the key clue, not simply the fact that I am a coastal pool."
+        "I am shallow water set apart from a larger sea by sand or coral.",
+        "A sandbar or reef may form a barrier, sometimes with gaps.",
+        "I often sit behind that barrier near the coast."
       ],
       "choices": [
         "lagoon",
@@ -1685,9 +1688,9 @@
       "level": "explorer",
       "answer": "meander",
       "clues": [
-        "I am a pronounced bend in a river or stream channel.",
-        "Flow can erode my outer bank and deposit sediment on my inner bank.",
-        "A series of my curves gives a river a winding path."
+        "I am a big bend in a river or stream.",
+        "Water may wear away the outside of my curve and leave sand on the inside.",
+        "Several of my bends can make a river look winding."
       ],
       "choices": [
         "meander",
@@ -1705,9 +1708,9 @@
       "level": "explorer",
       "answer": "oxbow lake",
       "clues": [
-        "I can form when a looping river bend is cut off from its main channel.",
-        "My waterbody often has a curved or horseshoe shape.",
-        "I preserve part of a former meander rather than marking a river's source."
+        "I am a curved lake left beside a river.",
+        "I may form when the river takes a shorter route and cuts off one of its bends.",
+        "My shape often looks like a horseshoe."
       ],
       "choices": [
         "strait",
@@ -1725,9 +1728,9 @@
       "level": "explorer",
       "answer": "sandbar",
       "clues": [
-        "I am a ridge or accumulation of sand deposited in or across water.",
-        "Currents and waves can build me in a river, estuary, or coastal area.",
-        "I may be submerged or exposed depending on water level."
+        "I am a raised strip or pile of sand in water.",
+        "Waves or currents can move sand and build me up.",
+        "I may be underwater or above the surface as water levels change."
       ],
       "choices": [
         "sandbar",
@@ -1745,9 +1748,9 @@
       "level": "explorer",
       "answer": "spring",
       "clues": [
-        "I am a place where groundwater emerges naturally at the ground surface.",
-        "My water may feed a stream or pool.",
-        "I describe water reaching the surface, rather than the underground material storing it."
+        "I am a place where underground water comes out naturally.",
+        "My water may begin a stream or fill a pool.",
+        "I am where groundwater reaches the surface."
       ],
       "choices": [
         "river mouth",
@@ -1765,9 +1768,9 @@
       "level": "explorer",
       "answer": "strait",
       "clues": [
-        "I am a narrow water passage connecting larger waterbodies.",
-        "Land lies on either side of my passage.",
-        "Gibraltar is a named example; an isthmus is the land connection instead."
+        "I am a narrow passage of water.",
+        "I connect two larger bodies of water, with land on both sides.",
+        "The Strait of Gibraltar is an example. An isthmus is narrow land instead."
       ],
       "choices": [
         "isthmus",
@@ -1785,9 +1788,9 @@
       "level": "explorer",
       "answer": "tide",
       "clues": [
-        "I am the periodic rise and fall of water level caused mainly by gravitational interactions with the Moon and Sun.",
-        "My timing and size vary by location.",
-        "I describe a water-level cycle, not a floating mass of ice."
+        "I am the regular rise and fall of sea level.",
+        "The Moon's and Sun's gravity are the main causes of me.",
+        "I may be high or low at different times along the shore."
       ],
       "choices": [
         "horizon",
@@ -1805,9 +1808,9 @@
       "level": "explorer",
       "answer": "watershed",
       "clues": [
-        "I commonly mean land whose runoff drains to a shared outlet.",
-        "In some regions my word instead names the divide between drainage areas.",
-        "Drainage basin is a common synonym for my first meaning; local usage should be explained."
+        "I am land where rainwater and streams drain toward the same place.",
+        "I am often another name for a drainage basin.",
+        "Sometimes people use my name for the high land that separates two drainage areas."
       ],
       "choices": [
         "river",
@@ -1818,7 +1821,7 @@
       "example": "Rain in a watershed drains toward the same water system.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Drainage basin is a common synonym for my first meaning; local usage should be explained.",
+      "note": "Watershed often means drainage basin. In some places it means the ridge separating drainage areas.",
       "topic": "Water & coasts"
     },
     {
@@ -1826,9 +1829,9 @@
       "level": "explorer",
       "answer": "basin",
       "clues": [
-        "I am a low or depressed land area, often surrounded by higher ground.",
-        "Some examples collect water; others remain dry.",
-        "My bowl-like shape does not by itself mean that all water drains to one river."
+        "I am a low area of land with higher ground around it.",
+        "Some examples collect water, while others stay dry.",
+        "My shape is like a shallow bowl, but not every one drains to a single river."
       ],
       "choices": [
         "ridge",
@@ -1846,9 +1849,9 @@
       "level": "explorer",
       "answer": "bluff",
       "clues": [
-        "I am a steep bank or broad steep face overlooking lower ground or water.",
-        "A river can erode a bank and leave one of me.",
-        "Cliff overlaps with my meaning; local naming and shape matter."
+        "I am a steep bank or wall of land above lower ground or water.",
+        "A river may wear away land and leave one of me.",
+        "People sometimes use the word cliff for a similar steep face."
       ],
       "choices": [
         "valley",
@@ -1867,9 +1870,9 @@
       "level": "explorer",
       "answer": "chasm",
       "clues": [
-        "I am a deep, steep-sided opening or gap in rock or ground.",
-        "A fracture or erosion can help form an example.",
-        "Canyon and gorge can overlap with my description; naming is not a strict width test."
+        "I am a deep gap or opening with steep sides.",
+        "Rock can crack, or water can wear the land away to make me.",
+        "Some canyons and gorges may also be described by my name."
       ],
       "choices": [
         "chasm",
@@ -1888,9 +1891,9 @@
       "level": "explorer",
       "answer": "cinder cone",
       "clues": [
-        "I am a volcanic cone built largely from loose erupted fragments.",
-        "Cinders and other material pile around a vent.",
-        "I am a type of volcano, rather than a desert landform defined by rainfall."
+        "I am a small, often steep-sided type of volcano.",
+        "Loose pieces of erupted rock pile up around an opening.",
+        "My cone is made mostly of these volcanic pieces, called cinders."
       ],
       "choices": [
         "desert",
@@ -1909,8 +1912,8 @@
       "answer": "gorge",
       "clues": [
         "I am a deep, narrow valley with steep sides.",
-        "Flowing water can cut me into rock.",
-        "Canyon overlaps with my meaning; the two do not have a universal width boundary."
+        "Running water may carve me into rock.",
+        "People sometimes call a similar place a canyon."
       ],
       "choices": [
         "gorge",
@@ -1929,9 +1932,9 @@
       "level": "explorer",
       "answer": "mesa",
       "clues": [
-        "I am an isolated elevated landform with a relatively flat top and steep sides.",
-        "My name comes from a Spanish word for table.",
-        "Plateau overlaps in appearance, but my isolated table-like setting is the clue here."
+        "I am a high landform with a broad, flat top and steep sides.",
+        "I often stands apart from nearby high land.",
+        "My name comes from the Spanish word for table."
       ],
       "choices": [
         "mesa",
@@ -1950,9 +1953,9 @@
       "level": "explorer",
       "answer": "moraine",
       "clues": [
-        "I am an accumulation of debris transported or left by a glacier.",
-        "Rock and sediment may pile along the side or end of the ice.",
-        "My glacial origin distinguishes me from a dune built chiefly by wind."
+        "I am a pile or ridge of rocks and soil left by moving ice.",
+        "A glacier may carry these pieces and leave them behind.",
+        "I form through glacier movement, not from sand piled up by wind."
       ],
       "choices": [
         "delta",
@@ -1963,16 +1966,17 @@
       "example": "A ridge of mixed stones and sediment remains along the margin of a retreating glacier.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "note": "A moraine contains rock and soil moved or left by a glacier, not just sand blown by wind."
     },
     {
       "id": "g77",
       "level": "explorer",
       "answer": "bog",
       "clues": [
-        "I am a peat-forming wetland typically fed mostly by precipitation.",
-        "Sphagnum moss commonly grows in my wet, often acidic conditions.",
-        "Peat is partly decayed plant material that builds up in me."
+        "I am a wetland where partly decayed plants build up over time.",
+        "Rain is often my main source of water.",
+        "Mosses, including sphagnum moss, often grow in my wet, acidic soil."
       ],
       "choices": [
         "field",
@@ -1990,9 +1994,9 @@
       "level": "explorer",
       "answer": "prairie",
       "clues": [
-        "I am a temperate grassland type associated especially with North America.",
-        "Grasses dominate and trees are generally sparse away from wetter locations.",
-        "I describe a grassland ecosystem, not just any small grassy field."
+        "I am a grassy ecosystem especially common in North America.",
+        "Many grasses grow here, with few trees in open areas.",
+        "I am more than a small lawn or field; I am a large natural grassland."
       ],
       "choices": [
         "forest",
@@ -2010,9 +2014,9 @@
       "level": "explorer",
       "answer": "tundra",
       "clues": [
-        "I am a cold biome with a short growing season and little or no tall-tree cover.",
-        "Low shrubs, grasses, mosses, and lichens can grow in me.",
-        "Arctic and alpine examples exist; permafrost is common in Arctic examples but not universal."
+        "I am a very cold region where tall trees are rare or absent.",
+        "Plants such as mosses, grasses, and small shrubs can grow here.",
+        "I have a short growing season. Some areas have permanently frozen ground."
       ],
       "choices": [
         "tundra",
@@ -2031,9 +2035,9 @@
       "level": "explorer",
       "answer": "wetland",
       "clues": [
-        "I am land where water at or near the surface strongly shapes soil and life.",
-        "Marshes, swamps, and bogs are examples of my broad category.",
-        "My plants and soils are adapted to saturated conditions."
+        "I am land where water stays in or near the soil for long periods.",
+        "Water shapes what kinds of soil and plants I have.",
+        "Marshes, swamps, and bogs are examples of me."
       ],
       "choices": [
         "wetland",
@@ -2051,9 +2055,9 @@
       "level": "explorer",
       "answer": "levee",
       "clues": [
-        "I am an embankment that runs along a riverbank rather than blocking the channel across its flow.",
-        "I usually run alongside the water rather than blocking its channel.",
-        "Some examples form naturally as a river deposits sediment on its banks."
+        "I am a raised bank beside a river that can help limit flooding.",
+        "I run along the river rather than across its channel.",
+        "People can build me, but rivers can also leave raised banks naturally."
       ],
       "choices": [
         "canal",
@@ -2071,9 +2075,9 @@
       "level": "explorer",
       "answer": "lock",
       "clues": [
-        "I am a gated water chamber used to raise or lower boats.",
-        "Water fills or drains from my chamber to match the next level.",
-        "I let boats pass between different water levels on a canal or river."
+        "I am a water-filled chamber with gates that boats can enter.",
+        "Water rises or falls inside me to lift or lower the boat.",
+        "I help boats move between different water levels in canals or rivers."
       ],
       "choices": [
         "river",
@@ -2091,9 +2095,9 @@
       "level": "explorer",
       "answer": "reservoir",
       "clues": [
-        "My water is stored for a planned use such as supply, irrigation, or power.",
-        "A dam can create one kind of me, but storage sites take other forms too.",
-        "I am the stored-water body or storage place, not the barrier holding it."
+        "I am a place where water is stored for later use.",
+        "My water may supply homes, farms, or power stations.",
+        "A dam can help form me, but not all examples are behind dams."
       ],
       "choices": [
         "dam",
@@ -2111,9 +2115,9 @@
       "level": "explorer",
       "answer": "wharf",
       "clues": [
-        "I am a built waterside structure used for loading, unloading, or mooring vessels.",
-        "I often run along a bank or shoreline, though port terminology varies.",
-        "Pier overlaps with my meaning; neither word guarantees a single construction shape."
+        "I am a waterside structure where ships can stop.",
+        "People may load cargo, unload it, or tie up boats here.",
+        "I am often built along the shore; the word pier sometimes overlaps."
       ],
       "choices": [
         "lagoon",
@@ -2132,9 +2136,9 @@
       "level": "explorer",
       "answer": "altitude",
       "clues": [
-        "I describe vertical height relative to a reference surface.",
-        "An aircraft's height above mean sea level is one use of my word.",
-        "Elevation overlaps with my meaning, so this is not a strict land-versus-air rule."
+        "I tell how high something is compared with a chosen starting level.",
+        "A plane's height above sea level is one example.",
+        "People also use the word elevation for height in similar situations."
       ],
       "choices": [
         "altitude",
@@ -2153,9 +2157,9 @@
       "level": "explorer",
       "answer": "compass rose",
       "clues": [
-        "I am a map symbol that displays directions.",
-        "North, south, east, and west may be arranged around my center.",
-        "I help a reader orient a map; I do not measure distance."
+        "I am a symbol on a map that shows directions.",
+        "I may show north, south, east, and west around a center.",
+        "I help you find your direction, not measure how far away a place is."
       ],
       "choices": [
         "compass rose",
@@ -2173,9 +2177,9 @@
       "level": "explorer",
       "answer": "contour line",
       "clues": [
-        "On a map, I connect points at equal elevation.",
-        "Several of me can show a hill's shape.",
-        "Closely spaced examples usually indicate a steeper slope than widely spaced ones."
+        "I am a line on a map joining places at the same height.",
+        "Groups of me show the shapes of hills and valleys.",
+        "When my lines are close together, the ground is usually steep."
       ],
       "choices": [
         "contour line",
@@ -2193,9 +2197,9 @@
       "level": "explorer",
       "answer": "coordinates",
       "clues": [
-        "I am a set of values used to locate a position.",
-        "A latitude-longitude pair is one example of me.",
-        "Different coordinate systems use different axes and units."
+        "I am numbers or values that tell where a place is.",
+        "A pair of latitude and longitude numbers is one example.",
+        "Different maps can use different sets of numbers to find a position."
       ],
       "choices": [
         "compass rose",
@@ -2213,9 +2217,9 @@
       "level": "explorer",
       "answer": "elevation",
       "clues": [
-        "I describe a location's height relative to a vertical reference such as sea level.",
-        "A contour label can give my value for ground on a map.",
-        "Altitude overlaps with my meaning; context helps explain the intended usage."
+        "I tell how high a place is compared with sea level or another starting level.",
+        "A map may use me to show how high the ground is.",
+        "Altitude can mean something similar; the words can overlap."
       ],
       "choices": [
         "latitude",
@@ -2234,9 +2238,9 @@
       "level": "explorer",
       "answer": "equator",
       "clues": [
-        "An imaginary line circles Earth halfway between its geographic poles.",
-        "Its latitude is zero degrees.",
-        "It divides the Northern and Southern Hemispheres."
+        "I am an imaginary line halfway between Earth's North and South Poles.",
+        "My latitude is zero degrees.",
+        "I divide Earth into northern and southern halves."
       ],
       "choices": [
         "equator",
@@ -2254,9 +2258,9 @@
       "level": "explorer",
       "answer": "hemisphere",
       "clues": [
-        "My word means half of a sphere.",
-        "Earth can be divided into northern and southern examples.",
-        "An eastern or western half of Earth is another way to describe me."
+        "I am one half of a round ball or sphere.",
+        "Earth has a Northern and Southern one.",
+        "You can also divide Earth into eastern and western halves."
       ],
       "choices": [
         "hemisphere",
@@ -2274,9 +2278,9 @@
       "level": "explorer",
       "answer": "latitude",
       "clues": [
-        "I measure angular distance north or south of the equator.",
-        "My value runs from zero to ninety degrees north or south.",
-        "On a globe, parallels mark positions with the same value of me."
+        "I tell how far north or south a place is from the equator.",
+        "I am measured in degrees, from 0° at the equator to 90° at the poles.",
+        "Lines of equal north-or-south position circle Earth."
       ],
       "choices": [
         "longitude",
@@ -2294,9 +2298,9 @@
       "level": "explorer",
       "answer": "longitude",
       "clues": [
-        "I measure angular position east or west of a prime meridian.",
-        "Lines representing equal values of me run between Earth's poles.",
-        "Latitude uses north-south distance from the equator; I use east-west position."
+        "I tell how far east or west a place is from a starting line called the prime meridian.",
+        "My lines run from one pole to the other.",
+        "I work with latitude to help show a place's position."
       ],
       "choices": [
         "map key",
@@ -2314,9 +2318,9 @@
       "level": "explorer",
       "answer": "map key",
       "clues": [
-        "I explain what a map's symbols and colors mean.",
+        "I explain the symbols and colors on a map.",
         "I might tell you that a blue line means a river.",
-        "Map legend is another name for me."
+        "I am also called a map legend."
       ],
       "choices": [
         "compass rose",
@@ -2334,9 +2338,9 @@
       "level": "explorer",
       "answer": "map scale",
       "clues": [
-        "I relate a distance on a map to a distance in the real world.",
-        "I may appear as a ratio, a written statement, or a marked bar.",
-        "If one centimeter stands for one kilometer, that relationship is an example of me."
+        "I help you compare map distances with real distances.",
+        "I may look like a marked bar or a written rule.",
+        "For example, 1 centimeter on a map may stand for 1 kilometer on Earth."
       ],
       "choices": [
         "compass rose",
@@ -2354,9 +2358,9 @@
       "level": "explorer",
       "answer": "North Pole",
       "clues": [
-        "I am the northern end of Earth's rotation axis at the surface.",
-        "My latitude is ninety degrees north.",
-        "The geographic point named here is different from the moving magnetic north pole."
+        "I am the place where Earth's spinning axis meets the far northern surface.",
+        "My latitude is 90° north.",
+        "I am the geographic point, which is different from the moving magnetic north pole."
       ],
       "choices": [
         "equator",
@@ -2374,9 +2378,9 @@
       "level": "explorer",
       "answer": "South Pole",
       "clues": [
-        "I am the southern end of Earth's rotation axis at the surface.",
-        "My latitude is ninety degrees south.",
-        "My geographic point lies on Antarctica, rather than in the Arctic Ocean."
+        "I am the place where Earth's spinning axis meets the far southern surface.",
+        "My latitude is 90° south.",
+        "I am on Antarctica, unlike the North Pole in the Arctic Ocean."
       ],
       "choices": [
         "North Pole",
@@ -2394,9 +2398,9 @@
       "level": "explorer",
       "answer": "topographic map",
       "clues": [
-        "I portray the shape and elevation of land on a map.",
-        "Contour lines are a familiar tool I use to show relief.",
-        "I can help a walker locate ridges, valleys, and steep slopes."
+        "I am a map that shows the shape and height of the land.",
+        "I often use contour lines to show hills and valleys.",
+        "Walkers can use me to spot steep hills, ridges, and low valleys."
       ],
       "choices": [
         "compass rose",
@@ -2414,9 +2418,9 @@
       "level": "explorer",
       "answer": "aquifer",
       "clues": [
-        "I am underground rock or sediment that can store and transmit usable groundwater.",
-        "Water occupies connected pores or fractures in me.",
-        "A well can draw groundwater from me; I am not necessarily an underground lake."
+        "I am rock or loose material underground that can hold and pass along water.",
+        "Water fills tiny spaces or cracks inside me.",
+        "A well may draw water from me; I am not usually an underground lake."
       ],
       "choices": [
         "reservoir",
@@ -2434,9 +2438,9 @@
       "level": "explorer",
       "answer": "deposition",
       "clues": [
-        "I occur when transported sediment is laid down.",
-        "A river may leave sand behind when its flow slows.",
-        "I build sediment deposits rather than carrying them away."
+        "I happen when moving water, wind, or ice drops material it was carrying.",
+        "A slowing river may leave sand behind.",
+        "I build up piles or layers of sediment instead of carrying them away."
       ],
       "choices": [
         "erosion",
@@ -2454,9 +2458,9 @@
       "level": "explorer",
       "answer": "erosion",
       "clues": [
-        "I involve moving soil, sediment, or rock material from one place to another.",
-        "Water, wind, ice, and gravity can transport the material.",
-        "Weathering breaks material down; I carry it away."
+        "I happen when water, wind, ice, or gravity moves earth materials.",
+        "I may carry soil, sand, or rock fragments to another place.",
+        "Weathering breaks rock down; I move the loosened material away."
       ],
       "choices": [
         "erosion",
@@ -2474,9 +2478,9 @@
       "level": "explorer",
       "answer": "geyser",
       "clues": [
-        "I am a hot spring that intermittently ejects water and steam.",
-        "Underground heating and a constricted plumbing system help cause my eruptions.",
-        "Old Faithful is a named example."
+        "I am a kind of hot spring that sometimes shoots water and steam into the air.",
+        "Heat and pressure build up in underground passages.",
+        "Old Faithful is a famous example of me."
       ],
       "choices": [
         "volcano",
@@ -2495,9 +2499,9 @@
       "level": "explorer",
       "answer": "hot spring",
       "clues": [
-        "I am a natural spring whose water is heated underground.",
-        "Geothermal heat warms the groundwater that reaches my surface.",
-        "Unlike a geyser, I need not erupt periodically."
+        "I am a spring where water is warmed by heat inside Earth.",
+        "Warm groundwater comes out at the surface.",
+        "Unlike a geyser, I do not have to shoot water into the air."
       ],
       "choices": [
         "hot spring",
@@ -2516,9 +2520,9 @@
       "level": "explorer",
       "answer": "weathering",
       "clues": [
-        "I break down or alter rock where it is.",
-        "Freezing water, chemicals, and living things can help cause me.",
-        "Erosion involves transport; I do not require the broken material to move away."
+        "I happen when rock breaks apart or changes without being carried away.",
+        "Water freezing in cracks, chemicals, and living things can help cause me.",
+        "Erosion moves material elsewhere; I change it where it is."
       ],
       "choices": [
         "deposition",
@@ -2544,7 +2548,7 @@
         "art-lake",
         "art-pond"
       ],
-      "explanation": "Both are inland waterbodies. Pond often suggests smaller or shallower water, but there is no universal lake-versus-pond size boundary; local names can overlap.",
+      "explanation": "Both are bodies of water surrounded by land. Ponds are often smaller or shallower than lakes, but there is no worldwide rule for the names.",
       "example": "Lake Michigan is a very large lake. A duck pond in a neighborhood park.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2560,7 +2564,7 @@
         "art-island",
         "art-peninsula"
       ],
-      "explanation": "Water is all around an island. A peninsula stays connected to land.",
+      "explanation": "An island has water on every side. A peninsula has water on most sides but stays connected to other land.",
       "example": "Hawaii has many islands surrounded by ocean. Florida sticks out into the Atlantic and Gulf waters.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2576,7 +2580,7 @@
         "art-river",
         "art-stream"
       ],
-      "explanation": "Stream is a broad term for channelized flowing water. Rivers, creeks, and brooks can all be streams; their names do not follow a universal size boundary.",
+      "explanation": "A stream is flowing water in a channel. A river is one kind of stream. Creek and brook can mean similar things, so the names overlap.",
       "example": "The Mississippi River winds across the United States. A small stream runs through a wooded park.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2592,7 +2596,7 @@
         "art-mountain",
         "art-hill"
       ],
-      "explanation": "Both rise above surrounding land. Mountain often suggests greater relief, but there is no universal height separating a mountain from a hill.",
+      "explanation": "Both rise above nearby land. Mountains are often higher or steeper than hills, but there is no worldwide height rule.",
       "example": "Mount Everest rises high in the Himalayas. A rounded grassy hill in a park.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2608,7 +2612,7 @@
         "art-valley",
         "art-canyon"
       ],
-      "explanation": "Valley is the broader low-land corridor. Canyons are steep-sided valleys; a feature may correctly be called both. Gorge overlaps with canyon.",
+      "explanation": "A valley is low land between higher places. A canyon is a valley with steep sides. The same place may be both; gorge is another similar word.",
       "example": "Yosemite Valley sits between high rocky walls. The Grand Canyon has deep sides carved by a river.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2624,7 +2628,7 @@
         "art-forest",
         "art-meadow"
       ],
-      "explanation": "A forest has many trees. A meadow is open and grassy.",
+      "explanation": "A forest has trees as its main plants. A meadow is open land covered mostly in grasses and other low plants.",
       "example": "The Amazon Rainforest has millions of trees. A meadow covered in grass and wildflowers.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2640,7 +2644,7 @@
         "art-diagram-ocean",
         "art-lake"
       ],
-      "explanation": "Oceans are vast connected salt-water bodies. Lakes are inland waterbodies enclosed by land apart from inlets and outlets. Some lakes are salty, so fresh versus salty is not a universal test.",
+      "explanation": "Oceans are huge, connected bodies of salty water. Lakes are surrounded by land. Some lakes are salty, so salt alone does not tell them apart.",
       "example": "The Pacific Ocean covers a huge part of Earth. Lake Michigan is a very large lake.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2656,7 +2660,7 @@
         "art-beach",
         "art-cliff"
       ],
-      "explanation": "Beach describes a shore deposit of loose sand, gravel, or pebbles. Cliff describes a steep face. A beach can lie at the base of a cliff.",
+      "explanation": "A beach is loose sand, shells, or stones beside water. A cliff is a steep rock or earth face. You can find a beach below a cliff.",
       "example": "A sandy Atlantic Ocean beach in Florida. The Cliffs of Moher rise above the ocean in Ireland.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2672,7 +2676,7 @@
         "art-waterfall",
         "art-rapids"
       ],
-      "explanation": "A waterfall has a distinct abrupt drop or series of drops. Rapids describe a fast turbulent reach of flowing water. Both can occur along the same river.",
+      "explanation": "A waterfall has a clear drop in flowing water. Rapids are fast, rough stretches of a river. Both may happen on the same river.",
       "example": "Niagara Falls pours over a steep drop. Whitewater rapids tumble over rocks in rivers.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2688,7 +2692,7 @@
         "art-swamp",
         "art-marsh"
       ],
-      "explanation": "Both are wetlands. A typical swamp has prominent woody vegetation, while a typical marsh is dominated by nonwoody plants. Vegetation, rather than wetness alone, is the useful distinction.",
+      "explanation": "Both have wet ground. Swamps usually have many trees or shrubs. Marshes have mostly grasses and reeds.",
       "example": "Cypress trees can grow in a flooded swamp. Grassy marshes grow in the Florida Everglades.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2704,7 +2708,7 @@
         "art-desert",
         "art-oasis"
       ],
-      "explanation": "A desert gets little rain. An oasis is a watered spot in a dry area.",
+      "explanation": "A desert gets very little rain or snow. An oasis is a place with water in an otherwise dry area.",
       "example": "The Sahara Desert receives very little rainfall. An oasis may have palms and a pool in a desert.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2720,7 +2724,7 @@
         "art-diagram-river-source",
         "art-diagram-river-mouth"
       ],
-      "explanation": "A source is where a river starts. Its mouth is where it ends in another water body.",
+      "explanation": "A river's source is where it starts. Its mouth is where it enters a lake, another river, or the sea.",
       "example": "A mountain spring may be a river's source. The Mississippi River empties into the Gulf of Mexico.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2736,7 +2740,7 @@
         "art-upstream",
         "art-downstream"
       ],
-      "explanation": "Upstream points toward a river's start. Downstream follows the water's flow.",
+      "explanation": "Upstream means toward the river's beginning, against the flow. Downstream means in the same direction the river flows.",
       "example": "A canoe going upstream travels toward a river's start. A floating leaf goes downstream with the current.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2752,7 +2756,7 @@
         "art-shore",
         "art-shoreline"
       ],
-      "explanation": "Shore is adjoining land; shoreline is the boundary where water and land meet. Their exact extent changes with water level and usage.",
+      "explanation": "The shore is the land beside water. The shoreline is the edge where water meets land. That edge may move as water levels change.",
       "example": "The shore of a lake is where its water meets land. A lake's shoreline curves around its edges.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2768,7 +2772,7 @@
         "art-summit",
         "art-valley"
       ],
-      "explanation": "A summit is a mountain's highest point. A valley is low land between hills or mountains.",
+      "explanation": "A summit is the highest point of a mountain. A valley is low land between higher hills or mountains.",
       "example": "A climber might stand on Mount Everest's summit. Yosemite Valley sits between high rocky walls.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2784,7 +2788,7 @@
         "art-cave",
         "art-tunnel"
       ],
-      "explanation": "Cave describes a natural cavity in rock. Tunnel describes a passage through an obstruction; many tunnels are built, but natural tunnels also exist.",
+      "explanation": "A cave is a natural opening in rock large enough to enter. A tunnel is a passage through or beneath something. Many tunnels are built, but some are natural.",
       "example": "Mammoth Cave has underground passages. A road tunnel can pass straight through a mountain.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2800,7 +2804,7 @@
         "art-hill",
         "art-dune"
       ],
-      "explanation": "A hill can be made of different earth or rock. A dune is a hill of sand.",
+      "explanation": "A hill is raised ground that may be made of rock, soil, or other material. A dune is a mound or ridge made mainly of wind-blown sand.",
       "example": "A rounded grassy hill in a park. Sand dunes rise in Colorado's Great Sand Dunes.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2816,7 +2820,7 @@
         "art-glacier",
         "art-iceberg"
       ],
-      "explanation": "A glacier moves slowly on land. An iceberg floats in water.",
+      "explanation": "A glacier is a large mass of ice that slowly moves on land. An iceberg is a piece of ice that has broken away and floats in water.",
       "example": "A glacier slowly moves down an Alaskan valley. Icebergs float in the cold North Atlantic Ocean.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2832,7 +2836,7 @@
         "art-bay",
         "art-gulf"
       ],
-      "explanation": "Bay and gulf are overlapping conventional names for coastal water partly enclosed by land. Gulf often suggests a large indentation, but there is no universal size distinction.",
+      "explanation": "Both names describe coastal water partly surrounded by land. A gulf is often large, but there is no exact size rule separating gulfs and bays.",
       "example": "San Francisco Bay curves into the land. The Gulf of Mexico is partly surrounded by land.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2848,7 +2852,7 @@
         "art-pier",
         "art-harbor"
       ],
-      "explanation": "A pier is a built platform reaching into water. A harbor is sheltered water for boats.",
+      "explanation": "A pier is a platform built out over water. A harbor is a sheltered area of water where boats can stay.",
       "example": "A fishing pier reaches out over the ocean. New York Harbor provides sheltered water for ships.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2864,7 +2868,7 @@
         "art-diagram-woods",
         "art-field"
       ],
-      "explanation": "Woods have many trees. A field is open land.",
+      "explanation": "Woods are areas with many trees. A field is open land used for growing plants, playing sports, or other activities.",
       "example": "A small patch of woods behind a house. A grassy field where children play soccer.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2880,7 +2884,7 @@
         "art-plain",
         "art-plateau"
       ],
-      "explanation": "Both can be flat. A plateau stands high above surrounding land.",
+      "explanation": "Both can be fairly flat. A plateau is high land with a broad, fairly level top. A plain does not have to be high.",
       "example": "The Great Plains spread across central North America. The Colorado Plateau is a broad high land area.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2896,7 +2900,7 @@
         "art-diagram-peak",
         "art-summit"
       ],
-      "explanation": "Summit names the highest point of a feature. Peak often suggests a pointed high point; a feature can be both a peak and a summit, and usage varies.",
+      "explanation": "A summit is the highest point of a mountain or other high place. A peak is often a pointed high place. The same spot can be both.",
       "example": "A pointed mountain peak sticks up into the clouds. A climber might stand on Mount Everest's summit.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2912,7 +2916,7 @@
         "art-coast",
         "art-shore"
       ],
-      "explanation": "Coast usually refers to the land-ocean zone. Shore also applies beside lakes and rivers. The terms overlap on an ocean coastline.",
+      "explanation": "Coast usually means land beside an ocean or sea. Shore can also mean land beside a lake or river. Their meanings overlap at the ocean.",
       "example": "Florida's Atlantic coast is next to the ocean. The shore of a lake is where its water meets land.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2928,7 +2932,7 @@
         "art-diagram-current",
         "art-waves"
       ],
-      "explanation": "A current is directed water flow. A wave carries a disturbance through water; water particles also move, so waves do not mean motionless water.",
+      "explanation": "A current is water flowing in a direction. A wave is a disturbance traveling through water; water moves as the wave passes, too.",
       "example": "An ocean current carries water along the coast. Ocean waves roll toward a beach and rise and fall.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2944,7 +2948,7 @@
         "art-volcano",
         "art-mountain"
       ],
-      "explanation": "A volcano has an opening where melted rock may come out. Not every mountain is a volcano.",
+      "explanation": "A volcano has an opening where melted rock may rise and erupt. A mountain is raised land. Some volcanoes are mountains, but many mountains are not volcanoes.",
       "example": "Mount St. Helens in Washington is a volcano. Mount Everest rises high in the Himalayas.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2960,7 +2964,7 @@
         "art-river",
         "art-tributary"
       ],
-      "explanation": "River describes a kind of flowing watercourse. Tributary describes its relationship to a receiving watercourse. A river can also be a tributary.",
+      "explanation": "A river is a flowing waterway. A tributary is a waterway that flows into another one. A river can also be a tributary.",
       "example": "The Mississippi River winds across the United States. The Missouri River joins the Mississippi River.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2976,7 +2980,7 @@
         "art-sandbar",
         "art-beach"
       ],
-      "explanation": "A beach is loose shore sediment. A sandbar is an accumulation in or across water; changing water levels can expose it and connect it to a beach.",
+      "explanation": "A beach is loose sand or stones along a shore. A sandbar is a buildup of sand in or across water. Changing water levels can connect them.",
       "example": "A sandbar may form near a river mouth. A sandy Atlantic Ocean beach in Florida.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -2992,7 +2996,7 @@
         "art-diagram-dam",
         "art-reservoir"
       ],
-      "explanation": "A dam is a barrier controlling water. A reservoir is a place or body in which water is stored. Many reservoirs are behind dams, but the terms name different things.",
+      "explanation": "A dam is a barrier that holds back or controls water. A reservoir is a place where water is stored. Many reservoirs form behind dams.",
       "example": "Hoover Dam holds back water in a river. Lake Mead is a reservoir that stores water.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3008,7 +3012,7 @@
         "art-delta",
         "art-diagram-river-mouth"
       ],
-      "explanation": "The mouth is where a river empties. A delta is land made from sediment near some river mouths.",
+      "explanation": "A river mouth is where a river enters another body of water. A delta is land built from sand and mud the river leaves near some mouths.",
       "example": "The Mississippi River makes a delta near the Gulf. The Mississippi River empties into the Gulf of Mexico.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3024,7 +3028,7 @@
         "art-estuary",
         "art-delta"
       ],
-      "explanation": "An estuary is a coastal waterbody with river-sea interaction in familiar examples. A delta is a sediment deposit near a river mouth. An estuary and delta can occur together.",
+      "explanation": "An estuary is coastal water where river water and seawater often mix. A delta is sediment built up near a river mouth. One place can have both.",
       "example": "Chesapeake Bay is an estuary where fresh and salt water mix. The Mississippi River makes a delta near the Gulf.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3040,7 +3044,7 @@
         "art-atoll",
         "art-archipelago"
       ],
-      "explanation": "Archipelago describes a group of islands. Atoll describes a ringlike coral-reef or coral-island arrangement around a lagoon. Some atolls contain multiple islands and can also be archipelagos.",
+      "explanation": "An archipelago is a group of islands. An atoll is a ring of coral reef or coral islands around a lagoon. Some atolls include several islands.",
       "example": "Some Maldives islands form rings around lagoons. Indonesia is an archipelago of many islands.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3056,7 +3060,7 @@
         "art-strait",
         "art-isthmus"
       ],
-      "explanation": "A strait is skinny water between lands. An isthmus is skinny land between waters.",
+      "explanation": "A strait is a narrow strip of water connecting larger bodies of water. An isthmus is a narrow strip of land joining larger land areas.",
       "example": "The Strait of Gibraltar is narrow water between lands. The Isthmus of Panama links two larger land areas.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3072,7 +3076,7 @@
         "art-bluff",
         "art-cliff"
       ],
-      "explanation": "Bluff often names a steep bank overlooking lower land or water. Cliff is a broader steep-face term. The names overlap and local usage matters.",
+      "explanation": "A bluff is often a steep bank above land or water. A cliff is a steep face of rock or earth. Both names may describe the same place.",
       "example": "Some tall bluffs overlook the Mississippi River. The Cliffs of Moher rise above the ocean in Ireland.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3088,7 +3092,7 @@
         "art-fjord",
         "art-diagram-cove"
       ],
-      "explanation": "A fjord is long, narrow, and carved by ice. A cove is a small sheltered bay.",
+      "explanation": "A fjord is a long, narrow sea inlet carved by a glacier. A cove is a smaller, sheltered bay. Both can be along a coast.",
       "example": "Norway has fjords cut by ancient glaciers. A small sheltered cove might hold tiny boats.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3104,7 +3108,7 @@
         "art-levee",
         "art-diagram-dam"
       ],
-      "explanation": "A levee runs beside water to stop flooding. A dam crosses a waterway to hold water back.",
+      "explanation": "A levee runs beside a river to help keep floodwater in its channel. A dam crosses a waterway and holds back or controls water.",
       "example": "A levee beside a river helps block floodwater. Hoover Dam holds back water in a river.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3120,7 +3124,7 @@
         "art-watershed",
         "art-river"
       ],
-      "explanation": "A watershed is land draining into a water system. A river is flowing water in that system.",
+      "explanation": "A watershed is land where rainwater drains toward the same river or outlet. A river is the flowing water in a channel. A watershed can contain many rivers.",
       "example": "Rain in a watershed drains toward the same water system. The Mississippi River winds across the United States.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3136,7 +3140,7 @@
         "art-elevation",
         "art-altitude"
       ],
-      "explanation": "Both refer to height relative to a reference. Elevation is commonly used for ground locations and altitude for aircraft, but that convention is not an exclusive scientific rule.",
+      "explanation": "Both tell how high something is compared with a starting level. Elevation is often used for the ground and altitude for aircraft, but the words overlap.",
       "example": "Denver is about 5,280 feet above sea level. A plane might fly at an altitude of 10,000 feet.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3152,7 +3156,7 @@
         "art-mesa",
         "art-plateau"
       ],
-      "explanation": "Both can be elevated and flat-topped. Mesa often suggests an isolated table-like feature with steep sides. Plateau commonly describes a broader elevated region, without a universal size cutoff.",
+      "explanation": "Both are high areas with fairly flat tops. A mesa is often a separate, table-shaped landform. A plateau usually covers a wider area, but there is no exact size cutoff.",
       "example": "A mesa looks like a table standing in a desert. The Colorado Plateau is a broad high land area.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3168,7 +3172,7 @@
         "art-canal",
         "art-channel"
       ],
-      "explanation": "Channel is a broad passage or watercourse term. A canal is a built or substantially modified waterway, so it can also be a channel.",
+      "explanation": "A channel is a route where water flows or boats travel. A canal is a waterway people build or greatly change. A canal is one kind of channel.",
       "example": "Ships travel through the Panama Canal. Ships follow deep channels through shallow waters.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3184,7 +3188,7 @@
         "art-diagram-globe",
         "art-diagram-map"
       ],
-      "explanation": "Latitude measures angular position north or south of the equator; longitude measures angular position east or west of a prime meridian. Together they can locate a point.",
+      "explanation": "Latitude tells how far north or south a place is from the equator. Longitude tells how far east or west it is from a starting line. Together they locate places.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3200,7 +3204,7 @@
         "art-river",
         "art-cliff"
       ],
-      "explanation": "Weathering breaks down or alters rock in place. Erosion transports material. Weathered material can later be eroded.",
+      "explanation": "Weathering breaks down or changes rock where it is. Erosion moves soil and rock pieces to new places. Weathered pieces can later be carried away.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3216,7 +3220,7 @@
         "art-river",
         "art-delta"
       ],
-      "explanation": "Erosion transports material away; deposition lays transported material down. A river can erode one bank and deposit sediment elsewhere.",
+      "explanation": "Erosion carries soil, sand, or rock pieces away. Deposition happens when that moving material is dropped somewhere else.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3232,7 +3236,7 @@
         "art-diagram-aquifer",
         "art-stream"
       ],
-      "explanation": "An aquifer is permeable rock or sediment storing and transmitting groundwater. A spring is a place where groundwater emerges at the surface.",
+      "explanation": "An aquifer is rock or loose material underground that stores and passes along water. A spring is a place where groundwater naturally comes out at the surface.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3248,7 +3252,7 @@
         "art-diagram-spring",
         "art-diagram-geyser"
       ],
-      "explanation": "Both involve geothermally heated groundwater. A geyser intermittently ejects water and steam; a hot spring need not erupt. A geyser is a special kind of hot spring.",
+      "explanation": "Both have water heated inside Earth. A geyser is a special hot spring that sometimes shoots hot water and steam into the air.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3264,7 +3268,7 @@
         "art-river",
         "art-field"
       ],
-      "explanation": "The river is flowing water in its channel. A floodplain is adjoining land that can be inundated during floods.",
+      "explanation": "A river is flowing water in a channel. A floodplain is the low land beside it that can be covered with water during a flood.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3280,7 +3284,7 @@
         "art-river",
         "art-lake"
       ],
-      "explanation": "A meander is a bend in a flowing channel. An oxbow lake can occupy a former bend after it is cut off.",
+      "explanation": "A meander is a bend in a flowing river. An oxbow lake can form when a river changes course and leaves an old bend cut off.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3296,7 +3300,7 @@
         "art-diagram-map",
         "art-diagram-compass"
       ],
-      "explanation": "Scale relates map distance to real distance. A key explains symbols and colors.",
+      "explanation": "A map scale tells how a distance on the map compares with real distance. A map key explains what the map's colors and symbols mean.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3312,7 +3316,7 @@
         "art-diagram-contour",
         "art-diagram-globe"
       ],
-      "explanation": "A contour connects equal elevations on a map. A meridian represents equal longitude on Earth.",
+      "explanation": "A contour line joins places that are the same height. A line of longitude joins places with the same east-or-west position.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3328,7 +3332,7 @@
         "art-diagram-globe",
         "art-diagram-compass"
       ],
-      "explanation": "These are opposite surface ends of Earth’s rotation axis. Geographic poles differ from magnetic poles.",
+      "explanation": "The North and South Poles are opposite ends of Earth's spinning axis at the surface. These geographic poles differ from magnetic poles.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3344,7 +3348,7 @@
         "art-glacier",
         "art-diagram-moraine"
       ],
-      "explanation": "A glacier is moving land ice. A moraine is debris transported or deposited by glacier ice.",
+      "explanation": "A glacier is a large mass of ice slowly moving over land. A moraine is a pile or ridge of stones and soil a glacier carries or leaves behind.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3360,7 +3364,7 @@
         "art-swamp",
         "art-marsh"
       ],
-      "explanation": "Wetland is the broad saturated-land category. Marsh is one wetland type, typically dominated by nonwoody plants.",
+      "explanation": "Wetland is the broad name for land where water shapes the soil and living things. A marsh is one type of wetland, usually full of grasses or reeds.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3376,7 +3380,7 @@
         "art-diagram-globe",
         "art-diagram-map"
       ],
-      "explanation": "The equator is a zero-latitude reference line. A hemisphere is half of a sphere; the equator separates Earth’s northern and southern halves.",
+      "explanation": "The equator is an imaginary line at 0° latitude around Earth. A hemisphere is half a sphere. The equator divides Earth into northern and southern halves.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3392,7 +3396,7 @@
         "art-mountain",
         "art-stream"
       ],
-      "explanation": "A source is a river’s beginning. A spring is groundwater emerging naturally; it may supply a river’s source, but not every source is a spring.",
+      "explanation": "A river's source is where it begins. A spring is where underground water comes out naturally. Some rivers begin at springs, but not all do.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
@@ -3408,7 +3412,7 @@
         "art-dune",
         "art-diagram-moraine"
       ],
-      "explanation": "A dune is shaped chiefly by wind-deposited sand. A moraine consists of debris associated with a glacier.",
+      "explanation": "A dune is a mound of sand shaped mainly by wind. A moraine is a pile or ridge of rocks and soil moved or left by a glacier.",
       "example": "Try explaining the relationship in your own words, then name an example.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
