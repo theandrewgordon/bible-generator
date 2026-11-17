@@ -12,7 +12,7 @@ function latinFixture(){
  body=body.replace(/{% for key,label in latin_modes.items\(\) %}[\s\S]*?{% endfor %}/,Object.entries(modes).map(([key,label])=>'<option value="'+key+'">'+label+'</option>').join(''));
  body=body.replace(/<script[^>]*id="lq-config"[^>]*>[\s\S]*?<\/script>/,'<script id="lq-config" type="application/json">'+JSON.stringify({cardCount:2,questions,modes,memory:{},study:[],csrf:'test',audioVersion:'fixture',ttsUrl:'/labs/latin-quest/tts'})+'</script>');
  body=body.replace(/{{\s*latin_(?:card_count|vocabulary_count|grammar_count)\s*}}/g,'2');
- const head=template.match(/{% block head %}([\s\S]*?){% endblock %}/)[1];
+ const head=template.match(/<style>[\s\S]*?<\/style>/)[0]+[...template.matchAll(/<link[^>]+rel="stylesheet"[^>]*>/g)].map(m=>m[0]).join('');
  return '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">'+head+'</head><body>'+body+'</body></html>';
 }
 

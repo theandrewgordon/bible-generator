@@ -5,7 +5,7 @@ export async function copyGameLink(game,clipboard=globalThis.navigator?.clipboar
 export function mountNavigation(root,game){
  if(!root)return;
  const nav=document.createElement('nav');nav.className='labs-family';nav.setAttribute('aria-label','FaithSparks learning games');
- const brand=document.createElement('a');brand.className='labs-brand';brand.href='/labs';brand.textContent='✦ FaithSparks LABS';nav.appendChild(brand);
+ const brand=document.createElement('a');brand.className='labs-brand';brand.href='/labs';const star=document.createElement('span');star.textContent='✦';star.setAttribute('aria-hidden','true');const small=document.createElement('small');small.textContent='LABS';brand.append(star,' FaithSparks ',small);nav.appendChild(brand);
  const links=document.createElement('div');for(const [id,title,url]of GAMES){const a=document.createElement('a');a.href=url;a.textContent=title;if(id===game)a.setAttribute('aria-current','page');links.appendChild(a)}
  const button=document.createElement('button');button.type='button';button.className='labs-share';button.textContent='Copy game link';button.setAttribute('aria-label','Copy game link to share');links.appendChild(button);
  const status=document.createElement('span');status.className='labs-copy-status';status.setAttribute('role','status');links.appendChild(status);
