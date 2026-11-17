@@ -10,7 +10,7 @@ Scope: Geo Detectives, Math Fact Adventure, Latin Quest and Grammar Grove.
 | Grammar continuity | Leaving/reloading lost question position, points and partially filled answers. Solo showed two score totals. | Save preferences and unfinished round state, provide explicit Resume, preserve draft/placed answers, and show one score in solo mode. Fresh chapters reset round points. |
 | Setup simplicity | Latin's essential word-type, answer-style and reviewed-only options were inside nested drawers; the large header displaced the controls. | Main learning controls stay visible. Session length, voice and other optional tools remain in one Practice options drawer. The ancient-world header is more compact. |
 
-Existing Geo and Math saved-round behavior, separate Start fresh/Resume actions, individual learning histories, Latin reviewed-word eligibility, OpenAI audio and saved voice caches are retained.
+Geo and Math now retain typed draft answers, and restored graded Math answers remain locked. Existing saved-round behavior, separate Start fresh/Resume actions, individual learning histories, Latin reviewed-word eligibility, OpenAI audio and saved voice caches are retained.
 
 Data boundaries: journals and learner identities remain app-specific and browser-local. This audit does not merge differently named learner profiles or add account/cross-device synchronization. Grammar stores round scores and round state; it does not claim to provide the same long-term mastery journal as the other apps.
 

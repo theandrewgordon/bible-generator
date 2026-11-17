@@ -15,11 +15,12 @@ function Picture({art,label}){return <div className={'landscape '+art} role="img
 function App(){
  const [s,dispatch]=useReducer(reducer,initial,()=>{try{return restore(localStorage.getItem('faithsparks.geo.v2'))}catch{return initial}});
  const lens=useRef(null),lensTrigger=useRef(null);
- const [typed,setTyped]=useState(''),[inputNotice,setInputNotice]=useState('');
+ const [inputNotice,setInputNotice]=useState('');
  const [reveal,setReveal]=useState(false),[storage,setStorage]=useState(true),[length,setLength]=useState(5);
  const eligible=data[s.mode].filter(q=>(s.level==='all'||q.level===s.level)&&(s.topic==='all'||!s.topic||(s.mode==='compare'?q.terms.some(term=>termTopics.get(term.toLowerCase())===s.topic):q.topic===s.topic)));
  const deck=(s.session?.ids||eligible.map(q=>q.id)).map(id=>byId.get(id)).filter(Boolean);
  const index=deck.length?s.index%deck.length:0,q=deck[index]||data[s.mode][0],isQuest=q.id.startsWith('g'),result=s.answers[q.id];
+ const typed=s.answerDrafts?.[q.id]||'',setTyped=value=>dispatch({type:'draft',id:q.id,value});
  const person=activeLearner(s),label=id=>s.learnerNames[id]||'Learner';
  const pending=reviewIds(s).filter(id=>byId.has(id));
  const start=(review=false,learner=s.learner,count=Number(length))=>{
@@ -30,7 +31,7 @@ function App(){
  const counts=outcomeCounts(Object.values(s.answers).map(a=>a.outcome|| (a.correct?'right':'wrong')));
  const cumulative=Object.values(s.progress[s.learner]||{}).reduce((n,r)=>({independent:n.independent+(r.right||0),helped:n.helped+(r.assisted||0),review:n.review+(r.wrong||0)+(r.skipped||0)}),{independent:0,helped:0,review:0});
  useEffect(()=>{try{localStorage.setItem('faithsparks.geo.v2',JSON.stringify({...s,history:s.history.slice(-5)}));}catch{setStorage(false)}},[s]);
- useEffect(()=>{stopVoice();setTyped('');setInputNotice('');setReveal(false);if(s.screen==='play'){const heading=document.querySelector('.mystery-board h2');heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true});document.querySelector('.mystery-board')?.scrollIntoView({block:'start',behavior:'auto'})}},[q.id,s.screen]);
+ useEffect(()=>{stopVoice();setInputNotice('');setReveal(false);if(s.screen==='play'){const heading=document.querySelector('.mystery-board h2');heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true});document.querySelector('.mystery-board')?.scrollIntoView({block:'start',behavior:'auto'})}},[q.id,s.screen]);
  useEffect(()=>{if(s.screen==='summary')document.querySelector('.expedition-results h2')?.focus()},[s.screen]);
  useEffect(()=>{if(result)document.querySelector('.discovery')?.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})},[q.id,result]);
  useEffect(()=>{if(s.screen==='play'&&s.clue>1)document.querySelectorAll('.opened-clue').item(s.clue-1)?.focus({preventScroll:true})},[s.clue]);

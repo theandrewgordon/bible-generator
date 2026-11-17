@@ -39,7 +39,7 @@ function latinFixture(){
   const first=spoken[0].text;
   await page.getByRole('button',{name:'Read it to me',exact:true}).click();
   await page.waitForTimeout(200);assert.equal(spoken.length,1);
-  await page.reload();await page.getByRole('button',{name:'Read it to me',exact:true}).click();
+  await page.locator('#geo-answer').fill('draft coastline');await page.reload();assert.equal(await page.locator('#geo-answer').inputValue(),'draft coastline');await page.getByRole('button',{name:'Read it to me',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('.labs-voice-status')?.textContent.includes('saved'));
   assert.equal(spoken.length,1);
   await page.locator('#geo-answer').fill('intentionally incorrect');
@@ -89,6 +89,7 @@ function latinFixture(){
   assert.equal(await page.locator('#turn').textContent(),'Question 1 of 5');
   assert.equal(await page.locator('#scoreboard .score').count(),1);
   assert.equal(await page.locator('#scoreboard strong').textContent(),'0');
+  await page.locator('#typedAnswer').fill('42');await page.reload();await page.getByRole('button',{name:/Resume Player 2/}).click();assert.equal(await page.locator('#typedAnswer').inputValue(),'42');
   await page.locator('#typedAnswer').fill('1000000');await page.locator('#checkTyped').click();
   await page.locator('#next').click();
   await page.locator('#restart').click();

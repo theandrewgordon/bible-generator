@@ -1,4 +1,4 @@
-export const initial={mode:'quest',topic:'all',level:'all',index:0,order:null,team:0,scores:[0,0],names:['Explorers','Pathfinders'],answers:{},clue:1,history:[],rounds:0,screen:'home',session:null,clueHistory:{},progress:{},learner:'player-1',learnerNames:{'player-1':'Player 1','player-2':'Player 2','player-3':'Player 3'},playMode:'solo',teamLearners:['player-1','player-2']};
+export const initial={mode:'quest',topic:'all',level:'all',index:0,order:null,team:0,scores:[0,0],names:['Explorers','Pathfinders'],answers:{},answerDrafts:{},clue:1,history:[],rounds:0,screen:'home',session:null,clueHistory:{},progress:{},learner:'player-1',learnerNames:{'player-1':'Player 1','player-2':'Player 2','player-3':'Player 3'},playMode:'solo',teamLearners:['player-1','player-2']};
 export function activeLearner(s){return s.playMode==='teams'?s.teamLearners[s.team]:s.learner}
 export function reviewIds(s,learner=s.learner){return Object.entries(s.progress[learner]||{}).filter(([,v])=>v.lastOutcome!=='right').map(([id])=>id)}
 function teamAt(s,index){const id=s.session?.ids[index];return s.playMode==='teams'?(s.answers[id]?.team??s.session?.turns?.[id]??s.session?.nextTeam??((Object.values(s.answers).at(-1)?.team??1)===0?1:0)):0}
@@ -14,7 +14,8 @@ export function selectPracticeIds(cases,progress={},count=5,random=Math.random){
 export function reducer(s,a){
  if(a.type==='undo')return s.history.length?{...s.history.at(-1),history:s.history.slice(0,-1)}:s;
  const snapshot=()=>({...s,history:[...s.history.slice(-19),{...s,history:[]}]});
- if(a.type==='start')return {...s,screen:'play',session:{ids:a.ids,review:!!a.review,nextTeam:0,turns:{[a.ids[0]]:0}},index:0,clue:1,clueHistory:{},team:0,scores:[0,0],answers:{},history:[],rounds:0,playMode:a.review?'solo':s.playMode,learner:a.learner||s.learner};
+ if(a.type==='start')return {...s,screen:'play',session:{ids:a.ids,review:!!a.review,nextTeam:0,turns:{[a.ids[0]]:0}},index:0,clue:1,clueHistory:{},team:0,scores:[0,0],answers:{},answerDrafts:{},history:[],rounds:0,playMode:a.review?'solo':s.playMode,learner:a.learner||s.learner};
+ if(a.type==='draft'){if(!s.session?.ids.includes(a.id)||s.answers[a.id]||typeof a.value!=='string')return s;return {...s,answerDrafts:{...s.answerDrafts,[a.id]:a.value.slice(0,80)}}}
  if(a.type==='home')return {...s,screen:'home'};
  if(a.type==='resume')return {...s,screen:'play'};
  if(a.type==='award'||a.type==='skip'){
@@ -29,14 +30,14 @@ export function reducer(s,a){
  if(a.type==='next'){if(s.session&&s.index+1>=a.length)return {...s,screen:'summary'};const index=(s.index+1)%a.length,team=teamAt(s,index),id=s.session?.ids[index];return {...s,index,team,session:s.session?{...s.session,turns:{...s.session.turns,[id]:team}}:null,clue:s.clueHistory?.[id]||1};}
  if(a.type==='jump')return {...s,index:a.index,team:teamAt(s,a.index),clue:s.clueHistory?.[s.session?.ids[a.index]]||1};
  if(a.type==='filter'&&s[a.key]===a.value)return s;
- if(a.type==='filter')return {...s,[a.key]:a.value,index:0,clue:1,order:null,session:null,answers:{},scores:[0,0],rounds:0,history:[]};
+ if(a.type==='filter')return {...s,[a.key]:a.value,index:0,clue:1,order:null,session:null,answers:{},answerDrafts:{},scores:[0,0],rounds:0,history:[]};
  if(a.type==='shuffle')return {...s,order:a.ids,index:0,clue:1};
  if(a.type==='team'){const id=s.session?.ids[s.index];if(s.answers[id])return s;return {...s,team:a.team,session:s.session?{...s.session,turns:{...s.session.turns,[id]:a.team}}:null};}
  if(a.type==='name')return {...s,names:s.names.map((x,i)=>i===a.team?a.value.slice(0,24):x)};
  if(a.type==='learner-name')return {...s,learnerNames:{...s.learnerNames,[a.id]:a.value.slice(0,24)}};
  if(a.type==='team-learner')return {...s,teamLearners:s.teamLearners.map((id,i)=>i===a.team?a.id:id)};
  if(a.type==='adjust'){const n=snapshot();n.scores=s.scores.map((v,i)=>i===a.team?Math.max(0,v+a.amount):v);return n;}
- if(a.type==='reset')return {...s,screen:'home',session:null,scores:[0,0],answers:{},history:[],rounds:0,index:0,clue:1};
+ if(a.type==='reset')return {...s,screen:'home',session:null,scores:[0,0],answers:{},answerDrafts:{},history:[],rounds:0,index:0,clue:1};
  return s;
 }
 export function restore(raw){try{const s=JSON.parse(raw);if(!s||!['quest','compare'].includes(s.mode)||!Array.isArray(s.scores)||s.scores.length!==2||!s.scores.every(n=>Number.isFinite(n)&&n>=0)||!Array.isArray(s.names)||s.names.length!==2||!s.names.every(n=>typeof n==='string')||![0,1].includes(s.team)||!Number.isInteger(s.index)||s.index<0)return initial;const validSession=s.session&&Array.isArray(s.session.ids)&&s.session.ids.length&&s.session.ids.every(id=>/^[gc]\d+$/.test(id));return {...initial,...s,screen:['home','play','summary'].includes(s.screen)&&validSession?s.screen:'home',session:validSession?s.session:null,history:Array.isArray(s.history)?s.history.slice(-5).flatMap(h=>{const restored=restore(JSON.stringify({...h,history:[]}));return restored===initial?[]:[restored]}):[],clue:[1,2,3].includes(s.clue)?s.clue:1,answers:s.answers&&typeof s.answers==='object'?s.answers:{},progress:s.progress&&typeof s.progress==='object'?s.progress:{},learnerNames:{...initial.learnerNames,...s.learnerNames}}}catch{return initial}}
