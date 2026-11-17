@@ -5,6 +5,7 @@ COPY frontend/learning-labs/package*.json ./frontend/learning-labs/
 RUN npm ci --prefix frontend/learning-labs
 COPY frontend/learning-labs ./frontend/learning-labs
 COPY static/js ./static/js
+COPY static/labs/learning-nav.css ./static/labs/learning-nav.css
 COPY templates/labs_latin_quest.html ./templates/labs_latin_quest.html
 RUN npm run build --prefix frontend/learning-labs
 
