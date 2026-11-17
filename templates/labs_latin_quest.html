@@ -19,12 +19,13 @@
 .lq select:disabled{opacity:.75}
 </style>
 <!-- learning-labs-style --><link rel="stylesheet" href="/static/labs/learning/latin/style-CI_q5R0W.css"><!-- /learning-labs-style -->
+<!-- latin-quest-theme --><link rel="stylesheet" href="/static/labs/latin-quest-theme.css?v=1"><!-- /latin-quest-theme -->
 {% endblock %}
 {% block content %}
 <div id="labs-family" data-game="latin"></div>
 <main class="lq" id="lq-app">
  <div class="lq-top"><a class="lq-link" href="/labs">← Faith Sparks Labs</a><span class="lq-tag">A little practice. A lasting memory.</span></div>
- <header><p class="lq-tag">THE WORD NOTEBOOK · FAITHSPARKS LABS</p><h1>Latin Quest</h1><p class="lq-intro">Practice Latin and English. Speak, type, or choose an answer. Take your time and try again. Voice reads the learning material; scores and celebrations stay quiet.</p></header>
+ <header class="lq-hero" aria-label="Latin Quest, an ancient-world language adventure"><div class="lq-hero-paper"><div class="lq-hero-ornament" aria-hidden="true">✦</div><p class="lq-tag">AN ADVENTURE IN THE ANCIENT WORLD</p><h1>Latin Quest</h1><p class="lq-hero-subtitle">Discover the words. Follow the clues.</p><p class="lq-intro">Practice Latin and English. Speak, type, or choose an answer. Take your time and try again. Voice reads the learning material; scores and celebrations stay quiet.</p></div></header>
  <div id="lq-reset-confirm" class="lq-panel lq-note" role="region" aria-label="Confirm progress reset" hidden><p id="lq-reset-message"></p><div class="lq-row"><button id="lq-reset-accept" type="button">Yes, reset progress</button><button id="lq-reset-cancel" type="button">Keep my progress</button></div></div>
  <button id="lq-undo-reset" type="button" hidden>Undo progress reset</button>
  <p id="lq-notice" class="lq-status" role="status"></p>
