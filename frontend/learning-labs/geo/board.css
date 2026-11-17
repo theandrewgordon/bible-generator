@@ -13,3 +13,106 @@ body{background-attachment:scroll}.all-trails[aria-pressed=true]:hover:not(:disa
 .mystery-board{scroll-margin-top:12px}@media(max-width:650px){.mystery-board:has(.quest-content){display:flex;flex-direction:column}.mystery-board .quest-content{display:contents!important}.mystery-board .case-meta{order:0}.mystery-board .clues{order:1}.mystery-board .answer-choices{order:2;margin-bottom:18px}.mystery-board .mystery-scene{order:3!important;width:100%}.mystery-board .discovery,.mystery-board .skipped-note{order:4}.mystery-board .adventure-footer{order:5}.mystery-board .case-meta>span:first-child{overflow-wrap:anywhere}}
 @media(max-width:650px){.mystery-board .discovery,.mystery-board .skipped-note{order:3}.mystery-board .mystery-scene{order:4!important}}
 @media(max-width:650px){.mystery-board .adventure-footer{order:4}.mystery-board .mystery-scene{order:5!important;margin-top:20px}.mystery-board .discovery{scroll-margin-top:12px}}
+
+
+/* November 16 readability pass: keep decorative angles on tiny accents, not study surfaces. */
+.atlas-hero{
+  min-height:225px;
+  padding:26px 174px 27px 205px;
+  background-size:cover;
+  background-position:center center;
+  overflow:visible;
+}
+.atlas-hero>div:first-child{
+  transform:none;
+  width:100%;
+  min-width:0;
+  max-width:660px;
+  margin-inline:auto;
+  padding:10px 4px;
+  text-align:center;
+}
+.atlas-hero h1{
+  font-size:clamp(30px,4.1vw,54px);
+  line-height:1.06;
+  letter-spacing:-1.4px;
+  white-space:normal;
+  text-wrap:balance;
+}
+.atlas-hero p:not(.eyebrow){
+  font-size:clamp(15px,1.75vw,20px);
+  line-height:1.28;
+  margin:8px 0 0;
+  text-wrap:balance;
+}
+.atlas-fox{
+  left:8px;
+  bottom:0;
+  width:188px;
+  height:225px;
+  background-size:contain;
+  background-position:center bottom;
+  background-repeat:no-repeat;
+  mask-image:none;
+  filter:drop-shadow(2px 5px 4px #14374d66);
+}
+.atlas-hero .edition{
+  right:18px;
+  top:50%;
+  translate:0 -50%;
+  transform:none;
+  max-width:148px;
+  text-align:center;
+  line-height:1.4;
+}
+/* Flat, visually stable panels for reading clues and studying illustrations. */
+.mystery-board .clues,
+.clues,
+.quest-content figure,
+.quest-content .mystery-scene,
+.mystery-scene,
+.mission-picture,
+.comparison figure:first-child,
+.comparison figure:last-child,
+.scene-frame,
+.landscape{
+  transform:none!important;
+}
+.mystery-board .clues{
+  border-radius:18px;
+}
+.mystery-scene .landscape,
+.mission-picture .landscape,
+.comparison .landscape{
+  border-radius:15px;
+}
+.mystery-scene .scene-frame,
+.mission-picture{
+  overflow:visible;
+}
+.map-heading{
+  transform:none;
+}
+@media(max-width:900px){
+  .atlas-hero{padding:23px 141px 24px 156px;min-height:192px}
+  .atlas-fox{width:148px;height:192px;left:4px}
+  .atlas-hero h1{font-size:clamp(28px,4.6vw,42px)}
+  .atlas-hero .edition{max-width:120px;right:8px;font-size:12px;padding:10px 7px 14px}
+}
+@media(max-width:600px){
+  .atlas-hero{
+    padding:20px 15px 20px 100px;
+    min-height:172px;
+    background-position:center;
+  }
+  .atlas-hero>div:first-child{padding:3px 0}
+  .atlas-hero h1{font-size:clamp(26px,7.1vw,40px);letter-spacing:-.9px;line-height:1.05}
+  .atlas-hero p:not(.eyebrow){font-size:clamp(12px,3.7vw,16px);line-height:1.2;margin-top:6px}
+  .atlas-fox{left:0;bottom:0;width:101px;height:158px;background-size:contain}
+  .atlas-hero .edition{display:none}
+}
+@media(max-width:370px){
+  .atlas-hero{padding-left:88px;min-height:158px}
+  .atlas-fox{width:88px;height:145px}
+  .atlas-hero h1{font-size:26px}
+}
