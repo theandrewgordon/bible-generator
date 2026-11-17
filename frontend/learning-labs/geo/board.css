@@ -213,3 +213,87 @@ body{background-attachment:scroll}.all-trails[aria-pressed=true]:hover:not(:disa
   .atlas .guide-portrait { height:94px; }
   .atlas .guide-speech { padding:9px 10px; }
 }
+
+/* Field-guide portrait: keep the complete fox inside an illustrated oval cameo.
+   Art is an independent WebP asset; the adjacent hint panel stays live React text. */
+.atlas .fox-guide{
+  display:grid;
+  grid-template-columns:minmax(0,146px) minmax(0,1fr);
+  gap:clamp(12px,2vw,24px);
+  align-items:center;
+  min-height:194px;
+  width:100%;
+  margin-top:16px;
+  isolation:isolate;
+}
+.atlas .guide-portrait{
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:130 / 189;
+  min-width:0;
+  min-height:0;
+  flex:none;
+  align-self:center;
+  background-image:url('./art/fox-field-guide-cameo.webp')!important;
+  background-position:center center!important;
+  background-size:contain!important;
+  background-repeat:no-repeat!important;
+  border:0;
+  border-radius:0;
+  mask-image:none!important;
+  -webkit-mask-image:none!important;
+  filter:drop-shadow(0 3px 4px #74593032);
+  transform:none!important;
+  position:relative;
+  z-index:0;
+}
+.atlas .guide-speech{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  position:relative;
+  align-self:center;
+  z-index:1;
+  margin:0;
+  padding:clamp(12px,1.6vw,18px);
+  border-radius:20px 20px 20px 8px;
+  overflow-wrap:anywhere;
+  transform:none!important;
+}
+.atlas .guide-speech > small{
+  display:block;
+  line-height:1.4;
+  letter-spacing:.11em;
+}
+.atlas .guide-speech p{
+  max-width:100%;
+  margin:8px 0;
+  line-height:1.45;
+}
+@media(max-width:1000px){
+  .atlas .fox-guide{
+    grid-template-columns:minmax(0,116px) minmax(0,1fr);
+    gap:12px;
+    min-height:165px;
+  }
+}
+@media(max-width:650px){
+  .atlas .fox-guide{
+    grid-template-columns:minmax(0,94px) minmax(0,1fr);
+    gap:11px;
+    min-height:135px;
+    margin-top:12px;
+  }
+  .atlas .guide-portrait{height:auto;aspect-ratio:130 / 189}
+  .atlas .guide-speech{padding:11px 12px}
+  .atlas .guide-speech p{line-height:1.35}
+}
+@media(max-width:370px){
+  .atlas .fox-guide{
+    grid-template-columns:minmax(0,76px) minmax(0,1fr);
+    gap:8px;
+    min-height:115px;
+  }
+  .atlas .guide-speech{padding:9px 10px}
+}
