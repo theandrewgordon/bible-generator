@@ -39,4 +39,4 @@ jobs:
           cache: pip
       - run: pip install -r requirements-dev.txt
       - run: python -m compileall -q faithsparks
-      - run: python -m pytest -q tests/test_lab_voice.py tests/test_latin_quest.py
+      - run: python -m pytest -q tests/test_lab_voice.py tests/test_latin_quest.py tests/test_product_system.py
