@@ -100,7 +100,7 @@
       "example": "Florida's Atlantic coast is next to the ocean.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Shore is a broader overlapping word; my name usually points specifically to the sea.",
+      "note": "Coast usually means land beside the sea. Shore can also mean land beside a lake or river.",
       "topic": "Water & coasts"
     },
     {
@@ -222,7 +222,7 @@
       "example": "The Gulf of Mexico is partly surrounded by land.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Bay and gulf overlap; there is no universal size rule that distinguishes them.",
+      "note": "A bay and a gulf can look alike. There is no exact size rule for their names.",
       "topic": "Water & coasts"
     },
     {
@@ -304,7 +304,7 @@
       "example": "Lake Michigan is a very large lake.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "My name is commonly used for larger inland waterbodies; the boundary with ponds is not universal.",
+      "note": "Lakes are often larger than ponds, but there is no exact worldwide size rule.",
       "topic": "Water & coasts"
     },
     {
@@ -365,7 +365,7 @@
       "example": "A duck pond in a neighborhood park.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "My name overlaps with lake; there is no universal size rule separating us.",
+      "note": "Ponds are often smaller than lakes, but the names can overlap.",
       "topic": "Water & coasts"
     },
     {
@@ -546,7 +546,7 @@
       "example": "A small stream runs through a wooded park.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Those flowing-water names overlap; my word does not require one fixed size.",
+      "note": "Brook, creek, river, and stream can describe flowing water. The names often overlap.",
       "topic": "Water & coasts"
     },
     {
@@ -648,7 +648,7 @@
       "example": "The Grand Canyon has deep sides carved by a river.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Gorge overlaps with my meaning; my name does not follow a universal width cutoff.",
+      "note": "Canyon and gorge can describe similar steep-sided valleys. There is no exact width rule.",
       "topic": "Land & ice"
     },
     {
@@ -689,7 +689,7 @@
       "example": "The Cliffs of Moher rise above the ocean in Ireland.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "A bluff can be a kind of steep bank or cliff; that overlap is not a reason to mark bluff wrong.",
+      "note": "Bluff and cliff can describe the same steep face of land.",
       "topic": "Land & ice"
     },
     {
@@ -890,7 +890,7 @@
       "example": "A pointed mountain peak sticks up into the clouds.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Peak and summit overlap; I am not defined by a different universal height.",
+      "note": "Peak and summit may mean the same high place. Neither needs a particular height.",
       "topic": "Land & ice"
     },
     {
@@ -931,7 +931,7 @@
       "example": "The Colorado Plateau is a broad high land area.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "A mesa can resemble a smaller isolated example; size naming is not universal.",
+      "note": "Mesas often stand apart, while plateaus cover wider areas. There is no exact size cutoff.",
       "topic": "Land & ice"
     },
     {
@@ -992,7 +992,7 @@
       "example": "A climber might stand on Mount Everest's summit.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Peak sometimes overlaps with my meaning; a highest point can be rounded or pointed.",
+      "note": "Peak and summit can mean the same high point, whether it is rounded or pointed.",
       "topic": "Land & ice"
     },
     {
@@ -1093,7 +1093,7 @@
       "example": "The Amazon Rainforest has millions of trees.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Woodland and woods overlap with my meaning; they are not automatically wrong names.",
+      "note": "Forest, woods, and woodland can describe similar tree-filled areas.",
       "topic": "Living landscapes"
     },
     {
@@ -1234,7 +1234,7 @@
       "example": "A small patch of woods behind a house.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "My meaning overlaps with woodland and forest.",
+      "note": "Woods, woodland, and forest are names that can overlap.",
       "topic": "Living landscapes"
     },
     {
@@ -1315,7 +1315,7 @@
       "example": "A fishing pier reaches out over the ocean.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Wharf can overlap with my meaning; these structures are named differently in different ports.",
+      "note": "Pier and wharf can describe similar structures beside water.",
       "topic": "People & structures"
     },
     {
@@ -1456,7 +1456,7 @@
       "example": "Slow, winding bayous run through Louisiana.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "I can be a channel, creek, or wetland-connected waterway; the name is regional.",
+      "note": "Bayou is a regional word for a slow-flowing waterway, often in wet lowlands.",
       "topic": "Water & coasts"
     },
     {
@@ -1477,7 +1477,7 @@
       "example": "A small branch of a river joins the main flow.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "My name overlaps with tributary and stream in some regions.",
+      "note": "Branch, tributary, and stream can name similar waterways in some places.",
       "topic": "Water & coasts"
     },
     {
@@ -1639,7 +1639,7 @@
       "example": "A rocky headland reaches out beyond a coast.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Cape overlaps with my meaning; these coastal names are not strict opposites.",
+      "note": "Cape and headland can describe the same coastal land that sticks out into water.",
       "topic": "Water & coasts"
     },
     {
@@ -1660,7 +1660,7 @@
       "example": "A narrow inlet lets sea water reach into land.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Bay and cove can overlap with my meaning; shape and local naming matter.",
+      "note": "Some inlets are also called bays or coves. The names can overlap.",
       "topic": "Water & coasts"
     },
     {
@@ -1862,7 +1862,7 @@
       "example": "Some tall bluffs overlook the Mississippi River.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Cliff overlaps with my meaning; local naming and shape matter.",
+      "note": "Bluff and cliff can describe similar steep land.",
       "topic": "Land & ice"
     },
     {
@@ -1883,7 +1883,7 @@
       "example": "A deep chasm splits rock with steep sides.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Canyon and gorge can overlap with my description; naming is not a strict width test.",
+      "note": "Chasm, canyon, and gorge can describe similar deep gaps with steep sides.",
       "topic": "Land & ice"
     },
     {
@@ -1924,7 +1924,7 @@
       "example": "A river may run through a steep rocky gorge.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Canyon overlaps with my meaning; the two do not have a universal width boundary.",
+      "note": "Gorge and canyon can describe similar steep-sided valleys.",
       "topic": "Land & ice"
     },
     {
@@ -1933,7 +1933,7 @@
       "answer": "mesa",
       "clues": [
         "I am a high landform with a broad, flat top and steep sides.",
-        "I often stands apart from nearby high land.",
+        "I often stand apart from nearby high land.",
         "My name comes from the Spanish word for table."
       ],
       "choices": [
@@ -1945,7 +1945,7 @@
       "example": "A mesa looks like a table standing in a desert.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Plateau overlaps in appearance, but my isolated table-like setting is the clue here.",
+      "note": "A mesa often stands apart and looks like a table. A plateau is usually a wider high area.",
       "topic": "Land & ice"
     },
     {
@@ -2027,7 +2027,7 @@
       "example": "Arctic tundra has few trees and short summers.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Arctic and alpine examples exist; permafrost is common in Arctic examples but not universal.",
+      "note": "Tundra can be near the Arctic or high on mountains. Frozen ground is common in Arctic tundra, but not everywhere.",
       "topic": "Living landscapes"
     },
     {
@@ -2128,7 +2128,7 @@
       "example": "Ships load and unload cargo at a wharf.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Pier overlaps with my meaning; neither word guarantees a single construction shape.",
+      "note": "Pier and wharf sometimes mean the same kind of waterside structure.",
       "topic": "People & structures"
     },
     {
@@ -2149,7 +2149,7 @@
       "example": "A plane might fly at an altitude of 10,000 feet.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Elevation overlaps with my meaning, so this is not a strict land-versus-air rule.",
+      "note": "Altitude and elevation both describe height. Altitude is often used for planes.",
       "topic": "Maps & our planet"
     },
     {
@@ -2230,7 +2230,7 @@
       "example": "Denver is about 5,280 feet above sea level.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Altitude overlaps with my meaning; context helps explain the intended usage.",
+      "note": "Altitude and elevation both describe height. Elevation is often used for places on land.",
       "topic": "Maps & our planet"
     },
     {
@@ -2492,7 +2492,7 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Changing Earth",
-      "note": "A geyser is a kind of hot spring; it is distinguished by its erupting water and steam."
+      "note": "A geyser is a special kind of hot spring that sometimes shoots out water and steam."
     },
     {
       "id": "g123",
@@ -2513,7 +2513,7 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Changing Earth",
-      "note": "A geyser is a kind of hot spring. A hot spring does not have to erupt periodically."
+      "note": "A geyser is a kind of hot spring that erupts. Other hot springs do not need to erupt."
     },
     {
       "id": "g116",
