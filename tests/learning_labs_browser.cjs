@@ -70,7 +70,7 @@ const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.webp
   await page.locator('[data-start="diagram"]').click();
   const fields=page.locator('[data-part-answer]');
   assert.equal(await fields.count(),2);
-  await fields.nth(0).fill('Leaves');await fields.nth(1).fill('flutter');await page.locator('#check').click();
+  await fields.nth(0).fill('Birds');await fields.nth(1).fill('sing');await page.locator('#check').click();
   assert.match(await page.locator('#feedback').textContent(),/Beautiful work/);
   assert.equal(await fields.nth(0).isDisabled(),true);
   for(const width of [1360,390]){
