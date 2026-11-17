@@ -10,8 +10,9 @@ const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.webp
  try{
   const context=await browser.newContext(),page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
-  await page.addInitScript(()=>{HTMLMediaElement.prototype.play=function(){return Promise.resolve()};HTMLMediaElement.prototype.pause=function(){}});
+  await page.addInitScript(()=>{window.Audio=class extends EventTarget{play(){return Promise.resolve()}pause(){this.dispatchEvent(new Event('pause'))}}});
   const spoken=[];
+  page.on('console',m=>{if(m.type()==='error')console.log('browser:',m.text())});
   await page.route('**/labs/voice/session',r=>r.fulfill({json:{csrf:'test',version:'v1'}}));
   await page.route('**/labs/voice/tts',r=>{spoken.push(r.request().postDataJSON());return r.fulfill({status:200,headers:{'Content-Type':'audio/mpeg','X-TTS-Cache':'MISS'},body:Buffer.from('test-clip')})});
   await page.goto(base+'/labs/geo-detectives');
