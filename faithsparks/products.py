@@ -88,6 +88,11 @@ PRODUCTS = (
         "description": "The Discovery Journal: solve number sentences, missing-number puzzles, or story problems across five stages, with verbal, typed, and choice answers.",
     },
     {
+        "id": "grammar-grove", "name": "Grammar Grove: The Sentence Workshop", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/grammar-grove", "accent": "forest",
+        "description": "Explore English grammar in a watercolor-inspired garden: identify parts of speech, build traditional sentence diagrams, and create sentences with solo or two-player play.",
+    },
+    {
         "id": "geo-detectives", "name": "Geo Detectives!", "area": "labs",
         "maturity": "sandbox", "path": "/labs/geo-detectives", "accent": "gold",
         "description": "The Field Atlas: solve 125 landscape mysteries and explore 55 comparisons, with automatic two-team scoring and watercolor scenes.",
