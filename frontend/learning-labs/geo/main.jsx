@@ -9,7 +9,8 @@ import {stopVoice} from '../shared/voice.js';
 import {matchesTerm} from './answers.js';
 import {initial,reducer,restore,shuffled,reviewIds,activeLearner,selectPracticeIds} from './logic.js';
 import {ExpeditionMap,TrailMap} from './ExpeditionMap.jsx';
-import './art.css';import './identity.css';import './style.css';import './adventure.css';import './board.css';
+import './art.css';import './style.css';import './adventure.css';import './board.css';
+import './identity.css';
 import './art-replacements.css';
 const all=[...data.quest,...data.compare],byId=new Map(all.map(q=>[q.id,q])),termTopics=new Map(data.quest.map(q=>[q.answer.toLowerCase(),q.topic]));
 function Picture({art,label}){return <div className={'landscape '+art} role="img" aria-label={'Illustrated setting for '+label}/>}
@@ -41,7 +42,7 @@ function App(){
  const award=(points,correct,selected=null)=>{dispatch({type:'award',id:q.id,points,correct,selected});setReveal(true)};
  const next=()=>{if(!result)dispatch({type:'skip',id:q.id,points:0,correct:false});dispatch({type:'next',length:deck.length});setReveal(false)};
  const learnerSelect=(id,value,onChange)=><label className="geo-field" htmlFor={id}>Learner<select id={id} value={value} onChange={e=>onChange(e.target.value)}>{Object.entries(s.learnerNames).map(([id,name])=><option key={id} value={id}>{name||'Learner'}</option>)}</select></label>;
- return <><Family game="geo"/><main className={"atlas "+(s.screen==='play'?'on-expedition':'')}><header className="atlas-hero"><div><p className="eyebrow">FOLLOW THE CLUES · EXPLORE THE WORLD</p><h1>Geo Detectives<span>!</span></h1><p>A Geography Adventure</p></div><div className="atlas-fox" aria-hidden="true"/><span className="edition">{data.quest.length} mysteries<br/>{data.compare.length} comparisons</span></header>
+ return <><Family game="geo"/><main className={"atlas "+(s.screen==='play'?'on-expedition':'')}><header className="atlas-hero"><div className="atlas-title"><h1>Geo Detectives!</h1><p>A Geography Adventure</p></div></header>
  {s.screen==='home'?<section className="geo-home expedition-home">
  <div className="expedition-setup">{learnerSelect('geo-learner',s.learner,value=>dispatch({type:'filter',key:'learner',value}))}<div className="party-switch" aria-label="Adventure party"><button aria-pressed={s.playMode==='solo'} onClick={()=>dispatch({type:'filter',key:'playMode',value:'solo'})}>One detective</button><button aria-pressed={s.playMode==='teams'} onClick={()=>dispatch({type:'filter',key:'playMode',value:'teams'})}>⚑ Two teams</button></div></div>
  <ExpeditionMap topic={s.topic||'all'} mode={s.mode} onTopic={value=>dispatch({type:'filter',key:'topic',value})} onMode={value=>dispatch({type:'filter',key:'mode',value})} onStart={()=>start(false,s.learner,5)} onResume={()=>dispatch({type:'resume'})} resume={!!s.session&&s.rounds<s.session.ids.length} pending={pending.length} available={eligible.length} onReview={()=>start(true)}/>
