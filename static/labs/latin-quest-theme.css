@@ -212,3 +212,54 @@
 @media(max-width:620px){.lq>header.lq-hero{padding:16px}.lq .lq-hero-paper{padding:18px 20px}.lq .lq-primary-options .lq-grid{grid-template-columns:1fr}.lq>header.lq-hero h1{font-size:2.7rem}}
 
 .lq>header.lq-hero{padding:18px 24px}.lq .lq-hero-paper{padding:18px 32px}.lq .lq-hero-ornament{display:none}.lq>header .lq-tag{margin:0 0 .4rem}.lq>header.lq-hero h1{margin:.35rem 0 .5rem}.lq>header.lq-hero .lq-intro{font-size:15px;line-height:1.4;margin:.5rem auto 0}@media(max-width:620px){.lq>header.lq-hero{padding:16px}.lq .lq-hero-paper{padding:18px 20px}}
+
+/* Scenic watercolor masthead with embedded illustration.
+   Existing quiz controls, speech, scoring and storage are unchanged. */
+.lq>header.lq-hero.lq-hero-watercolor{
+  display:block;position:relative;min-height:0;
+  padding:0!important;overflow:hidden;
+  border:1px solid #b58e57;outline:none;
+  background:#f5e6c7;box-shadow:0 10px 28px #51352230;
+  border-radius:17px;isolation:auto;
+}
+.lq>header.lq-hero.lq-hero-watercolor:before,
+.lq>header.lq-hero.lq-hero-watercolor:after{
+  content:none!important;display:none!important;
+}
+.lq .lq-hero-art{
+  display:block;width:100%;height:auto;
+  object-fit:cover;object-position:center center;
+  max-width:none;border:0;margin:0;
+}
+.lq .lq-screenreader-only{
+  position:absolute!important;width:1px!important;height:1px!important;
+  padding:0!important;margin:-1px!important;overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;white-space:nowrap!important;
+  border:0!important;
+}
+.lq .lq-hero-intro{
+  max-width:none;margin:0 0 1.3rem;
+  padding:12px clamp(15px,3vw,26px);
+  border:1px solid #d4b989;border-top:none;
+  border-radius:0 0 12px 12px;
+  background:linear-gradient(100deg,#f9edd5,#fff9ed 50%,#f1e0bf);
+  color:#5d4b3b;text-align:center;
+  font:clamp(.91rem,1.45vw,1.02rem)/1.5 Georgia,serif;
+  box-shadow:0 4px 10px #61432b12;
+}
+.dark .lq .lq-hero-intro{
+  background:linear-gradient(100deg,#3d3023,#4a392b);
+  color:#f5ead5;border-color:#957852;
+}
+@media(max-width:620px){
+ .lq>header.lq-hero.lq-hero-watercolor{
+   min-height:0;padding:0!important;border-radius:12px 12px 0 0;
+ }
+ .lq .lq-hero-art{
+   height:clamp(188px,58vw,265px);
+   object-fit:cover;object-position:center;
+ }
+ .lq .lq-hero-intro{
+   font-size:.91rem;line-height:1.42;padding:12px 14px;
+ }
+}
