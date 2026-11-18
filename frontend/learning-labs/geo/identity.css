@@ -84,3 +84,40 @@
     font-size: clamp(14px, 4cqi, 20px);
   }
 }
+
+.geo-roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.geo-roster li {
+  padding: 6px 14px;
+  border: 1px solid #b29355;
+  border-radius: 18px;
+  background: #fff3d9;
+  color: #173f5a;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.geo-score-actions,
+.geo-solo-score {
+  margin: 8px 0;
+  text-align: center;
+}
+
+.atlas .team-banner {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 760px) {
+  .atlas .teams:has(.team-banner:nth-child(3)) {
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  }
+}

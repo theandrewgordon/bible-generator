@@ -8,7 +8,7 @@ const places=[
  {topic:'Maps & our planet',icon:'✥',art:'art-altitude',x:45,y:78,description:'Find your bearings and see our world in a new way.'},
  {topic:'Changing Earth',icon:'✦',art:'art-volcano',x:18,y:22,description:'Look for the forces that shape a changing planet.'}
 ];
-export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume,pending,onReview,available}){
+export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume,pending,onReview,available,needsMoreQuestions,questionsPerPlayer}){
  const place=places.find(p=>p.topic===topic);
  return <section className="expedition-board" aria-label="Choose an expedition">
   <div className="world-map">
@@ -21,8 +21,8 @@ export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume
    <div className="mission-tabs" aria-label="Choose your adventure"><button aria-pressed={mode==='quest'} onClick={()=>onMode('quest')}>Quest</button><button aria-pressed={mode==='compare'} onClick={()=>onMode('compare')}>⛰ Compare</button></div>
    <div className="mission-picture"><div className={'landscape '+(place?.art||'art-mountain')} role="img" aria-label={place?.topic||'Watercolor mountain landscape'}/><span className="mission-pin" aria-hidden="true">✦</span></div>
    <p className="mission-location">{place?.topic||'The whole wide world'}</p>
-   <QuickStart disabled={!available} heading={mode==='compare'?'Spot the difference!':'Your mystery awaits…'} kicker="PACK YOUR CURIOSITY" onStart={onStart} onResume={onResume} resume={resume} description={mode==='compare'?'Two landscapes. What makes them alike—and different?':place?.description||'Five mysteries. Three sealed clues. Let curiosity lead the way.'}/>
-   {!available&&<p className="mission-empty" role="status">No mysteries match these options. Choose “All trails” in Practice options, or try another place.</p>}
+   <QuickStart startLabel={questionsPerPlayer?`Start fresh · ${questionsPerPlayer} per player →`:undefined} disabled={!available} heading={mode==='compare'?'Spot the difference!':'Your mystery awaits…'} kicker="PACK YOUR CURIOSITY" onStart={onStart} onResume={onResume} resume={resume} description={mode==='compare'?'Two landscapes. What makes them alike—and different?':place?.description||'Five mysteries. Three sealed clues. Let curiosity lead the way.'}/>
+   {!available&&<p className="mission-empty" role="status">{needsMoreQuestions?'Choose a broader trail so every player gets a turn.':'No mysteries match these options. Choose “All trails” in Practice options, or try another place.'}</p>}
    <button className="review-postcard" disabled={!pending} onClick={onReview}>✦ Explore again <span>{pending?`${pending} discoveries to revisit`:'Your review trail will grow as you play'}</span></button>
   </aside>
  </section>;

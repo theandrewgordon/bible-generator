@@ -19,3 +19,33 @@ test('reload retains five bounded undo snapshots and restores scores and progres
 test('new sessions spread across themes and use unseen cases before practiced cases',()=>{const cases=Array.from({length:18},(_,i)=>({id:'g'+i,topic:'theme'+(i%6)}));const first=selectPracticeIds(cases,{},5,()=>.5);assert.equal(first.length,5);assert.equal(new Set(first.map(id=>cases.find(q=>q.id===id).topic)).size,5);const progress=Object.fromEntries(first.map(id=>[id,{right:1}]));const next=selectPracticeIds(cases,progress,5,()=>.5);assert(!next.some(id=>first.includes(id)));assert.equal(new Set(selectPracticeIds(cases,{},0)).size,18)});
 
 test('new field examples add a concrete scenario rather than repeat a clue',()=>{const d=JSON.parse(fs.readFileSync(new URL('../geo/data.json',import.meta.url)));for(const q of d.quest)assert(!q.clues.includes(q.example),q.id);assert.equal(d.quest.find(q=>q.id==='g92').answer,'lock');for(const q of d.compare)for(const [i,term] of q.terms.entries())if(term==='Moraine')assert.equal(q.arts[i],'art-diagram-moraine')});
+
+test('four players rotate and score individually through pause and reload',()=>{
+ let state=reducer(initial,{type:'filter',key:'playerCount',value:4});
+ state=reducer(state,{type:'filter',key:'playMode',value:'players'});
+ state=reducer(state,{type:'start',ids:['g1','g2','g3','g4','g5']});
+ for(const [index,id] of state.session.ids.slice(0,4).entries()){
+  assert.equal(state.team,index);
+  state=reducer(state,{type:'award',id,points:index+1,correct:true});
+  assert.equal(state.answers[id].learner,`player-${index+1}`);
+  state=reducer(state,{type:'next',length:5});
+ }
+ state=restore(JSON.stringify(reducer(state,{type:'home'})));
+ state=reducer(state,{type:'resume'});
+ assert.equal(state.team,0);
+ assert.deepEqual(state.scores,[1,2,3,4]);
+ assert.equal(state.progress['player-4'].g4.right,1);
+});
+
+test('reset scores preserves the current question, answers and learning history, and can be undone',()=>{
+ let state=reducer({...initial,playMode:'teams'},{type:'start',ids:['g1','g2']});
+ state=reducer(state,{type:'award',id:'g1',points:3,correct:true});
+ state=reducer(state,{type:'next',length:2});
+ const reset=restore(JSON.stringify(reducer(state,{type:'reset-scores'})));
+ assert.deepEqual(reset.scores,[0,0]);
+ for(const key of ['index','team','session','answers','progress','rounds']){
+  assert.deepEqual(reset[key],state[key]);
+ }
+ assert.deepEqual(reducer(reset,{type:'undo'}).scores,[3,0]);
+ assert.deepEqual(reducer(reset,{type:'award',id:'g2',points:2,correct:true}).scores,[0,2]);
+});
