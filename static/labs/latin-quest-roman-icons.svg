@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<defs>
+ <symbol id="scroll" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c-7 0-7 9-3 13 3 3 7 1 7-3V15h34v32c0 4-3 6-7 6H14c-6 0-10-3-10-9 0-6 6-9 10-6"/><path d="M16 13h28M22 26h21M22 34h17M22 42h20"/><path d="M8 25h13M9 53h34"/><path d="M17 12c5 0 7 7 4 12"/></g></symbol>
+ <symbol id="quiz" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M17 19c2-12 28-14 32 0 3 10-6 15-13 20v5"/><path d="M36 53h.1"/><path d="M9 48c-5-11-5-27 5-37M54 47c7-10 7-26 1-37" stroke-width="2"/></g></symbol>
+ <symbol id="listen" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 37v-8c0-11 8-20 19-20s19 9 19 20v8"/><rect x="7" y="29" width="12" height="25" rx="5"/><rect x="45" y="29" width="12" height="25" rx="5"/><path d="M50 53c0 5-6 8-14 8h-5"/><rect x="24" y="57" width="9" height="5" rx="2"/></g></symbol>
+ <symbol id="temple" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20 32 5l26 15H6zM10 25h44M7 54h50M3 60h58"/><path d="M14 27v25M25 27v25M39 27v25M50 27v25"/><path d="M10 29h8M21 29h8M35 29h8M46 29h8"/></g></symbol>
+ <symbol id="laurel" viewBox="0 0 64 64"><g fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2"><path d="M30 56C14 47 9 30 16 13M34 56c16-9 21-26 14-43"/><path d="M15 20c-6-3-6-10-6-10 8 0 10 7 6 10zm-1 11c-9-1-10-8-10-8 9-3 13 3 10 8zm5 11C8 43 6 35 6 35c10-5 15 0 13 7zm8 10c-10 3-16-3-16-3 7-8 15-7 16 3zM49 20c6-3 6-10 6-10-8 0-10 7-6 10zm1 11c9-1 10-8 10-8-9-3-13 3-10 8zm-5 11c11 1 13-7 13-7-10-5-15 0-13 7zm-8 10c10 3 16-3 16-3-7-8-15-7-16 3z"/></g></symbol>
+</defs>
+</svg>
