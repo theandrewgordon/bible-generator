@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 700" role="img" aria-label="Watercolor woodland with an old oak, cottage, stone bridge, stream, and garden flowers">
+<defs>
+<linearGradient id="sky" x2="0" y2="1"><stop stop-color="#d7e7db"/><stop offset=".58" stop-color="#f9ecd0"/><stop offset="1" stop-color="#d4dca8"/></linearGradient>
+<linearGradient id="water" x2="0" y2="1"><stop stop-color="#a6cfce"/><stop offset="1" stop-color="#618e91"/></linearGradient>
+<radialGradient id="leaf"><stop stop-color="#bad487"/><stop offset=".7" stop-color="#779d63"/><stop offset="1" stop-color="#456a49"/></radialGradient>
+<linearGradient id="paper" x2="0" y2="1"><stop stop-color="#fff0c6"/><stop offset="1" stop-color="#dfbe82"/></linearGradient>
+<filter id="wash" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".015" numOctaves="3" seed="7" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="7"/></filter>
+<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".55" numOctaves="3" seed="4" result="n"/><feColorMatrix in="n" type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".12"/></feComponentTransfer></filter>
+</defs>
+<rect width="1400" height="700" fill="url(#sky)"/>
+<g opacity=".4" fill="#fff9e5"><ellipse cx="445" cy="114" rx="195" ry="55"/><ellipse cx="700" cy="75" rx="169" ry="39"/><ellipse cx="1120" cy="160" rx="213" ry="58"/></g>
+<path d="M0 470 Q160 350 285 410 T590 392 T920 394 T1400 351 L1400 700H0Z" fill="#a1b988" opacity=".65"/>
+<path d="M0 520 Q200 448 410 495 T820 469 T1400 475 V700H0Z" fill="#8faf75" filter="url(#wash)"/>
+<path d="M0 565 Q205 520 440 573 T920 548 T1400 553 V700 H0" fill="#a5ba77"/>
+<path d="M240 560 Q365 535 525 575 T890 582 Q1028 578 1090 700 H144 Q210 626 240 560" fill="url(#water)" filter="url(#wash)"/>
+<path d="M282 587 Q510 597 695 610 T974 653" stroke="#edf6e9" stroke-width="10" fill="none" opacity=".75"/>
+<path d="M310 622 Q520 620 770 645" stroke="#f8f3d9" stroke-width="5" fill="none" opacity=".7"/>
+<!-- Oak trunk, branches, canopy -->
+<path d="M108 700 Q150 544 143 367 Q143 301 111 251 L155 247 Q174 310 193 352 Q224 278 280 241 L304 271 Q230 340 215 398 Q214 554 269 700Z" fill="#67513e" stroke="#483c32" stroke-width="9"/>
+<path d="M168 570 Q188 466 166 322 M212 551 Q186 438 239 329" stroke="#947351" stroke-width="11" fill="none"/>
+<g filter="url(#wash)">
+<ellipse cx="130" cy="153" rx="210" ry="137" fill="url(#leaf)"/><ellipse cx="316" cy="103" rx="234" ry="125" fill="url(#leaf)"/><ellipse cx="65" cy="38" rx="190" ry="102" fill="#799b64"/><ellipse cx="439" cy="42" rx="175" ry="100" fill="#8eac74"/><ellipse cx="223" cy="39" rx="232" ry="108" fill="#a7bd77"/>
+</g>
+<g opacity=".5" fill="#d6dd9e"><circle cx="73" cy="154" r="24"/><circle cx="251" cy="109" r="25"/><circle cx="371" cy="59" r="19"/><circle cx="195" cy="40" r="16"/></g>
+<!-- stone bridge -->
+<path d="M422 576 Q543 452 690 562 L699 594 Q554 495 424 611Z" fill="#c8b9a0" stroke="#9a927f" stroke-width="8"/>
+<path d="M431 611 Q533 530 690 594" stroke="#776f69" stroke-width="7" fill="none"/>
+<g stroke="#a59b89" stroke-width="4"><path d="M466 537l15 37M504 522l7 37M550 517v37M601 526l-8 36M642 547l-15 30"/></g>
+<!-- Cottage on right -->
+<path d="M1052 380 L1227 232 L1394 382 L1394 619 L1065 620Z" fill="#e6d7b9" stroke="#87765e" stroke-width="10"/>
+<path d="M1019 393 L1227 192 L1428 388" fill="none" stroke="#6c6d69" stroke-width="35" stroke-linejoin="round"/>
+<path d="M1040 381 L1226 220 L1406 380" fill="none" stroke="#a1a3a0" stroke-width="20"/>
+<path d="M1141 618 V458 Q1141 393 1221 392 Q1301 394 1301 458 V618Z" fill="#72553b" stroke="#a58858" stroke-width="12"/>
+<path d="M1160 620 V458 Q1160 412 1221 410 Q1280 412 1280 458 V620" fill="#b68a55"/>
+<path d="M1209 406V620 M1160 510H1280" stroke="#5f513d" stroke-width="9"/>
+<circle cx="1260" cy="547" r="8" fill="#f6d77b"/>
+<path d="M1095 411h40v76h-40zM1322 420h50v78h-50z" fill="#a7c4b9" stroke="#806947" stroke-width="9"/>
+<path d="M1115 411v76M1322 454h50" stroke="#806947" stroke-width="6"/>
+<path d="M1347 196v-117h38v145" fill="#b8a996" stroke="#746d5f" stroke-width="8"/>
+<!-- Path, flowers -->
+<path d="M1291 622 Q1114 609 1001 701 L1418 701V637Z" fill="#d3c29e" opacity=".9"/>
+<g filter="url(#wash)" fill="#587b49"><ellipse cx="978" cy="597" rx="92" ry="44"/><ellipse cx="1393" cy="592" rx="110" ry="58"/><ellipse cx="356" cy="680" rx="137" ry="35"/></g>
+<g stroke="#648550" stroke-width="5">
+<path d="M945 658l-9 -60M957 657l15 -70M972 657l30 -50M1360 658l-5 -78M1375 658l20 -82M381 687l-7 -65M399 684l18 -73M340 688l-18 -72"/></g>
+<g fill="#aa82b0"><circle cx="936" cy="594" r="14"/><circle cx="971" cy="581" r="12"/><circle cx="1002" cy="606" r="12"/><circle cx="1355" cy="571" r="16"/><circle cx="1395" cy="575" r="12"/><circle cx="371" cy="618" r="12"/><circle cx="415" cy="609" r="12"/></g>
+<g fill="#f6d585"><circle cx="936" cy="594" r="5"/><circle cx="971" cy="581" r="5"/><circle cx="1002" cy="606" r="5"/><circle cx="1355" cy="571" r="6"/><circle cx="371" cy="618" r="4"/></g>
+<rect width="1400" height="700" filter="url(#grain)" opacity=".28"/>
+</svg>
