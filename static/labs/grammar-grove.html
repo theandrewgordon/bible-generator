@@ -25,16 +25,64 @@ button,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.46;cur
 .footer{text-align:center;font-size:13px;color:#72654c;margin:24px auto 34px}
 @media(max-width:740px){.wrap{padding:8px}.landscape{min-height:315px;border-width:5px}.hero-title{margin-top:20px}.hero-title h1{max-width:calc(100% - 28px)}.hero-title p{padding:5px 15px}.hillside{font-size:11px}.paper{padding:17px 13px}.grid{grid-template-columns:1fr}.menu-tile{min-height:105px}.menu-tile .symbol{float:left;margin-right:15px}.menu-tile strong{font-size:20px}.slot-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.choice-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.diagram{padding:5px}.wood{padding:10px 13px}}
 @media(max-width:400px){.landscape{min-height:290px}.hero-title h1{font-size:35px}.hero-title .ribbon{font-size:11px}.hero-title p{font-size:18px}.diagram svg{min-width:370px}.tile{min-width:75px}}
+</style>
+<style>
+/* Grammar Grove's original generated watercolor menu, sized to the 1536×1024 composition.
+   The file is installed separately to retain its exact brushwork and avoid duplicate text. */
+.mockup-menu{margin:15px auto 22px;max-width:1150px}
+.mockup-canvas{position:relative;width:100%;aspect-ratio:3 / 2;overflow:hidden;border-radius:18px;box-shadow:0 10px 30px #3e382638;background:#dce6c7}
+.mockup-picture{position:absolute;inset:0;background-image:url('/static/labs/grammar-grove-watercolor.webp'),url('/static/labs/grammar-grove-art.svg');background-position:center;background-size:cover;background-repeat:no-repeat}
+.art-target{appearance:none;position:absolute;display:block;z-index:2;border:2px solid transparent;background:transparent;border-radius:16px;cursor:pointer;color:transparent;font-size:0}
+.art-target:hover{background:rgba(255,249,221,.16);border-color:rgba(255,250,225,.8)}
+.art-target:focus-visible{outline:4px solid #174e80;outline-offset:1px;background:#fff2bd66}
+.art-target.begin{left:30.5%;top:36.5%;width:37.2%;height:13%}
+.art-target.diagram-target{left:30.3%;top:51%;width:37%;height:13%}
+.art-target.create{left:30.4%;top:65.1%;width:37%;height:14%}
+.art-target.chapter{left:82%;width:16.5%;height:6%}
+.art-target.chapter-1{top:40.8%}.art-target.chapter-2{top:48.2%}.art-target.chapter-3{top:55.4%}.art-target.chapter-4{top:62.6%}.art-target.chapter-5{top:69.6%}.art-target.chapter-6{top:76.7%}
+.art-target.foot{top:87%;height:7%}
+.art-target.progress-target{left:24.5%;width:14%}.art-target.team-target{left:40.1%;width:13.7%}.art-target.settings-target{left:56%;width:13.5%}.art-target.help-target{left:70.7%;width:10.6%}
+.mobile-activities{display:none}.menu-note{display:flex;align-items:center;flex-wrap:wrap;justify-content:center;gap:9px;margin-top:15px;font-size:14px}
+body:has(#menu:not([hidden])) .landscape{display:none}
+@media(max-width:700px){
+ .mockup-canvas{border-radius:12px}.mockup-menu{margin-top:8px}
+ .art-target{display:none}.mobile-activities{display:grid;gap:11px;grid-template-columns:1fr;margin-top:14px}
+ .mobile-activities .wood{min-height:54px;font-size:17px}
+ .menu-note{margin-top:20px}
+}
 </style></head><body><main class="wrap">
 <header class="landscape"><div class="hero-title"><span class="ribbon">FaithSparks Labs</span><h1>Grammar Grove</h1><p>The Sentence Workshop</p></div><span class="hillside">✦ A watercolor woodland adventure in language ✦</span></header>
 <nav class="paper row between" aria-label="Game navigation"><div class="row"><button type="button" class="wood" id="home">⌂ Grove Home</button><span id="location" class="eyebrow">Welcome to the Grove</span></div><div class="row"><span id="turn">Solo adventure</span><strong id="score">Score: 0</strong></div></nav>
-<section id="menu" class="paper"><div class="eyebrow">Choose your woodland path</div><h2>Every sentence has a story.</h2><p>Follow a gentle trail from identifying words to building authentic sentence diagrams. Watch your language skills grow as the branches become more intricate.</p>
-<div class="grid">
-<button class="menu-tile" type="button" data-mode="words"><span class="symbol">🌱</span><strong>Word Garden</strong><small>Meet the nouns, verbs, articles, adjectives, and other parts of speech.</small></button>
-<button class="menu-tile" type="button" data-mode="diagram"><span class="symbol">🌿</span><strong>Diagram Builder</strong><small>Arrange sentence parts on real Reed–Kellogg lines, from basic to complex.</small></button>
-<button class="menu-tile" type="button" data-mode="workshop"><span class="symbol">✒️</span><strong>Sentence Workshop</strong><small>Build original sentences and watch their diagrams form.</small></button>
-</div><div class="row" style="margin-top:26px"><label for="players"><strong>Players</strong></label><select id="players"><option value="1">Solo practice</option><option value="2">Two players · alternating turns</option></select><button type="button" class="wood" id="reset">Reset scores</button></div>
-<p class="muted">Independent practice content · Touch-friendly controls · Suitable for sharing and home education</p></section>
+
+<section id="menu" class="mockup-menu" aria-label="Grammar Grove watercolor game menu">
+  <div class="mockup-canvas">
+    <div class="mockup-picture" role="img" aria-label="Original watercolor woodland workshop with an oak tree, stone bridge, flowing stream, cottage, parchment signboards, and colorful wildflowers."></div>
+    <button type="button" class="art-target begin" data-mode="words" aria-label="Begin Learning: Word Garden" title="Begin Learning"></button>
+    <button type="button" class="art-target diagram-target" data-mode="diagram" aria-label="Build a Diagram" title="Build a Diagram"></button>
+    <button type="button" class="art-target create" data-mode="workshop" aria-label="Write and Create" title="Write and Create"></button>
+    <button type="button" class="art-target chapter chapter-1" data-chapter="0" aria-label="Sentence Seeds lesson"></button>
+    <button type="button" class="art-target chapter chapter-2" data-chapter="2" aria-label="Growing Details lesson"></button>
+    <button type="button" class="art-target chapter chapter-3" data-chapter="4" aria-label="Branching Sentences lesson"></button>
+    <button type="button" class="art-target chapter chapter-4" data-chapter="6" aria-label="Winding Paths lesson"></button>
+    <button type="button" class="art-target chapter chapter-5" data-chapter="8" aria-label="The Canopy lesson"></button>
+    <button type="button" class="art-target chapter chapter-6" data-chapter="10" aria-label="Master Diagrammer lesson"></button>
+    <button type="button" class="art-target foot progress-target" id="progress" aria-label="View current scores"></button>
+    <button type="button" class="art-target foot team-target" id="twoplayer" aria-label="Enable two-player mode"></button>
+    <button type="button" class="art-target foot settings-target" id="settings" aria-label="Open settings"></button>
+    <button type="button" class="art-target foot help-target" id="help" aria-label="Open help"></button>
+  </div>
+  <div class="mobile-activities" aria-label="Select a game activity">
+    <button type="button" class="wood primary" data-mode="words">🌱 Begin Learning</button>
+    <button type="button" class="wood" data-mode="diagram">🌿 Build a Diagram</button>
+    <button type="button" class="wood" data-mode="workshop">✒️ Write &amp; Create</button>
+  </div>
+  <div id="menu-panel" class="paper" hidden role="status">
+    <button id="close-panel" class="wood" type="button" style="float:right">Close</button>
+    <h2 id="panel-title">Grove settings</h2>
+    <div id="panel-content"></div>
+  </div>
+  <div class="menu-note"><label for="players"><strong>Players:</strong></label> <select id="players"><option value="1">Solo practice</option><option value="2">Two players · alternating turns</option></select> <button type="button" class="wood" id="reset">Reset scores</button></div>
+</section>
 <section id="play" class="paper" hidden aria-live="polite"><div class="row between"><div><span class="eyebrow" id="chapter"></span><h2 id="challenge-title"></h2></div><span class="muted" id="number"></span></div><p id="instruction"></p><div class="row between"><span></span><button class="wood" id="read" type="button" aria-label="Read the sentence aloud">🔊 Read it to me</button></div><div class="sentence" id="sentence"></div><div id="play-area"></div><div id="feedback" class="feedback" role="status"></div>
 <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="wood" id="hint" type="button">A little hint</button><button class="wood primary" id="check" type="button">Check answer</button><button class="wood primary" id="next" type="button" hidden>Next challenge →</button></div></section>
 <section id="preview" class="paper"><div class="eyebrow">A little peek inside the workshop</div><h2>Birds sing.</h2><div class="diagram"><svg viewBox="0 0 900 160" role="img" aria-label="Diagram of Birds sing, with Birds as subject and sing as verb"><line x1="30" x2="860" y1="85" y2="85"/><line x1="440" x2="440" y1="25" y2="140"/><text x="230" y="72" text-anchor="middle" font-size="35">Birds</text><text x="650" y="72" text-anchor="middle" font-size="35">sing</text></svg></div><p><strong>Birds</strong> tells who performs the action; <strong>sing</strong> tells what the birds do. The upright line divides the subject from the predicate verb. More complex sentences grow additional branches.</p></section>
