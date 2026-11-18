@@ -54,7 +54,7 @@
         "brook",
         "whirlpool"
       ],
-      "art": "art-river",
+      "art": "art-brook",
       "example": "A little brook bubbles over pebbles.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -75,7 +75,7 @@
         "archipelago",
         "lagoon"
       ],
-      "art": "art-peninsula",
+      "art": "art-cape",
       "example": "Cape Cod reaches out into the Atlantic Ocean.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -117,7 +117,7 @@
         "cove",
         "island"
       ],
-      "art": "art-bay",
+      "art": "art-diagram-cove",
       "example": "A small sheltered cove might hold tiny boats.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -137,7 +137,7 @@
         "levee",
         "creek"
       ],
-      "art": "art-river",
+      "art": "art-creek",
       "example": "A creek winds past trees and rocks.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -158,7 +158,7 @@
         "current",
         "iceberg"
       ],
-      "art": "art-river",
+      "art": "art-diagram-current",
       "example": "An ocean current carries water along the coast.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -321,7 +321,7 @@
         "glacier",
         "river"
       ],
-      "art": "art-beach",
+      "art": "art-diagram-ocean",
       "example": "The Pacific Ocean covers a huge part of Earth.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -402,7 +402,7 @@
         "horizon",
         "current"
       ],
-      "art": "art-atoll",
+      "art": "art-reef",
       "example": "Colorful coral reefs grow in warm tropical seas.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -442,7 +442,7 @@
         "rapids",
         "glacier"
       ],
-      "art": "art-estuary",
+      "art": "art-diagram-river-mouth",
       "example": "The Mississippi River empties into the Gulf of Mexico.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -462,7 +462,7 @@
         "river source",
         "lock"
       ],
-      "art": "art-mountain",
+      "art": "art-diagram-river-source",
       "example": "A mountain spring may be a river's source.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -482,7 +482,7 @@
         "island",
         "sea"
       ],
-      "art": "art-beach",
+      "art": "art-sea",
       "example": "The Mediterranean Sea lies between Europe and Africa.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -624,7 +624,7 @@
         "river source",
         "whirlpool"
       ],
-      "art": "art-river",
+      "art": "art-whirlpool",
       "example": "Water can spin in a whirlpool near rocks.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -706,7 +706,7 @@
         "crater",
         "dune"
       ],
-      "art": "art-volcano",
+      "art": "art-crater",
       "example": "A volcano may have a bowl-shaped crater at its top.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -806,7 +806,7 @@
         "land",
         "ocean"
       ],
-      "art": "art-plain",
+      "art": "art-land",
       "example": "A grassy farm is one part of Earth's land.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -846,7 +846,7 @@
         "desert",
         "mountain range"
       ],
-      "art": "art-ridge",
+      "art": "art-mountain-range",
       "example": "The Rocky Mountains are a mountain range.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -886,7 +886,7 @@
         "meadow",
         "peak"
       ],
-      "art": "art-mountain",
+      "art": "art-diagram-peak",
       "example": "A pointed mountain peak sticks up into the clouds.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -968,7 +968,7 @@
         "mountain range",
         "harbor"
       ],
-      "art": "art-hill",
+      "art": "art-slope",
       "example": "Skiers travel downhill on a snowy slope.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1150,7 +1150,7 @@
         "natural resource",
         "horizon"
       ],
-      "art": "art-forest",
+      "art": "art-natural-resource",
       "example": "Freshwater, trees, and stone can be useful resources.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1170,7 +1170,7 @@
         "altitude",
         "soil"
       ],
-      "art": "art-field",
+      "art": "art-soil",
       "example": "Roots grow down into dark, crumbly soil.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1210,7 +1210,7 @@
         "land",
         "vegetation"
       ],
-      "art": "art-forest",
+      "art": "art-vegetation",
       "example": "Grass, bushes, and trees are all vegetation.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1230,7 +1230,7 @@
         "meadow",
         "lagoon"
       ],
-      "art": "art-grove",
+      "art": "art-diagram-woods",
       "example": "A small patch of woods behind a house.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1452,7 +1452,7 @@
         "glacier",
         "upstream"
       ],
-      "art": "art-river",
+      "art": "art-bayou",
       "example": "Slow, winding bayous run through Louisiana.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1473,7 +1473,7 @@
         "canal",
         "whirlpool"
       ],
-      "art": "art-river",
+      "art": "art-branch",
       "example": "A small branch of a river joins the main flow.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1494,7 +1494,7 @@
         "horizon",
         "breakers"
       ],
-      "art": "art-beach",
+      "art": "art-breakers",
       "example": "Breaking waves crash into white foam near beaches.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1534,7 +1534,7 @@
         "continental shelf",
         "isthmus"
       ],
-      "art": "art-beach",
+      "art": "art-continental-shelf",
       "example": "The continental shelf lies under shallow sea near shore.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1554,7 +1554,7 @@
         "river mouth",
         "stream"
       ],
-      "art": "art-valley",
+      "art": "art-drainage-basin",
       "example": "Rain over a drainage basin flows to one river.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1615,7 +1615,7 @@
         "ridge",
         "floodplain"
       ],
-      "art": "art-river",
+      "art": "art-floodplain",
       "example": "When a river overtops its banks, water spreads across the low ground beside it.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1635,7 +1635,7 @@
         "fjord",
         "headland"
       ],
-      "art": "art-peninsula",
+      "art": "art-headland",
       "example": "A rocky headland reaches out beyond a coast.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1656,7 +1656,7 @@
         "inlet",
         "island"
       ],
-      "art": "art-bay",
+      "art": "art-inlet",
       "example": "A narrow inlet lets sea water reach into land.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1677,7 +1677,7 @@
         "island",
         "river"
       ],
-      "art": "art-atoll",
+      "art": "art-lagoon",
       "example": "A shallow lagoon may sit behind a coral reef.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1697,7 +1697,7 @@
         "delta",
         "river source"
       ],
-      "art": "art-river",
+      "art": "art-meander",
       "example": "A river curves through its floodplain in a series of sweeping bends.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1717,7 +1717,7 @@
         "oxbow lake",
         "river source"
       ],
-      "art": "art-lake",
+      "art": "art-oxbow-lake",
       "example": "A river cuts across a bend, leaving a curved lake beside its newer, straighter channel.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1757,7 +1757,7 @@
         "spring",
         "aquifer"
       ],
-      "art": "art-stream",
+      "art": "art-spring",
       "example": "Groundwater emerges on a hillside and feeds a small stream.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1797,7 +1797,7 @@
         "tide",
         "iceberg"
       ],
-      "art": "art-beach",
+      "art": "art-tide",
       "example": "High tide lifts the water higher along a beach.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1838,7 +1838,7 @@
         "basin",
         "plateau"
       ],
-      "art": "art-valley",
+      "art": "art-basin",
       "example": "A low basin can collect rainwater after a storm.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1879,7 +1879,7 @@
         "mountain",
         "mesa"
       ],
-      "art": "art-canyon",
+      "art": "art-chasm",
       "example": "A deep chasm splits rock with steep sides.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1900,7 +1900,7 @@
         "oasis",
         "cinder cone"
       ],
-      "art": "art-volcano",
+      "art": "art-cinder-cone",
       "example": "A cinder cone volcano is built from small rock pieces.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1920,7 +1920,7 @@
         "mesa",
         "cave"
       ],
-      "art": "art-canyon",
+      "art": "art-gorge",
       "example": "A river may run through a steep rocky gorge.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2003,7 +2003,7 @@
         "bog",
         "prairie"
       ],
-      "art": "art-plain",
+      "art": "art-prairie",
       "example": "Tall grasses wave across the North American prairie.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2023,7 +2023,7 @@
         "forest",
         "reef"
       ],
-      "art": "art-ridge",
+      "art": "art-tundra",
       "example": "Arctic tundra has few trees and short summers.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2044,7 +2044,7 @@
         "desert",
         "plateau"
       ],
-      "art": "art-marsh",
+      "art": "art-wetland",
       "example": "Waterlogged ground supports plants adapted to saturated soil.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2124,7 +2124,7 @@
         "wharf",
         "estuary"
       ],
-      "art": "art-bay",
+      "art": "art-wharf",
       "example": "Ships load and unload cargo at a wharf.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -3234,7 +3234,7 @@
       ],
       "arts": [
         "art-diagram-aquifer",
-        "art-stream"
+        "art-spring"
       ],
       "explanation": "An aquifer is rock or loose material underground that stores and passes along water. A spring is a place where groundwater naturally comes out at the surface.",
       "example": "Try explaining the relationship in your own words, then name an example.",
@@ -3266,7 +3266,7 @@
       ],
       "arts": [
         "art-river",
-        "art-field"
+        "art-floodplain"
       ],
       "explanation": "A river is flowing water in a channel. A floodplain is the low land beside it that can be covered with water during a flood.",
       "example": "Try explaining the relationship in your own words, then name an example.",
@@ -3281,8 +3281,8 @@
         "Oxbow lake"
       ],
       "arts": [
-        "art-river",
-        "art-lake"
+        "art-meander",
+        "art-oxbow-lake"
       ],
       "explanation": "A meander is a bend in a flowing river. An oxbow lake can form when a river changes course and leaves an old bend cut off.",
       "example": "Try explaining the relationship in your own words, then name an example.",
@@ -3361,7 +3361,7 @@
         "Marsh"
       ],
       "arts": [
-        "art-swamp",
+        "art-wetland",
         "art-marsh"
       ],
       "explanation": "Wetland is the broad name for land where water shapes the soil and living things. A marsh is one type of wetland, usually full of grasses or reeds.",
@@ -3393,8 +3393,8 @@
         "Spring"
       ],
       "arts": [
-        "art-mountain",
-        "art-stream"
+        "art-diagram-river-source",
+        "art-spring"
       ],
       "explanation": "A river's source is where it begins. A spring is where underground water comes out naturally. Some rivers begin at springs, but not all do.",
       "example": "Try explaining the relationship in your own words, then name an example.",

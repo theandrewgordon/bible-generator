@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -39,5 +40,39 @@ test('Geo Detectives watercolor replacements are complete when enabled', t => {
     const bytes = fs.readFileSync(path.join(geo,'art-replacements',filename));
     assert.equal(bytes.subarray(0,4).toString(),'RIFF','Invalid WebP RIFF: '+filename);
     assert.equal(bytes.subarray(8,12).toString(),'WEBP','Invalid WebP format: '+filename);
+  }
+});
+
+test('each geography term has one dedicated image across Quest and Compare', () => {
+  const data = JSON.parse(fs.readFileSync(path.join(geo, 'data.json'), 'utf8'));
+  const images = new Map();
+  for (const stylesheet of ['art.css', 'art-replacements.css']) {
+    const css = fs.readFileSync(path.join(geo, stylesheet), 'utf8');
+    for (const [, art, image] of css.matchAll(/\.(art-[\w-]+)\s*\{[^{}]*?background-image:\s*url\("([^"]+)"\)/g)) {
+      images.set(art, image);
+    }
+  }
+
+  const placements = [
+    ...data.quest.map(({ answer, art }) => [answer, art]),
+    ...data.compare.flatMap(({ terms, arts }) => terms.map((term, index) => [term, arts[index]])),
+  ];
+  const imageByTerm = new Map();
+  const termByHash = new Map();
+  const hashByImage = new Map();
+  for (const [name, art] of placements) {
+    const term = name.toLowerCase();
+    const image = images.get(art);
+    assert.ok(image, `Missing image for ${name}`);
+    assert.ok(fs.existsSync(path.join(geo, image)), `Missing file for ${name}`);
+    assert.equal(imageByTerm.get(term) ?? image, image, `Inconsistent image for ${name}`);
+    if (!hashByImage.has(image)) {
+      const bytes = fs.readFileSync(path.join(geo, image));
+      hashByImage.set(image, createHash('sha256').update(bytes).digest('hex'));
+    }
+    const hash = hashByImage.get(image);
+    assert.equal(termByHash.get(hash) ?? term, term, `Shared image for ${name}`);
+    imageByTerm.set(term, image);
+    termByHash.set(hash, term);
   }
 });

@@ -6,7 +6,8 @@
   justify-content: center;
   min-height: clamp(154px, 19vw, 232px);
   overflow: hidden;
-  padding: 18px 24%;
+  container-type: inline-size;
+  padding: 18px 0;
   border: 1px solid #aca27f;
   border-radius: 18px;
   background: #f9edca;
@@ -22,22 +23,24 @@
 }
 
 .atlas-title {
-  min-width: 0;
+  width: 56%;
   text-align: center;
+  /* Center on the painted parchment, which sits left and below the banner center. */
+  transform: translate(-1.5cqi, 9px);
 }
 
 .atlas-title h1 {
   margin: 0;
   color: #173d60;
-  font: 700 italic clamp(30px, 5.4vw, 67px)/1.04 Georgia, serif;
-  letter-spacing: -.035em;
+  font: 700 clamp(30px, 7.1cqi, 88px)/1 Georgia, serif;
+  letter-spacing: -.045em;
   text-wrap: balance;
 }
 
 .atlas-title p {
-  margin: 9px 0 0;
+  margin: 8px 0 0;
   color: #435642;
-  font: 500 clamp(14px, 1.9vw, 21px)/1.25 Georgia, serif;
+  font: 600 clamp(15px, 2.25cqi, 25px)/1.2 Georgia, serif;
 }
 
 .on-expedition .atlas-hero {
@@ -45,15 +48,15 @@
 }
 
 .on-expedition .atlas-title h1 {
-  font-size: clamp(27px, 4vw, 49px);
+  font-size: clamp(30px, 6.5cqi, 75px);
 }
 
 @media (max-width: 600px) {
   .atlas-hero,
   .on-expedition .atlas-hero {
     min-height: 143px;
-    justify-content: start;
-    padding: 16px 10px 16px clamp(106px, 34%, 180px);
+    justify-content: end;
+    padding: 9px 0;
     border-radius: 14px;
   }
 
@@ -63,16 +66,21 @@
   }
 
   .atlas-title {
-    text-align: left;
+    width: 56%;
+    padding-inline: 5px;
+    transform: none;
   }
 
   .atlas-title h1,
   .on-expedition .atlas-title h1 {
-    font-size: clamp(23px, 6.2vw, 36px);
+    max-inline-size: 5.7em;
+    margin-inline: auto;
+    font-size: clamp(35px, 10.7cqi, 53px);
+    line-height: .94;
   }
 
   .atlas-title p {
-    margin-top: 5px;
-    font-size: clamp(12px, 3.3vw, 17px);
+    margin-top: 7px;
+    font-size: clamp(14px, 4cqi, 20px);
   }
 }
