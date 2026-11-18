@@ -17,51 +17,68 @@ body{background-attachment:scroll}.all-trails[aria-pressed=true]:hover:not(:disa
 
 /* November 16 readability pass: keep decorative angles on tiny accents, not study surfaces. */
 .atlas-hero{
-  min-height:225px;
-  padding:26px 174px 27px 205px;
-  background-size:cover;
-  background-position:center center;
-  overflow:visible;
+  display:grid;
+  grid-template-columns:minmax(110px, 19%) minmax(0, 1fr) minmax(104px, 20%);
+  grid-template-areas:"fox title edition";
+  min-height:194px;
+  padding:0 12px;
+  background-size:100% 100%;
+  background-position:center;
 }
 .atlas-hero>div:first-child{
+  grid-area:title;
   transform:none;
-  width:100%;
   min-width:0;
-  max-width:660px;
-  margin-inline:auto;
-  padding:10px 4px;
+  padding:27px 0 0;
   text-align:center;
 }
+.atlas-hero .eyebrow{
+  font-size:clamp(8px, 1.05vw, 11px);
+  letter-spacing:.1em;
+}
 .atlas-hero h1{
-  font-size:clamp(30px,4.1vw,54px);
-  line-height:1.06;
-  letter-spacing:-1.4px;
+  font-size:clamp(30px, 4.2vw, 57px);
+  line-height:1.02;
+  letter-spacing:-.025em;
   white-space:normal;
   text-wrap:balance;
+  color:#173c59;
+  text-shadow:0 1px #fff0c8;
 }
+.atlas-hero h1::after{display:none}
 .atlas-hero p:not(.eyebrow){
-  font-size:clamp(15px,1.75vw,20px);
-  line-height:1.28;
-  margin:8px 0 0;
+  font-size:clamp(13px, 1.6vw, 19px);
+  line-height:1.2;
+  margin:5px 0 0;
   text-wrap:balance;
 }
 .atlas-fox{
-  left:8px;
-  bottom:0;
-  width:188px;
-  height:225px;
+  grid-area:fox;
+  position:relative;
+  inset:auto;
+  align-self:end;
+  justify-self:center;
+  width:100%;
+  height:214px;
+  margin-top:-20px;
   background-size:contain;
   background-position:center bottom;
   background-repeat:no-repeat;
   mask-image:none;
-  filter:drop-shadow(2px 5px 4px #14374d66);
+  opacity:1;
+  filter:drop-shadow(1px 3px 3px #173b4d53);
 }
 .atlas-hero .edition{
-  right:18px;
-  top:50%;
-  translate:0 -50%;
+  grid-area:edition;
+  position:relative;
+  inset:auto;
+  translate:none;
   transform:none;
-  max-width:148px;
+  justify-self:end;
+  max-width:100%;
+  margin-right:5px;
+  padding:8px 10px 12px;
+  font-size:clamp(11px,1.3vw,15px);
   text-align:center;
   line-height:1.4;
 }
@@ -94,27 +111,24 @@ body{background-attachment:scroll}.all-trails[aria-pressed=true]:hover:not(:disa
   transform:none;
 }
 @media(max-width:900px){
-  .atlas-hero{padding:23px 141px 24px 156px;min-height:192px}
-  .atlas-fox{width:148px;height:192px;left:4px}
-  .atlas-hero h1{font-size:clamp(28px,4.6vw,42px)}
-  .atlas-hero .edition{max-width:120px;right:8px;font-size:12px;padding:10px 7px 14px}
+  .atlas-hero{min-height:172px;background-size:auto 100%;grid-template-columns:minmax(104px, 18%) minmax(0, 1fr) minmax(98px, 18%)}
+  .atlas-fox{height:188px;margin-top:-16px}
 }
 @media(max-width:600px){
   .atlas-hero{
-    padding:20px 15px 20px 100px;
-    min-height:172px;
-    background-position:center;
+    grid-template-columns:clamp(88px, 27vw, 144px) minmax(0, 1fr);
+    grid-template-areas:"fox title";
+    gap:7px;
+    min-height:150px;
+    padding:0 12px 0 4px;
+    background-position:46% center;
   }
-  .atlas-hero>div:first-child{padding:3px 0}
-  .atlas-hero h1{font-size:clamp(26px,7.1vw,40px);letter-spacing:-.9px;line-height:1.05}
-  .atlas-hero p:not(.eyebrow){font-size:clamp(12px,3.7vw,16px);line-height:1.2;margin-top:6px}
-  .atlas-fox{left:0;bottom:0;width:101px;height:158px;background-size:contain}
+  .atlas-hero>div:first-child{padding:18px 0 0}
+  .atlas-hero h1{font-size:clamp(23px, 6.4vw, 37px)}
+  .atlas-hero .eyebrow{display:none}
+  .atlas-hero p:not(.eyebrow){font-size:clamp(12px, 3.3vw, 17px)}
+  .atlas-fox{height:158px;margin-top:-8px}
   .atlas-hero .edition{display:none}
-}
-@media(max-width:370px){
-  .atlas-hero{padding-left:88px;min-height:158px}
-  .atlas-fox{width:88px;height:145px}
-  .atlas-hero h1{font-size:26px}
 }
 
 
