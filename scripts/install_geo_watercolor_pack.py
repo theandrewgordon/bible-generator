@@ -38,7 +38,7 @@ def plan(repo: Path, archive: Path):
             raise ValueError(f"Expected 28 mappings and 28 WebP files, got {len(art_map)} and {len(images)}")
         if len(set(art_map.values())) != EXPECTED:
             raise ValueError("All replacement concepts need distinct CSS class names")
-        if any(not re.fullmatch(r"[a-z0-9-]+\\.webp", n) for n in images):
+        if any(not re.fullmatch(r"[a-z0-9-]+\.webp", n) for n in images):
             raise ValueError("Unexpected artwork filename")
         for name, member in images.items():
             image = z.read(member)
