@@ -1,0 +1,549 @@
+/* FAITHSPARKS LATIN QUEST · ROMAN WATERCOLOR GAME
+   Original component library for future commercial reuse.
+   This sheet controls presentation only; the Latin Quest engine remains intact.
+   Reference: approved Roman watercolor adventure mockup, Nov 2026. */
+.lq.lq-roman-game{
+ --rq-ink:#482e20;--rq-terra:#933d2d;--rq-rust:#ac5b3b;
+ --rq-gold:#bb8b3e;--rq-stone:#c39b68;--rq-olive:#5e6e41;
+ --rq-blue:#224d6b;--rq-parchment:#fff3d8;
+ --rq-border:#a67842;
+ max-width:1540px;width:min(100%,1540px);
+ margin:0 auto 3.5rem;padding:0 clamp(12px,2vw,30px);
+ color:var(--rq-ink);
+ background:
+ radial-gradient(ellipse at 13% 30%,#c5b88a2a 0,transparent 40%),
+ radial-gradient(ellipse at 85% 75%,#b9a37724 0,transparent 38%);
+}
+.lq.lq-roman-game *, .lq.lq-roman-game *:before, .lq.lq-roman-game *:after{box-sizing:border-box}
+.lq-roman-game .lq-top{
+ margin:6px 0 10px;display:flex;justify-content:space-between;gap:12px;align-items:center;
+ font-size:.82rem;color:#684d36
+}
+.lq-roman-game .lq-top>a{color:#71432a}
+.lq-roman-game>header.lq-hero.lq-hero-watercolor{
+ margin:0!important;border:3px solid #aa814b!important;
+ border-radius:15px 15px 0 0!important;
+ box-shadow:0 8px 22px #3b2b1a33!important
+}
+.lq-roman-game .lq-hero-art{width:100%;height:auto;display:block}
+.lq-roman-game .lq-roman-nav{
+ display:flex;justify-content:space-between;align-items:center;gap:clamp(2px,.5vw,10px);
+ padding:8px clamp(8px,1.3vw,20px);
+ min-height:74px;
+ background:
+ linear-gradient(#fffbf07c,#edd5a35c),
+ repeating-linear-gradient(0deg,transparent 0 8px,#ad87531a 8px 9px),
+ linear-gradient(90deg,#dfc69a,#fff6e1 48%,#d9b78a);
+ border:3px solid #a67a43;border-top:0;
+ box-shadow:inset 0 2px 0 #fffdf3,0 7px 0 #9c734d65,0 12px 19px #44321c20;
+}
+.lq-roman-game .lq-roman-nav button{
+ display:inline-flex;align-items:center;justify-content:center;gap:10px;
+ flex:1 1 0;min-width:0;padding:12px 10px;min-height:49px;
+ color:#5a3824!important;border:1px solid transparent!important;
+ background:transparent!important;box-shadow:none!important;border-radius:4px!important;
+ font:700 clamp(.74rem,1.3vw,.99rem)/1.2 Georgia,serif;
+ text-transform:uppercase;letter-spacing:.045em;white-space:nowrap;
+}
+.lq-roman-game .lq-roman-nav button svg{width:26px;height:26px;color:#8d5f35;flex:0 0 auto}
+.lq-roman-game .lq-roman-nav button:hover,.lq-roman-game .lq-roman-nav button:focus-visible{
+ background:#f2e3c6!important;border-color:#ba9966!important;transform:none!important
+}
+.lq-roman-game .lq-roman-nav .lq-roman-nav-home{
+ color:#ffecd0!important;background:linear-gradient(180deg,#b4543b,#842e24)!important;
+ border:2px solid #6b2820!important;border-radius:24px 4px 24px 4px!important;
+ box-shadow:inset 0 2px #deaa66,0 3px #5a2a23!important;
+}
+.lq-roman-game .lq-roman-nav .lq-roman-nav-home:hover{
+ background:linear-gradient(180deg,#c46d44,#8e3f2b)!important;
+ color:#ffecd0!important
+}
+.lq-roman-game .lq-roman-nav-status{
+ margin:0;padding:0 8px;color:#75442b;
+ font:.9rem/1.4 Georgia,serif
+}
+.lq-roman-game .lq-roman-nav-status:empty{display:none}
+.lq-roman-game .lq-hero-intro{
+ max-width:none;margin:0!important;padding:10px 14px!important;
+ border:1px solid #c6a378;border-top:0;border-radius:0 0 11px 11px;
+ text-align:center;
+ background:linear-gradient(90deg,#f1dfbb,#fff9e8,#ecd4a5)!important;
+ color:#62422a!important;font:italic .98rem/1.45 Georgia,serif!important
+}
+.lq-roman-game .lq-hero-intro .lq-edition-kicker{
+ font:800 .65rem/1.4 system-ui,sans-serif;letter-spacing:.2em;color:#8a5637;
+ margin:0 auto 2px
+}
+
+/* Existing profiles become a tidy scholar plaque. */
+.lq-roman-game section[aria-label="Choose player"]{
+ margin:22px 0 20px!important;padding:15px clamp(15px,2vw,24px)!important;
+ border:2px solid #c4a06f!important;border-radius:12px!important;
+ background:
+ linear-gradient(90deg,#fff7e4 0%,#f8ead0 70%,#e4d2ae)!important;
+ box-shadow:inset 0 0 0 4px #fff9eb,0 4px 12px #846b4323!important;
+}
+.lq-roman-game section[aria-label="Choose player"]>label{
+ color:#69422b;font:700 1.25rem Georgia,serif;margin-bottom:10px
+}
+.lq-roman-game section[aria-label="Choose player"]>select{
+ max-width:420px;background:#fffdf5!important;
+ border:2px solid #bd9969!important
+}
+.lq-roman-game section[aria-label="Choose player"]>p{margin:8px 0}
+.lq-roman-game section[aria-label="Choose player"] details{max-width:640px}
+
+/* Full-width Roman parchment launch and actual QuickStart component. */
+.lq-roman-game #lq-setup{
+ margin:0 0 24px!important;padding:clamp(15px,2vw,27px)!important;
+ border:3px solid #af8553!important;border-radius:17px!important;
+ background:linear-gradient(135deg,#f6e6c9,#fff6e0 55%,#e8d0a9)!important;
+ box-shadow:inset 0 0 0 5px #fff8e5a8,0 12px 25px #614b2a25!important;
+ scroll-margin-top:15px
+}
+.lq-roman-game #lq-setup:before{content:none!important;display:none!important}
+.lq-roman-game .lq-roman-welcome{
+ display:grid;grid-template-columns:minmax(0,1.02fr) minmax(250px,.84fr);
+ min-height:264px;overflow:hidden;gap:12px;align-items:stretch;
+ border:2px solid #c3a071;border-radius:12px;
+ background:
+ radial-gradient(ellipse at 5% 5%,#fffdf2,transparent 60%),
+ linear-gradient(130deg,#fff4d8,#eed3a5);
+ box-shadow:inset 0 0 0 6px #fff9eb,0 5px 0 #ab895675;
+ margin-bottom:clamp(16px,2.5vw,26px)
+}
+.lq-roman-game .lq-roman-welcome-copy{z-index:1;padding:clamp(18px,3.3vw,39px);max-width:690px}
+.lq-roman-game .lq-roman-eyebrow{
+ color:#975b2d;font:800 .72rem/1.5 system-ui,sans-serif;
+ letter-spacing:.17em;text-transform:uppercase;margin:0 0 6px
+}
+.lq-roman-game .lq-roman-welcome h2{
+ color:#913c30!important;font:italic 600 clamp(1.9rem,3.4vw,3.1rem)/1.14 Georgia,serif;
+ margin:0 0 9px
+}
+.lq-roman-game .lq-roman-welcome h2:before{content:none!important}
+.lq-roman-game .lq-roman-welcome-description{
+ color:#593b2a;font:italic clamp(.97rem,1.6vw,1.13rem)/1.52 Georgia,serif;
+ max-width:510px;margin:0 0 10px
+}
+.lq-roman-game .lq-roman-welcome-art{
+ background:
+ linear-gradient(90deg,#f3dfb8 0,transparent 20%),
+ url("/static/labs/latin-quest-scholar-watercolor.svg") 50% 30% / cover no-repeat;
+ min-height:260px;border-left:2px solid #d8b98c;
+}
+.lq-roman-game #latin-quick{margin-top:7px}
+.lq-roman-game #latin-quick .labs-quick{
+ min-height:0;margin:0;padding:6px 0 0!important;
+ border:0!important;border-radius:0!important;background:none!important;
+ box-shadow:none!important;font-size:.9rem
+}
+.lq-roman-game #latin-quick .labs-quick:before,
+.lq-roman-game #latin-quick .labs-quick:after{content:none!important;display:none!important}
+.lq-roman-game #latin-quick .labs-kicker,
+.lq-roman-game #latin-quick .labs-quick h2,
+.lq-roman-game #latin-quick .labs-quick>p{display:none}
+.lq-roman-game #latin-quick .labs-quick .labs-primary{
+ padding:12px 27px!important;min-height:51px;font:800 1.1rem Georgia,serif;
+ text-transform:uppercase;letter-spacing:.035em
+}
+.lq-roman-game #latin-quick .labs-quick .labs-resume{
+ display:inline-flex!important;margin:8px 0 0 10px;background:#f4e6c8!important
+}
+.lq-roman-game .lq-roman-paths{
+ padding:0 0 12px;border:0;box-shadow:none;background:transparent;
+}
+.lq-roman-game .lq-roman-path-heading{
+ display:flex;align-items:center;justify-content:center;gap:18px;
+ margin:5px 0 clamp(14px,2vw,24px)
+}
+.lq-roman-game .lq-roman-heading-line{
+ height:2px;width:clamp(15px,7vw,100px);
+ background:linear-gradient(90deg,transparent,#bf945c 60%,#957043)
+}
+.lq-roman-game .lq-roman-heading-line:last-child{transform:scaleX(-1)}
+.lq-roman-game .lq-roman-path-heading h3{
+ margin:0;padding:8px 28px;border:2px solid #8c693c;border-radius:16px 16px 5px 5px;
+ background:linear-gradient(180deg,#265875,#173b58);
+ color:#fff2d7;font:700 clamp(1.1rem,2vw,1.44rem) Georgia,serif;
+ box-shadow:inset 0 1px #86a2a1,0 3px #956e3d;
+ white-space:nowrap
+}
+.lq-roman-game .lq-roman-path-grid{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(8px,1.4vw,19px)
+}
+.lq-roman-game .lq-roman-path{
+ position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+ gap:7px;padding:22px 12px 18px;min-height:188px;
+ background:
+ linear-gradient(90deg,#d5b27d40 0 3px,transparent 3px calc(100% - 3px),#c8a56b40 calc(100% - 3px)),
+ radial-gradient(ellipse at 49% 0%,#fffefa,transparent 68%),
+ linear-gradient(135deg,#f7e6c7,#ebcca0)!important;
+ border:3px ridge #b9965b!important;border-radius:70px 70px 10px 10px!important;
+ box-shadow:inset 0 0 0 5px #fff5dc,0 5px 0 #ad89586a!important;
+ text-align:center;color:#492c20!important;
+ transition:transform .15s,filter .15s!important
+}
+.lq-roman-game .lq-roman-path svg{width:60px;height:60px;color:#84572f;filter:drop-shadow(0 2px #fff6df)}
+.lq-roman-game .lq-roman-path strong{
+ font:700 clamp(1.03rem,1.55vw,1.34rem)/1.2 Georgia,serif;
+ text-transform:uppercase;letter-spacing:.025em
+}
+.lq-roman-game .lq-roman-path span{
+ color:#6b5039;font:italic .94rem/1.3 Georgia,serif;max-width:185px
+}
+.lq-roman-game .lq-roman-path:hover,
+.lq-roman-game .lq-roman-path:focus-visible{
+ transform:translateY(-3px)!important;filter:brightness(1.03) saturate(1.04);
+}
+.lq-roman-game .lq-roman-config-title{
+ margin:22px 0 12px;padding:12px 16px 10px;
+ font:700 clamp(1.22rem,2vw,1.6rem) Georgia,serif;
+ color:#76412b;border-top:2px solid #bc9964;border-bottom:1px solid #d4b98d;
+}
+.lq-roman-game .lq-roman-config-title span{color:#a98a4c;margin-left:8px}
+.lq-roman-game #lq-setup>.lq-grid{
+ grid-template-columns:repeat(3,minmax(0,1fr));gap:12px!important
+}
+.lq-roman-game #lq-setup>.lq-grid>div{
+ padding:14px 16px!important;
+ border:1.5px solid #c3a070!important;border-radius:10px!important;
+ background:
+ radial-gradient(ellipse at 85% 0%,#fffdf3,transparent 70%),
+ linear-gradient(140deg,#f8eccf,#e9d3ac)!important;
+ box-shadow:inset 0 0 0 3px #fff8e3,0 2px 0 #b99b6b64!important;
+ min-width:0
+}
+.lq-roman-game #lq-setup>.lq-grid>div:nth-child(3n+2){
+ background:linear-gradient(135deg,#f6f2dc,#e1e4ca)!important
+}
+.lq-roman-game #lq-setup>.lq-grid label{color:#60422d!important;font:.95rem Georgia,serif;font-weight:700}
+.lq-roman-game #lq-setup select,
+.lq-roman-game #lq-setup input[type=text]{
+ background:#fffcf4!important;color:#513a28!important;
+ min-height:46px;border:1.5px solid #b99869!important
+}
+.lq-roman-game #lq-setup .lq-check{
+ padding:8px 12px;border-radius:7px;
+ background:#ecedda8c;color:#584531
+}
+.lq-roman-game #lq-setup>details{
+ padding:12px 17px;background:#faf0db;
+ border:1px solid #c3a171;border-radius:9px;box-shadow:inset 0 0 0 3px #fff9ee;
+ margin:12px 0
+}
+.lq-roman-game #lq-setup>details summary{
+ font:700 1.07rem Georgia,serif;color:#69462c;min-height:44px
+}
+.lq-roman-game #lq-setup #lq-start,
+.lq-roman-game #lq-setup #lq-review,
+.lq-roman-game #lq-setup #lq-retest{min-height:49px}
+.lq-roman-game #lq-setup #lq-progress-summary{
+ border-left:5px solid #a98252;padding:11px 14px;
+ background:linear-gradient(90deg,#f0ddba,transparent);border-radius:4px;
+ font-family:Georgia,serif
+}
+/* Real three-column Roman forum. Side panels reflect ONLY the existing engine. */
+.lq-roman-game .lq-roman-court{
+ display:grid;grid-template-columns:minmax(178px,.8fr) minmax(0,3.1fr) minmax(178px,.82fr);
+ gap:clamp(8px,1.5vw,18px);align-items:stretch;margin:15px 0 26px;
+}
+.lq-roman-game .lq-roman-court-center{
+ position:relative;isolation:isolate;overflow:hidden;
+ min-height:490px;border:4px ridge #bc8d50;border-radius:18px;
+ background:
+ radial-gradient(ellipse at 70% 10%,#fffdf3,transparent 70%),
+ linear-gradient(135deg,#fff2d7,#e3be8b);
+ box-shadow:inset 0 0 0 7px #fff8e6,0 7px 0 #a87e48a1,0 13px 24px #54412d24;
+}
+.lq-roman-game .lq-roman-court-center:before{
+ content:"";position:absolute;z-index:-1;inset:9px;border:1.5px solid #c7a36c;
+ border-radius:8px;pointer-events:none
+}
+.lq-roman-game .lq-roman-scene{
+ position:absolute;top:8px;bottom:8px;left:8px;
+ width:38%;max-width:350px;z-index:-1;overflow:hidden;
+ border-radius:9px 0 0 9px;
+ background:#d1d2c3;
+ mask-image:linear-gradient(90deg,#000 0 74%,transparent 100%);
+}
+.lq-roman-game .lq-roman-scene img{
+ width:100%;height:100%;object-fit:cover;object-position:34% 35%;display:block;
+}
+.lq-roman-game .lq-roman-idle{
+ position:relative;z-index:1;max-width:66%;margin-left:auto;
+ padding:clamp(37px,6vw,78px) clamp(25px,4vw,55px);
+ text-align:center;
+}
+.lq-roman-game .lq-roman-idle h2{
+ color:#8c432e!important;font:italic 600 clamp(1.7rem,3vw,2.65rem)/1.2 Georgia,serif
+}
+.lq-roman-game .lq-roman-idle h2:before{content:none!important}
+.lq-roman-game .lq-roman-idle p:not(.lq-roman-eyebrow){
+ color:#553e2b;font:1.05rem/1.6 Georgia,serif
+}
+.lq-roman-game .lq-roman-idle-whisper{
+ color:#8b6241!important;font-style:italic!important;margin-top:28px
+}
+.lq-roman-game .lq-roman-side{
+ position:relative;overflow:hidden;
+ border:3px ridge #b8915c;border-radius:13px;
+ background:
+ linear-gradient(90deg,#d1af7a3b 0 4px,transparent 4px calc(100% - 4px),#c2a06a49 calc(100% - 4px)),
+ linear-gradient(145deg,#f6e7c5,#fff4dc 55%,#e7cc9f)!important;
+ box-shadow:inset 0 0 0 6px #fff8e4aa,0 7px 0 #a88b5d70;
+ padding:clamp(15px,1.8vw,22px) clamp(12px,1.55vw,19px);
+ text-align:center;
+}
+.lq-roman-game .lq-roman-side-title{
+ display:flex;align-items:center;justify-content:center;gap:5px;
+ padding:8px 4px;border:2px solid #ad804a;border-radius:20px 20px 5px 5px;
+ background:linear-gradient(180deg,#a44c37,#782e24);
+ color:#fff5db;box-shadow:inset 0 1px #dbac6d,0 3px #a87f53;
+}
+.lq-roman-game .lq-roman-side-title svg{width:23px;height:23px}
+.lq-roman-game .lq-roman-side-title h3{
+ font:700 clamp(.94rem,1.45vw,1.14rem)/1.2 Georgia,serif;
+ text-transform:uppercase;color:#fff5db!important;margin:0;
+}
+.lq-roman-game .lq-roman-seal{
+ margin:25px auto 18px;border:3px double #aa814a;outline:1px solid #cfb07f;
+ width:95px;height:95px;border-radius:50%;display:grid;place-items:center;
+ font:700 1.55rem Georgia,serif;letter-spacing:.06em;color:#834f32;
+ background:radial-gradient(circle at 25% 25%,#fff8e4,#e5c48b);
+ box-shadow:0 5px 0 #c49d6970
+}
+.lq-roman-game .lq-roman-journal-wreath{
+ font:italic 6.2rem/1.1 Georgia,serif;color:#87905a;opacity:.7;
+ text-shadow:1px 1px #fffdf1
+}
+.lq-roman-game .lq-roman-side-highlight{
+ color:#4a6a3e;font:700 clamp(1.09rem,1.55vw,1.35rem)/1.35 Georgia,serif;
+ margin:10px 0
+}
+.lq-roman-game .lq-roman-side-note{
+ margin:11px 0;line-height:1.65;font-size:.92rem;
+ overflow-wrap:anywhere;color:#5e4e39
+}
+.lq-roman-game .lq-roman-side-foot{
+ font:italic .85rem/1.5 Georgia,serif;color:#8b674c;
+ border-top:1px solid #cdb17d;padding-top:12px;margin-top:19px
+}
+.lq-roman-game #lq-roman-mini-bar{
+ display:block;width:100%;height:11px;margin:17px 0;accent-color:#71904e
+}
+.lq-roman-game #lq-roman-journal-score{color:#734629}
+.lq-roman-game .lq-roman-court-center #lq-session,
+.lq-roman-game .lq-roman-court-center #lq-result{
+ position:relative;z-index:1;
+ margin:0!important;border:0!important;border-radius:0!important;
+ padding:clamp(19px,2vw,28px)!important;min-height:490px;
+ background:transparent!important;
+ box-shadow:none!important;
+}
+.lq-roman-game .lq-roman-court-center #lq-session:before,
+.lq-roman-game .lq-roman-court-center #lq-result:before{content:none!important;display:none!important}
+.lq-roman-game #lq-session>.lq-top,
+.lq-roman-game #lq-session>progress{margin-left:37%;width:63%}
+.lq-roman-game #lq-session #lq-meta,
+.lq-roman-game #lq-session #lq-question,
+.lq-roman-game #lq-session #lq-audio-status,
+.lq-roman-game #lq-session #lq-flash,
+.lq-roman-game #lq-session #lq-multiple,
+.lq-roman-game #lq-session #lq-form,
+.lq-roman-game #lq-session #lq-feedback,
+.lq-roman-game #lq-session #lq-after,
+.lq-roman-game #lq-session #lq-quiz-tools,
+.lq-roman-game #lq-session #lq-memory,
+.lq-roman-game #lq-session #lq-followup-details,
+.lq-roman-game #lq-session #lq-undo-answer{
+ margin-left:38%;
+ width:62%;
+}
+.lq-roman-game #lq-session #lq-question{
+ padding:clamp(14px,2vw,27px)!important;
+ border:3px double #c09d66!important;
+ background:linear-gradient(120deg,#fff8e9,#e7cb9e)!important;
+ color:#432d20!important;
+ font:600 clamp(1.25rem,2.3vw,1.85rem)/1.35 Georgia,serif;
+ text-align:center;border-radius:9px!important;min-height:84px;
+ box-shadow:inset 0 0 0 4px #fffcf1,0 4px 0 #bd925b8c!important
+}
+.lq-roman-game #lq-session #lq-question:before{content:none!important}
+.lq-roman-game #lq-session #lq-meta{color:#72523b;font-size:.83rem;text-align:center}
+.lq-roman-game #lq-session #lq-options{
+ display:grid;grid-template-columns:1fr;gap:8px!important
+}
+.lq-roman-game #lq-session #lq-options .lq-option-row{
+ background:transparent!important;border:0!important;padding:0!important;
+ box-shadow:none!important
+}
+.lq-roman-game #lq-session #lq-options .lq-option{
+ min-height:55px!important;
+ padding:11px 17px!important;text-align:left!important;
+ font:700 1.03rem/1.3 Georgia,serif;
+ color:#4b3224!important;
+ background:linear-gradient(170deg,#fff9e8,#efd6ad)!important;
+ border:2px solid #b68c54!important;border-radius:8px!important;
+ box-shadow:inset 0 0 0 3px #fff8e5,0 3px 0 #aa8453!important
+}
+.lq-roman-game #lq-session #lq-options .lq-option[data-result=correct]{
+ color:#274e31!important;border-color:#4d844f!important;
+ background:linear-gradient(135deg,#e7f2d7,#cbdba8)!important
+}
+.lq-roman-game #lq-session #lq-options .lq-option[data-result=incorrect]{
+ color:#67312b!important;border:3px dashed #a9513d!important;
+ background:#f5d8c3!important
+}
+.lq-roman-game #lq-session #lq-options .lq-option-hear{
+ color:#3a5b39!important;background:#e6e9d1!important;
+ border:1.5px solid #a5af87!important;min-width:47px!important;
+}
+.lq-roman-game #lq-session #lq-flip{
+ background:linear-gradient(135deg,#fff7e1,#e2c394)!important;
+ border:4px double #9c7542!important;
+ box-shadow:inset 0 0 0 8px #fffaed,0 4px 0 #9870469c!important
+}
+.lq-roman-game #lq-session #lq-form{padding:12px;border:1px solid #d4b684;background:#fff9e6ac;border-radius:9px}
+.lq-roman-game #lq-session #lq-after{background:#ecf0d7b8;border-radius:8px;padding:13px}
+.lq-roman-game #lq-session #lq-quiz-tools .lq-row{justify-content:center}
+.lq-roman-game #lq-session #lq-audio-status{font-size:.86rem}
+.lq-roman-game #lq-result #latin-summary,
+.lq-roman-game #lq-result>.lq-tag,
+.lq-roman-game #lq-result #lq-result-title,
+.lq-roman-game #lq-result #lq-score,
+.lq-roman-game #lq-result #lq-result-breakdown,
+.lq-roman-game #lq-result #lq-result-copy,
+.lq-roman-game #lq-result>.lq-row{margin-left:38%;width:62%}
+.lq-roman-game #lq-result #lq-score{font:700 clamp(1.75rem,3vw,3rem) Georgia,serif;color:#537038}
+.lq-roman-game #lq-result .labs-summary-counts>div{
+ background:linear-gradient(145deg,#fff5db,#e7c792)!important;
+ border:2px solid #bc9663!important;border-radius:8px!important
+}
+/* Consistent working buttons, not flat mockup labels. */
+.lq-roman-game button.primary,.lq-roman-game button.labs-primary,
+.lq-roman-game #lq-session #lq-next{
+ background:linear-gradient(180deg,#7c8d48,#3e6039)!important;
+ border:2px solid #355a32!important;color:#fff9e9!important;
+ border-radius:10px!important;box-shadow:inset 0 1px #dae4a5,0 3px 0 #34572d!important;
+}
+.lq-roman-game #lq-setup button:not(.primary):not(.labs-primary),
+.lq-roman-game #lq-session button:not(.primary),
+.lq-roman-game #lq-result button:not(.primary){
+ background:linear-gradient(150deg,#fff8e4,#e6c799)!important;
+ color:#533926!important;border:1.5px solid #ac8552!important;
+ border-radius:9px!important;box-shadow:inset 0 1px #fffbee,0 2px 0 #ad84539e!important;
+}
+.lq-roman-game button:focus-visible,.lq-roman-game select:focus-visible,
+.lq-roman-game input:focus-visible,.lq-roman-game summary:focus-visible{
+ outline:3px solid #1e6280!important;outline-offset:3px!important
+}
+.lq-roman-game button:hover:not(:disabled){filter:brightness(1.05);transform:translateY(-1px)}
+.lq-roman-game button:disabled{cursor:not-allowed;opacity:.57}
+.lq-roman-game .lq-roman-idle[hidden],
+.lq-roman-game #lq-session[hidden],
+.lq-roman-game #lq-result[hidden]{display:none!important}
+.lq-roman-game #lq-study{
+ border:3px double #bc9559!important;border-radius:13px!important;
+ background:linear-gradient(135deg,#fff9e7,#eed5ad)!important;
+ box-shadow:inset 0 0 0 5px #fffaf0,0 5px 0 #ab815b7d!important
+}
+.lq-roman-game #lq-study h2,.lq-roman-game details.lq-panel summary{
+ color:#7e442e!important;font-family:Georgia,serif
+}
+.lq-roman-game #lq-study:before{content:none!important;display:none!important}
+.lq-roman-game>details.lq-panel{
+ background:linear-gradient(135deg,#f5e6c8,#fdf0d3)!important;
+ border:1.5px solid #be996c!important;
+ padding:18px!important
+}
+/* Layout is optimized for touch and narrow screens without cropping controls. */
+@media(max-width:1120px){
+ .lq-roman-game .lq-roman-court{grid-template-columns:minmax(150px,.7fr) minmax(0,2.8fr)}
+ .lq-roman-game .lq-roman-journal{grid-column:1/-1;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:7px 15px;align-items:center}
+ .lq-roman-game .lq-roman-journal>.lq-roman-side-title{grid-column:1/-1}
+ .lq-roman-game .lq-roman-journal>.lq-roman-side-foot{grid-column:1/-1}
+ .lq-roman-game #lq-setup>.lq-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+ .lq-roman-game .lq-roman-nav{min-height:0;flex-wrap:wrap;gap:4px}
+ .lq-roman-game .lq-roman-nav button{flex:1 1 29%;padding:9px 6px;font-size:.75rem}
+ .lq-roman-game .lq-roman-nav button svg{width:18px;height:18px}
+ .lq-roman-game .lq-roman-welcome{grid-template-columns:1fr}
+ .lq-roman-game .lq-roman-welcome-art{min-height:180px;max-height:200px;border-left:0;border-top:1px solid #d6b17c;background-position:50% 28%}
+ .lq-roman-game .lq-roman-path-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .lq-roman-game .lq-roman-path{min-height:150px;padding:15px 10px}
+ .lq-roman-game .lq-roman-path svg{width:46px;height:46px}
+ .lq-roman-game .lq-roman-court{grid-template-columns:1fr}
+ .lq-roman-game .lq-roman-progress{grid-column:1;padding:13px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 15px;align-items:center;text-align:left}
+ .lq-roman-game .lq-roman-progress>.lq-roman-side-title{grid-column:1/-1}
+ .lq-roman-game .lq-roman-seal{margin:7px 0;width:68px;height:68px;font-size:1rem;grid-row:2/4}
+ .lq-roman-game .lq-roman-progress>.lq-roman-side-foot{grid-column:1/-1;margin:4px 0}
+ .lq-roman-game .lq-roman-progress .lq-roman-side-highlight,.lq-roman-game .lq-roman-progress .lq-roman-side-note{margin:4px 0}
+ .lq-roman-game .lq-roman-journal{grid-template-columns:1fr 1fr;align-items:center}
+ .lq-roman-game .lq-roman-journal-wreath{font-size:3rem}
+}
+@media(max-width:580px){
+ .lq.lq-roman-game{padding:0 8px}
+ .lq-roman-game .lq-top{font-size:.74rem}
+ .lq-roman-game .lq-roman-nav button{flex:1 1 30%;font-size:.72rem}
+ .lq-roman-game .lq-roman-welcome-copy{padding:19px 16px}
+ .lq-roman-game #lq-setup{padding:12px!important}
+ .lq-roman-game #lq-setup>.lq-grid{grid-template-columns:1fr}
+ .lq-roman-game .lq-roman-path{min-height:142px}
+ .lq-roman-game .lq-roman-path strong{font-size:.98rem}
+ .lq-roman-game .lq-roman-path span{font-size:.82rem}
+ .lq-roman-game .lq-roman-court-center{min-height:500px}
+ .lq-roman-game .lq-roman-scene{
+   left:8px;right:8px;top:8px;bottom:auto;width:calc(100% - 16px);max-width:none;
+   height:125px;border-radius:8px;mask-image:linear-gradient(180deg,#000 20%,transparent 100%);
+ }
+ .lq-roman-game .lq-roman-scene img{object-position:center 32%}
+ .lq-roman-game .lq-roman-idle{max-width:none;margin:130px auto 0;padding:25px 20px}
+ .lq-roman-game .lq-roman-court-center #lq-session,
+ .lq-roman-game .lq-roman-court-center #lq-result{padding:140px 15px 20px!important;min-height:500px}
+ .lq-roman-game #lq-session>.lq-top,
+ .lq-roman-game #lq-session>progress,
+ .lq-roman-game #lq-session #lq-meta,
+ .lq-roman-game #lq-session #lq-question,
+ .lq-roman-game #lq-session #lq-audio-status,
+ .lq-roman-game #lq-session #lq-flash,
+ .lq-roman-game #lq-session #lq-multiple,
+ .lq-roman-game #lq-session #lq-form,
+ .lq-roman-game #lq-session #lq-feedback,
+ .lq-roman-game #lq-session #lq-after,
+ .lq-roman-game #lq-session #lq-quiz-tools,
+ .lq-roman-game #lq-session #lq-memory,
+ .lq-roman-game #lq-session #lq-followup-details,
+ .lq-roman-game #lq-session #lq-undo-answer,
+ .lq-roman-game #lq-result #latin-summary,
+ .lq-roman-game #lq-result>.lq-tag,
+ .lq-roman-game #lq-result #lq-result-title,
+ .lq-roman-game #lq-result #lq-score,
+ .lq-roman-game #lq-result #lq-result-breakdown,
+ .lq-roman-game #lq-result #lq-result-copy,
+ .lq-roman-game #lq-result>.lq-row{margin-left:0;width:100%}
+ .lq-roman-game #lq-session #lq-options .lq-option{min-height:54px}
+ .lq-roman-game #lq-session #lq-question{font-size:1.34rem;padding:16px!important}
+ .lq-roman-game #lq-result .labs-summary-counts{grid-template-columns:repeat(3,1fr)}
+}
+.dark .lq-roman-game .lq-roman-nav,.dark .lq-roman-game #lq-setup,
+.dark .lq-roman-game .lq-roman-side,.dark .lq-roman-game .lq-roman-court-center{
+ color:#4d3323;background:linear-gradient(140deg,#f4e3c7,#e7ca9e)!important;
+}
+.dark .lq-roman-game .lq-roman-welcome,
+.dark .lq-roman-game #lq-setup>.lq-grid>div,
+.dark .lq-roman-game #lq-study{
+ color:#503624;background:linear-gradient(135deg,#fff5df,#e5c59b)!important;
+}
+.dark .lq-roman-game #lq-setup label,.dark .lq-roman-game #lq-setup p,
+.dark .lq-roman-game .lq-roman-welcome p,.dark .lq-roman-game .lq-roman-idle p,
+.dark .lq-roman-game .lq-roman-side p{color:#4c3828!important}
+.dark .lq-roman-game #lq-session #lq-question,
+.dark .lq-roman-game #lq-session #lq-options .lq-option{
+ color:#4c3828!important;background:linear-gradient(135deg,#fff5df,#e5c59b)!important
+}
+@media(prefers-reduced-motion:reduce){
+ .lq-roman-game button{transition:none!important}
+ .lq-roman-game button:hover{transform:none!important}
+}
