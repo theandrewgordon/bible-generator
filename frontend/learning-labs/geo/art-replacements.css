@@ -1,0 +1,36 @@
+/* Geo Detectives: original watercolor replacements, one source image per learning concept.
+   Import AFTER art.css so this takes precedence over the earlier icon and diagram art. */
+.art-canal { background-image: url("./art-replacements/canal.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-diagram-dam { background-image: url("./art-replacements/dam.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-pier { background-image: url("./art-replacements/pier.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-tunnel { background-image: url("./art-replacements/tunnel.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-country { background-image: url("./art-replacements/country.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-continent { background-image: url("./art-replacements/continent.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-earth { background-image: url("./art-replacements/earth.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-horizon { background-image: url("./art-replacements/horizon.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-erosion { background-image: url("./art-replacements/erosion.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-deposition { background-image: url("./art-replacements/deposition.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-weathering { background-image: url("./art-replacements/weathering.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-diagram-aquifer { background-image: url("./art-replacements/aquifer.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-diagram-spring { background-image: url("./art-replacements/hot-spring.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-diagram-geyser { background-image: url("./art-replacements/geyser.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-diagram-compass { background-image: url("./art-replacements/compass-rose.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-diagram-contour { background-image: url("./art-replacements/contour-line.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-coordinates { background-image: url("./art-replacements/coordinates.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-equator { background-image: url("./art-replacements/equator.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-hemisphere { background-image: url("./art-replacements/hemisphere.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-latitude { background-image: url("./art-replacements/latitude.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-longitude { background-image: url("./art-replacements/longitude.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-map-key { background-image: url("./art-replacements/map-key.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-map-scale { background-image: url("./art-replacements/map-scale.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-north-pole { background-image: url("./art-replacements/north-pole.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-south-pole { background-image: url("./art-replacements/south-pole.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-topographic-map { background-image: url("./art-replacements/topographic-map.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-altitude { background-image: url("./art-replacements/altitude.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+.art-elevation { background-image: url("./art-replacements/elevation.webp"); background-size: cover; background-position:center; background-repeat:no-repeat; }
+
+/* Keep labels and scale endpoints visible in both wide and narrow artwork frames. */
+.landscape:is(.art-altitude, .art-coordinates, .art-diagram-compass, .art-diagram-contour, .art-elevation, .art-equator, .art-hemisphere, .art-latitude, .art-longitude, .art-map-key, .art-map-scale, .art-topographic-map) {
+  background-color: #f8edd3;
+  background-size: contain;
+}

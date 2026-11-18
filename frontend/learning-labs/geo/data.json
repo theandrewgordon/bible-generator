@@ -1271,7 +1271,7 @@
         "altitude",
         "country"
       ],
-      "art": "art-field",
+      "art": "art-country",
       "example": "Brazil is a country in South America.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1352,7 +1352,7 @@
         "country",
         "pond"
       ],
-      "art": "art-mountain",
+      "art": "art-continent",
       "example": "South America is one of Earth's continents.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1372,7 +1372,7 @@
         "country",
         "continent"
       ],
-      "art": "art-diagram-globe",
+      "art": "art-earth",
       "example": "Earth is the planet where we live.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -1392,7 +1392,7 @@
         "current",
         "sea"
       ],
-      "art": "art-beach",
+      "art": "art-horizon",
       "example": "At sea, the distant water seems to touch the sky.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2206,7 +2206,7 @@
         "coordinates",
         "map scale"
       ],
-      "art": "art-diagram-map",
+      "art": "art-coordinates",
       "example": "A map location can be specified with a latitude such as 20°N and a longitude such as 10°E.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2247,7 +2247,7 @@
         "longitude",
         "North Pole"
       ],
-      "art": "art-diagram-globe",
+      "art": "art-equator",
       "example": "On a classroom globe, zero degrees latitude circles the middle between the poles.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2267,7 +2267,7 @@
         "continent",
         "longitude"
       ],
-      "art": "art-diagram-globe",
+      "art": "art-hemisphere",
       "example": "The equator divides a globe into northern and southern halves.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2287,7 +2287,7 @@
         "map scale",
         "latitude"
       ],
-      "art": "art-diagram-globe",
+      "art": "art-latitude",
       "example": "A point at 20°N is north of the equator; a point at 20°S is south of it.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2307,7 +2307,7 @@
         "longitude",
         "latitude"
       ],
-      "art": "art-diagram-globe",
+      "art": "art-longitude",
       "example": "Two locations at 10°E lie on the same meridian, even if one is farther north.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2327,7 +2327,7 @@
         "map key",
         "map scale"
       ],
-      "art": "art-diagram-map",
+      "art": "art-map-key",
       "example": "A map key might explain that a dotted line marks a walking path and a blue patch marks water.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2347,7 +2347,7 @@
         "longitude",
         "map scale"
       ],
-      "art": "art-diagram-map",
+      "art": "art-map-scale",
       "example": "If a map uses 1 centimeter for 1 kilometer, a 3-centimeter route represents 3 kilometers.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2367,7 +2367,7 @@
         "South Pole",
         "North Pole"
       ],
-      "art": "art-diagram-globe",
+      "art": "art-north-pole",
       "example": "The northern end of Earth’s rotation axis meets the surface at the North Pole.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2387,7 +2387,7 @@
         "South Pole",
         "equator"
       ],
-      "art": "art-diagram-globe",
+      "art": "art-south-pole",
       "example": "The southern end of Earth’s rotation axis meets the surface at the South Pole.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2407,7 +2407,7 @@
         "map scale",
         "topographic map"
       ],
-      "art": "art-diagram-contour",
+      "art": "art-topographic-map",
       "example": "A walker uses contour patterns on a topographic map to spot a steep hillside.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2447,7 +2447,7 @@
         "weathering",
         "deposition"
       ],
-      "art": "art-delta",
+      "art": "art-deposition",
       "example": "A river slows and leaves a sandbar beside its channel.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2467,7 +2467,7 @@
         "weathering",
         "deposition"
       ],
-      "art": "art-river",
+      "art": "art-erosion",
       "example": "After rain, a stream carries loosened sand downstream.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -2529,7 +2529,7 @@
         "weathering",
         "erosion"
       ],
-      "art": "art-cliff",
+      "art": "art-weathering",
       "example": "Water freezes inside a rock crack and helps widen it without transporting the rock away.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
@@ -3185,8 +3185,8 @@
         "Longitude"
       ],
       "arts": [
-        "art-diagram-globe",
-        "art-diagram-map"
+        "art-latitude",
+        "art-longitude"
       ],
       "explanation": "Latitude tells how far north or south a place is from the equator. Longitude tells how far east or west it is from a starting line. Together they locate places.",
       "example": "Try explaining the relationship in your own words, then name an example.",
@@ -3201,8 +3201,8 @@
         "Weathering"
       ],
       "arts": [
-        "art-river",
-        "art-cliff"
+        "art-erosion",
+        "art-weathering"
       ],
       "explanation": "Weathering breaks down or changes rock where it is. Erosion moves soil and rock pieces to new places. Weathered pieces can later be carried away.",
       "example": "Try explaining the relationship in your own words, then name an example.",
@@ -3217,8 +3217,8 @@
         "Deposition"
       ],
       "arts": [
-        "art-river",
-        "art-delta"
+        "art-erosion",
+        "art-deposition"
       ],
       "explanation": "Erosion carries soil, sand, or rock pieces away. Deposition happens when that moving material is dropped somewhere else.",
       "example": "Try explaining the relationship in your own words, then name an example.",
@@ -3297,8 +3297,8 @@
         "Map key"
       ],
       "arts": [
-        "art-diagram-map",
-        "art-diagram-compass"
+        "art-map-scale",
+        "art-map-key"
       ],
       "explanation": "A map scale tells how a distance on the map compares with real distance. A map key explains what the map's colors and symbols mean.",
       "example": "Try explaining the relationship in your own words, then name an example.",
@@ -3314,7 +3314,7 @@
       ],
       "arts": [
         "art-diagram-contour",
-        "art-diagram-globe"
+        "art-longitude"
       ],
       "explanation": "A contour line joins places that are the same height. A line of longitude joins places with the same east-or-west position.",
       "example": "Try explaining the relationship in your own words, then name an example.",
@@ -3329,8 +3329,8 @@
         "South Pole"
       ],
       "arts": [
-        "art-diagram-globe",
-        "art-diagram-compass"
+        "art-north-pole",
+        "art-south-pole"
       ],
       "explanation": "The North and South Poles are opposite ends of Earth's spinning axis at the surface. These geographic poles differ from magnetic poles.",
       "example": "Try explaining the relationship in your own words, then name an example.",
@@ -3377,8 +3377,8 @@
         "Hemisphere"
       ],
       "arts": [
-        "art-diagram-globe",
-        "art-diagram-map"
+        "art-equator",
+        "art-hemisphere"
       ],
       "explanation": "The equator is an imaginary line at 0° latitude around Earth. A hemisphere is half a sphere. The equator divides Earth into northern and southern halves.",
       "example": "Try explaining the relationship in your own words, then name an example.",

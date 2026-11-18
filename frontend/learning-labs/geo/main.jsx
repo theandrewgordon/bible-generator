@@ -10,6 +10,7 @@ import {matchesTerm} from './answers.js';
 import {initial,reducer,restore,shuffled,reviewIds,activeLearner,selectPracticeIds} from './logic.js';
 import {ExpeditionMap,TrailMap} from './ExpeditionMap.jsx';
 import './art.css';import './identity.css';import './style.css';import './adventure.css';import './board.css';
+import './art-replacements.css';
 const all=[...data.quest,...data.compare],byId=new Map(all.map(q=>[q.id,q])),termTopics=new Map(data.quest.map(q=>[q.answer.toLowerCase(),q.topic]));
 function Picture({art,label}){return <div className={'landscape '+art} role="img" aria-label={'Illustrated setting for '+label}/>}
 function App(){
