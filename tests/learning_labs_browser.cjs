@@ -132,6 +132,27 @@ function latinFixture(){
   assert.equal(await page.locator('#lq-round').textContent(),'Question 2 of 2');
   const latinProgress=await page.evaluate(()=>JSON.parse(localStorage.getItem('faithsparks.latinQuest.player.player-1.progress.v1')));
   assert.equal(Object.values(latinProgress).reduce((n,r)=>n+r.attempts,0),1);
+  // Latin Quest Roman UI cards are real launch controls, not decorative mockup art.
+  await page.goto(base+'/labs/latin-quest');
+  assert.equal(await page.locator('[data-lq-preset]').count(),4);
+  assert.equal(await page.locator('.lq-roman-nav button').count(),5);
+  await page.locator('[data-lq-preset="flashcards"]').click();
+  assert.equal(await page.locator('#lq-response').inputValue(),'flash');
+  assert.equal(await page.locator('#lq-session').isVisible(),true);
+  assert.equal(await page.locator('#lq-flash').isVisible(),true);
+  await page.locator('#lq-flip').click();
+  assert.equal(await page.locator('#lq-flash-known').isEnabled(),true);
+  assert.match(await page.locator('#lq-roman-journal-state').textContent(),/Quest in progress/);
+  await page.locator('#lq-stop').click();
+  assert.equal(await page.locator('#lq-result').isVisible(),true);
+  assert.match(await page.locator('#lq-roman-journal-state').textContent(),/completed/);
+  await page.locator('#lq-again').click();
+  await page.locator('[data-lq-preset="quiz"]').click();
+  assert.equal(await page.locator('#lq-response').inputValue(),'choice');
+  assert.equal(await page.locator('#lq-session').isVisible(),true);
+  assert.match(await page.locator('#lq-roman-journal-turn').textContent(),/Question/);
+  await page.locator('#lq-stop').click();
+
   for(const [game,url,title]of [['geo','/labs/geo-detectives','Geo Detectives'],['math','/labs/math-fact-adventure','Math Fact Adventure'],['latin','/labs/latin-quest','Latin Quest'],['grammar','/labs/grammar-grove','Grammar Grove']]){
    await page.goto(base+url);
    assert.equal(await page.locator('.labs-family a[aria-current="page"]').textContent(),title);
