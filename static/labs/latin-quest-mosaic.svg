@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 158" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs>
+ <pattern id="tessera" width="24" height="24" patternUnits="userSpaceOnUse"><rect width="24" height="24" fill="#edd8ae"/><path d="M0 0h24v24H0Z" fill="none" stroke="#d4ae7e" stroke-width="2"/><rect x="3" y="3" width="7" height="7" fill="#d79866"/><rect x="13" y="3" width="8" height="7" fill="#7b5f50"/><rect x="3" y="13" width="7" height="8" fill="#b3b59c"/><rect x="13" y="13" width="8" height="8" fill="#f4e8cd"/></pattern>
+ <pattern id="waves" width="120" height="88" patternUnits="userSpaceOnUse"><rect width="120" height="88" fill="#ebcda7"/><path d="M-10 44C10 1 50 1 70 44s60 42 80 0M-10 73C10 30 50 30 70 73s60 42 80 0" stroke="#a7674f" stroke-width="12" fill="none"/><path d="M-10 44C10 1 50 1 70 44s60 42 80 0M-10 73C10 30 50 30 70 73s60 42 80 0" stroke="#f7ead2" stroke-width="4" fill="none"/></pattern>
+ <pattern id="edge" width="36" height="16" patternUnits="userSpaceOnUse"><rect width="36" height="16" fill="#4c6172"/><rect x="2" y="2" width="13" height="12" fill="#e4c38e"/><rect x="19" y="2" width="13" height="12" fill="#b76545"/></pattern>
+ <g id="leaf"><path d="M0 0C8-2 18-10 16-18 7-19 0-10 0 0Z" fill="#758356" stroke="#425d48" stroke-width="1"/></g>
+</defs>
+<g stroke="#8b694a" stroke-width="2">
+ <rect width="1200" height="158" fill="#ddc19b"/>
+ <rect x="5" y="6" width="1190" height="146" fill="url(#tessera)"/>
+ <rect x="11" y="17" width="1178" height="14" fill="url(#edge)"/>
+ <rect x="11" y="126" width="1178" height="14" fill="url(#edge)"/>
+ <rect x="11" y="33" width="1178" height="91" fill="url(#waves)"/>
+ <rect x="15" y="35" width="1170" height="87" fill="none" stroke="#384e61" stroke-width="8"/>
+ <circle cx="600" cy="79" r="64" fill="#e3c18c" stroke="#aa6547" stroke-width="6"/>
+ <circle cx="600" cy="79" r="54" fill="#f5dfb2" stroke="#3b5968" stroke-width="8"/>
+ <circle cx="600" cy="79" r="42" fill="none" stroke="#a86c4b" stroke-width="3"/>
+</g>
+<g transform="translate(600 84)"><path d="M0 33C-29 8-31-20-14-40M0 33C29 8 31-20 14-40" fill="none" stroke="#627850" stroke-width="4"/><use xlink:href="#leaf" transform="translate(-15 -33) rotate(-20)"/><use xlink:href="#leaf" transform="translate(-27 -12) rotate(-55)"/><use xlink:href="#leaf" transform="translate(-15 14) rotate(-95)"/><use xlink:href="#leaf" transform="translate(15 -33) scale(-1 1) rotate(-20)"/><use xlink:href="#leaf" transform="translate(27 -12) scale(-1 1) rotate(-55)"/><use xlink:href="#leaf" transform="translate(15 14) scale(-1 1) rotate(-95)"/></g>
+<text x="600" y="88" font-size="23" font-family="Georgia,serif" font-weight="700" text-anchor="middle" fill="#8a4935">LQ</text>
+</svg>
