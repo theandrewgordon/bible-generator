@@ -159,5 +159,26 @@ document.querySelectorAll("[data-mode]").forEach(btn=>btn.addEventListener("clic
 $("home").onclick=goHome;$("reset").onclick=()=>{scores=[0,0];turn=0;score();};
 $("players").onchange=()=>{players=Number($("players").value);scores=[0,0];turn=0;score();};
 $("read").onclick=()=>{const text=$("sentence").textContent;if("speechSynthesis" in window){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.84;window.speechSynthesis.speak(u);}else showFeedback(false,"Read-aloud is not supported by this browser.");};
+
+// The illustrated menu buttons remain genuine accessible controls.
+document.querySelectorAll("[data-chapter]").forEach(button=>button.addEventListener("click",()=>{
+  start("diagram");
+  const target=Number(button.dataset.chapter);
+  if(Number.isInteger(target)&&target>=0&&target<qbank.length){index=target;setup();}
+}));
+function showMenuPanel(title,body){
+  const panel=$("menu-panel");
+  if(!panel)return;
+  $("panel-title").textContent=title;
+  $("panel-content").textContent=body;
+  panel.hidden=false;
+  panel.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+const close=$("close-panel");if(close)close.onclick=()=>{$("menu-panel").hidden=true};
+const progress=$("progress");if(progress)progress.onclick=()=>showMenuPanel("Your Grove Progress",
+  players===2?"Player 1: "+scores[0]+" points · Player 2: "+scores[1]+" points":"You have "+scores[0]+" points in this session. Each correct answer earns 10 points.");
+const twoplayer=$("twoplayer");if(twoplayer)twoplayer.onclick=()=>{ $("players").value="2";$("players").dispatchEvent(new Event("change"));showMenuPanel("Two-Player Mode","Two players are enabled. Choose a lesson above to alternate turns and score separately.");};
+const settings=$("settings");if(settings)settings.onclick=()=>showMenuPanel("Workshop Settings","Use the Players selector below the illustrated menu to choose solo or two-player practice. Scores reset when you change the player mode.");
+const help=$("help");if(help)help.onclick=()=>showMenuPanel("How to Play","Select Begin Learning to identify parts of speech, Build a Diagram to place words on correct Reed–Kellogg lines, or Write & Create to construct original sentences. On a diagram, tap a word then its labeled position. The six wooden signboards open different grammar chapters.");
 goHome();
 })();
