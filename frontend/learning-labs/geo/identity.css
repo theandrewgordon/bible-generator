@@ -1,1 +1,15 @@
-.atlas-hero{background-image:linear-gradient(90deg,#f5edce80,transparent 25%),url('./art/masthead-watercolor.webp');}.atlas-fox{background-image:url('./art/adventure-fox.webp');}
+.atlas-hero::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  translate: -50% 0;
+  aspect-ratio: 1300 / 186;
+  background: url('./art/art-52028f48f888.webp') center / contain no-repeat;
+  mask-image: linear-gradient(90deg, transparent 15.7%, #000 18.5% 83.3%, transparent 84.1%);
+  clip-path: polygon(0 0, 82.7% 0, 82.7% 19%, 84.1% 47%, 84.1% 100%, 0 100%);
+  pointer-events: none;
+}
+.atlas-fox {
+  background-image: url('./art/art-9b01bf3d44f6.webp');
+}
