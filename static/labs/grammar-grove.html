@@ -50,7 +50,26 @@ body:has(#menu:not([hidden])) .landscape{display:none}
  .mobile-activities .wood{min-height:54px;font-size:17px}
  .menu-note{margin-top:20px}
 }
-</style></head><body><main class="wrap">
+</style>
+<style>
+/* Keep the game usable until the optimized original artwork has been installed. */
+.mockup-canvas{display:none}
+.mobile-activities{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mobile-activities .wood{min-height:66px}
+html.watercolor-ready .mockup-canvas{display:block}
+html.watercolor-ready .mobile-activities{display:none}
+@media(max-width:700px){html.watercolor-ready .mobile-activities{display:grid;grid-template-columns:1fr}}
+</style>
+<script>
+(function(){
+const artwork='/static/labs/grammar-grove-watercolor.webp';
+const test=new Image();
+test.onload=()=>document.documentElement.classList.add('watercolor-ready');
+test.onerror=()=>document.documentElement.classList.add('watercolor-pending');
+test.src=artwork;
+})();
+</script>
+</head><body><main class="wrap">
 <header class="landscape"><div class="hero-title"><span class="ribbon">FaithSparks Labs</span><h1>Grammar Grove</h1><p>The Sentence Workshop</p></div><span class="hillside">✦ A watercolor woodland adventure in language ✦</span></header>
 <nav class="paper row between" aria-label="Game navigation"><div class="row"><button type="button" class="wood" id="home">⌂ Grove Home</button><span id="location" class="eyebrow">Welcome to the Grove</span></div><div class="row"><span id="turn">Solo adventure</span><strong id="score">Score: 0</strong></div></nav>
 
