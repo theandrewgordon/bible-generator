@@ -77,8 +77,15 @@ body{background-attachment:scroll}.all-trails[aria-pressed=true]:hover:not(:disa
   justify-self:end;
   max-width:100%;
   margin-right:5px;
-  padding:8px 10px 12px;
+  padding:8px 10px;
+  background:#f7ebce;
+  color:#3d514b;
+  border:1px solid #a48958;
+  border-radius:10px;
+  box-shadow:0 2px 5px #344a3926;
   font-size:clamp(11px,1.3vw,15px);
+  letter-spacing:.02em;
+  white-space:nowrap;
   text-align:center;
   line-height:1.4;
 }
