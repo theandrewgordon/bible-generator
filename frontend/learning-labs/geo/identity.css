@@ -3,33 +3,32 @@
   isolation: isolate;
   display: flex;
   align-items: center;
-  min-height: clamp(166px, 22vw, 244px);
+  justify-content: center;
+  min-height: clamp(154px, 19vw, 232px);
   overflow: hidden;
-  padding: 24px 24px 24px 33%;
-  border: 1px solid #b8a780;
+  padding: 18px 24%;
+  border: 1px solid #aca27f;
   border-radius: 18px;
-  background: #f6ecd4;
-  box-shadow: 0 3px 12px #304f4720;
+  background: #f9edca;
+  box-shadow: 0 4px 12px #234b5430;
 }
 
 .atlas-hero::before {
   content: '';
   position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
+  inset: 0;
   z-index: -1;
-  aspect-ratio: 3;
-  background: url('./art/field-guide-masthead.webp') left center / auto 100% no-repeat;
-  mask-image: linear-gradient(90deg, #000 63%, transparent);
+  background: url('./art/expedition-masthead.webp') center / cover no-repeat;
 }
 
 .atlas-title {
   min-width: 0;
+  text-align: center;
 }
 
 .atlas-title h1 {
   margin: 0;
-  color: #193d56;
+  color: #173d60;
   font: 700 italic clamp(30px, 5.4vw, 67px)/1.04 Georgia, serif;
   letter-spacing: -.035em;
   text-wrap: balance;
@@ -37,12 +36,12 @@
 
 .atlas-title p {
   margin: 9px 0 0;
-  color: #465b4f;
+  color: #435642;
   font: 500 clamp(14px, 1.9vw, 21px)/1.25 Georgia, serif;
 }
 
 .on-expedition .atlas-hero {
-  min-height: clamp(144px, 15vw, 176px);
+  min-height: clamp(144px, 16vw, 195px);
 }
 
 .on-expedition .atlas-title h1 {
@@ -53,8 +52,18 @@
   .atlas-hero,
   .on-expedition .atlas-hero {
     min-height: 143px;
-    padding: 16px 8px 16px clamp(99px, 30%, 137px);
+    justify-content: start;
+    padding: 16px 10px 16px clamp(106px, 34%, 180px);
     border-radius: 14px;
+  }
+
+  .atlas-hero::before {
+    background-position: left center;
+    mask-image: linear-gradient(90deg, #000 clamp(86px, 26%, 140px), #0004 clamp(108px, 35%, 175px), transparent clamp(135px, 48%, 220px));
+  }
+
+  .atlas-title {
+    text-align: left;
   }
 
   .atlas-title h1,
