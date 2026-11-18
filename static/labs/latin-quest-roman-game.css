@@ -547,3 +547,13 @@
  .lq-roman-game button{transition:none!important}
  .lq-roman-game button:hover{transform:none!important}
 }
+
+
+/* Independent, reusable mosaic illustration joining the Roman forum and study desk. */
+.lq-roman-game .lq-roman-mosaic{
+ width:100%;height:clamp(72px,10vw,148px);
+ margin:-12px 0 27px;
+ background:#e9d4ac url("/static/labs/latin-quest-mosaic.svg") center / cover no-repeat;
+ border:4px ridge #b48852;border-radius:7px;
+ box-shadow:inset 0 3px 0 #fff4d9,0 9px 19px #65462b30;
+}
