@@ -557,3 +557,21 @@
  border:4px ridge #b48852;border-radius:7px;
  box-shadow:inset 0 3px 0 #fff4d9,0 9px 19px #65462b30;
 }
+
+
+/* Small-screen QuickStart buttons must not exceed the scroll width. */
+@media(max-width:580px){
+ .lq-roman-game #latin-quick .labs-quick .labs-primary,
+ .lq-roman-game #latin-quick .labs-quick .labs-resume{
+   width:100%;max-width:100%;margin:8px 0 0!important;
+   justify-content:center;white-space:normal
+ }
+ .lq-roman-game .lq-roman-progress-copy{overflow-wrap:anywhere}
+}
+/* Preserve explicit right/wrong choice colors in the site's dark appearance. */
+.dark .lq-roman-game #lq-session #lq-options .lq-option[data-result=correct]{
+  background:#e4efd8!important;color:#244a2b!important;border-color:#4d844f!important
+}
+.dark .lq-roman-game #lq-session #lq-options .lq-option[data-result=incorrect]{
+  background:#f5d8c3!important;color:#67312b!important;border-color:#a9513d!important
+}
