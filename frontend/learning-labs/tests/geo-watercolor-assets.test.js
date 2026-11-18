@@ -34,7 +34,7 @@ test('Geo Detectives watercolor replacements are complete when enabled', t => {
     arts.add(record.art);
     const filename = name.toLowerCase().replaceAll(' ','-')+'.webp';
     assert.ok(images.has(filename),'Missing asset: '+filename);
-    assert.match(css,new RegExp('\\\\.'+record.art+'\\\\s*\\\\{'),'Missing CSS class: '+record.art);
+    assert.ok(css.includes('.'+record.art+' {'),'Missing CSS class: '+record.art);
     assert.ok(css.includes('./art-replacements/'+filename),'Missing image reference in CSS: '+filename);
     const bytes = fs.readFileSync(path.join(geo,'art-replacements',filename));
     assert.equal(bytes.subarray(0,4).toString(),'RIFF','Invalid WebP RIFF: '+filename);
