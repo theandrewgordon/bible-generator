@@ -20,7 +20,123 @@
 </style>
 <!-- learning-labs-style --><link rel="stylesheet" href="/static/labs/learning/latin/style-CI_q5R0W.css"><!-- /learning-labs-style -->
 <!-- latin-quest-theme --><link rel="stylesheet" href="/static/labs/latin-quest-theme.css?v=3"><!-- /latin-quest-theme -->
-<!-- latin-quest-watercolor-ui --><link rel="stylesheet" href="/static/labs/latin-quest-watercolor-ui.css?v=1"><!-- /latin-quest-watercolor-ui -->
+<!-- latin-quest-watercolor-ui --><link rel="stylesheet" href="/static/labs/latin-quest-watercolor-ui.css?v=2"><!-- /latin-quest-watercolor-ui -->
+
+<style id="latin-quest-visual-fallback">
+/* Critical classical watercolor components embedded for a resilient live theme.
+   All quiz behavior, controls, and data remain unchanged. */
+.lq{--lqc-clay:#924d34;--lqc-olive:#647653;--lqc-gold:#ba955c;--lqc-cream:#fff6e4;--lqc-ink:#473423}
+.lq .lq-edition-kicker{
+ display:block;margin:0 auto .35rem;color:#805137;
+ font:800 .72rem/1.5 system-ui,sans-serif;letter-spacing:.22em
+}
+.lq .lq-hero-intro{padding:17px 20px;background:
+ linear-gradient(95deg,#f1dfbb,#fff9ea 47%,#eddbb6);
+ border-bottom:3px solid #af8552;color:#513a29;font:1rem/1.5 Georgia,serif}
+.lq .lq-panel{
+ border:2px solid #be995d!important;border-radius:16px;
+ background:radial-gradient(ellipse at 7% 0%,#fffef4,transparent 65%),
+ linear-gradient(142deg,#fff8e6,#f0dfb9)!important;
+ box-shadow:inset 0 0 0 6px #fff9e7,0 4px 0 #b68c5366,0 12px 24px #55402724!important
+}
+.lq section.lq-panel:before,.lq details.lq-panel:before{
+ height:11px!important;opacity:1!important;margin:-4px 0 18px!important;
+ border-top:1px solid #926a39;border-bottom:1px solid #926a39;
+ background:repeating-linear-gradient(90deg,#865f3f 0 8px,#eed19b 8px 13px,#617658 13px 19px,#f6e4bd 19px 23px)!important
+}
+.lq #latin-quick .labs-quick{
+ position:relative;border:3px solid #ab8451!important;border-radius:17px;
+ background:radial-gradient(ellipse at 8% 0%,#fffdf0 0,transparent 72%),
+ linear-gradient(118deg,#dce6cb,#f5eacc 68%,#ecd2ac)!important;
+ box-shadow:inset 0 0 0 6px #fff7dc,0 8px 0 #a883555e!important;
+ padding:clamp(22px,3.4vw,37px)!important;
+}
+.lq #latin-quick .labs-quick:before{
+ content:"";pointer-events:none;position:absolute;inset:auto -12px -40px auto;
+ width:clamp(125px,19vw,215px);height:220px;opacity:.32;
+ background:url('/static/labs/latin-quest-laurel-ornament.svg') center/contain no-repeat
+}
+.lq #latin-quick .labs-quick h2{color:#573823!important;font:600 clamp(1.6rem,3vw,2.25rem)/1.2 Georgia,serif}
+.lq #lq-setup .lq-primary-options>.lq-grid>div{
+ padding:18px 16px!important;border:2px solid #b99b6e!important;border-radius:12px;
+ background:linear-gradient(135deg,#fff4dc,#e9d2a6)!important;
+ box-shadow:inset 0 0 0 4px #fff9e3,0 4px 0 #aa85536e!important
+}
+.lq #lq-setup .lq-primary-options>.lq-grid>div:nth-child(2){
+ background:linear-gradient(135deg,#f1f1dd,#d3ddbb)!important;border-color:#96a578!important}
+.lq #lq-setup .lq-primary-options>.lq-grid>div:nth-child(3){
+ background:linear-gradient(135deg,#fff1e3,#ebc5a6)!important;border-color:#bf9070!important}
+.lq #lq-setup .lq-primary-options label{color:#553c2c!important}
+.lq button.primary,.lq button.labs-primary{
+ background:linear-gradient(135deg,#b86543,#813a29)!important;
+ border:2px solid #703720!important;color:#fff8e5!important;border-radius:10px;
+ box-shadow:0 4px 0 #653b28!important
+}
+.lq button:not(.primary):not(.labs-primary){
+ background:linear-gradient(145deg,#fffef7,#ebd7ad)!important;
+ color:#493a2e!important;border:1.5px solid #b39562!important;border-radius:9px
+}
+.lq button:focus-visible,.lq input:focus-visible,.lq select:focus-visible,.lq summary:focus-visible{
+ outline:3px solid #336885!important;outline-offset:3px}
+.lq #lq-question{
+ padding:25px!important;border:3px double #b58b52!important;border-radius:13px;
+ background:linear-gradient(130deg,#fffdf3,#ecd6ad)!important;
+ box-shadow:inset 0 0 0 6px #fff8e2,0 5px 15px #74532f24!important;
+ color:#563b27!important;font:600 clamp(1.4rem,2.8vw,2.2rem)/1.3 Georgia,serif
+}
+.lq #lq-options .lq-option-row{
+ padding:8px!important;border:2px solid #b69a71!important;border-radius:11px;
+ background:linear-gradient(145deg,#fffaeb,#f0dfbe)!important
+}
+.lq #lq-options .lq-option{
+ min-height:65px;border:2px solid #a7895e!important;
+ background:linear-gradient(145deg,#fffefa,#e9d5b3)!important;
+ color:#443322!important
+}
+.lq #lq-options .lq-option[data-result=correct]{
+ background:#e0efdc!important;color:#295332!important;border:3px solid #458052!important}
+.lq #lq-options .lq-option[data-result=incorrect]{
+ background:#f6ded5!important;color:#733f34!important;border:3px dashed #ac5846!important}
+.lq #lq-flip{
+ border:5px double #a67b43!important;border-radius:12px;
+ background:radial-gradient(ellipse at 25% 5%,#fffdf1,transparent 66%),
+ linear-gradient(135deg,#fff4d8,#e5c697)!important;
+ box-shadow:inset 0 0 0 8px #fff7e6,0 5px 0 #ab8651!important;
+ color:#573d28!important
+}
+.lq #lq-result .labs-summary-counts>div{
+ border:2px solid #b28e59;border-bottom:5px solid #9d7644;border-radius:11px;
+ background:linear-gradient(140deg,#fff7df,#dfc18d)!important;
+ box-shadow:0 4px 10px #57422629!important
+}
+.lq #lq-result .labs-summary-counts>div:nth-child(2){
+ background:linear-gradient(140deg,#f2f0d8,#c8d5ae)!important;border-color:#8f9b73!important}
+.lq #lq-result .labs-summary-counts>div:nth-child(3){
+ background:linear-gradient(140deg,#fff1e3,#e9bfa0)!important;border-color:#b68967!important}
+.dark .lq .lq-panel{background:linear-gradient(135deg,#322920,#49392a)!important;border-color:#987955!important}
+.dark .lq #latin-quick .labs-quick{background:linear-gradient(110deg,#3b4434,#57422c)!important}
+.dark .lq #lq-setup .lq-primary-options>.lq-grid>div{
+ background:linear-gradient(130deg,#493827,#54412d)!important;border-color:#a48961!important}
+.dark .lq #lq-setup .lq-primary-options label,.dark .lq #latin-quick .labs-quick h2{color:#f7e7c8!important}
+.dark .lq #lq-question,.dark .lq #lq-flip{
+ background:linear-gradient(130deg,#4c3e2f,#342a22)!important;color:#fae8cc!important}
+.dark .lq button:not(.primary):not(.labs-primary),.dark .lq #lq-options .lq-option{
+ background:#4b392a!important;color:#f6e9d7!important}
+.dark .lq #lq-options .lq-option-row{background:#483b2d!important}
+.dark .lq #lq-options .lq-option[data-result=correct]{background:#d6edcf!important;color:#23492e!important}
+.dark .lq #lq-options .lq-option[data-result=incorrect]{background:#f6ded5!important;color:#733f34!important}
+@media(max-width:800px){
+ .lq #lq-setup .lq-primary-options>.lq-grid{grid-template-columns:1fr!important}
+}
+@media(max-width:620px){
+ .lq #latin-quick .labs-quick{padding:20px 17px!important}
+ .lq #lq-setup .lq-primary-options>.lq-grid>div{padding:13px!important}
+ .lq #lq-options{grid-template-columns:1fr!important}
+ .lq #lq-question{padding:19px 15px!important}
+}
+@media(prefers-reduced-motion:reduce){.lq button{transition:none!important;transform:none!important}}
+</style>
+
 {% endblock %}
 {% block content %}
 <div id="labs-family" data-game="latin"></div>
@@ -30,7 +146,7 @@
   <h1 class="lq-screenreader-only">Latin Quest</h1>
   <img class="lq-hero-art" src="/static/labs/latin-quest-classical-watercolor.svg" alt="Latin Quest — An Adventure Through Classical Latin. Watercolor landscape with Roman columns, helmet, scrolls, ancient ruins, and cypress trees." width="2172" height="724" decoding="async">
  </header>
- <p class="lq-intro lq-hero-intro">Practice Latin and English with flashcards, spoken questions, or a quick quiz.</p>
+ <p class="lq-intro lq-hero-intro"><span class="lq-edition-kicker">A CLASSICAL STUDY JOURNAL</span>Practice Latin and English with flashcards, spoken questions, or a quick quiz.</p>
  <div id="lq-reset-confirm" class="lq-panel lq-note" role="region" aria-label="Confirm progress reset" hidden><p id="lq-reset-message"></p><div class="lq-row"><button id="lq-reset-accept" type="button">Yes, reset progress</button><button id="lq-reset-cancel" type="button">Keep my progress</button></div></div>
  <button id="lq-undo-reset" type="button" hidden>Undo progress reset</button>
  <p id="lq-notice" class="lq-status" role="status"></p>
