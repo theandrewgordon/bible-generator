@@ -1,4 +1,5 @@
 import React from 'react';
+import exploreEverythingIcon from './art/explore-everything.webp';
 import {QuickStart} from '../shared/widgets.jsx';
 const worldTitle='Countries & Continents';
 const places=[
@@ -17,7 +18,7 @@ export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume
    <svg className="map-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M18 36 C24 28 36 25 46 29 S72 29 82 42 S94 65 79 75 S57 86 45 79 S25 78 18 67 Q24 53 50 50"/></svg>
    {places.map(p=><button key={p.topic} className={'map-stop '+(!worldOpen&&topic===p.topic?'selected':'')} style={{'--x':p.x+'%','--y':p.y+'%'}} aria-pressed={!worldOpen&&topic===p.topic} onClick={()=>onTopic(p.topic)}><span className="map-stop-icon" aria-hidden="true"><span className={p.iconArt||p.art}/></span><span className="map-stop-label">{p.topic.replace(/\band\b/gi,"&")}</span>{!worldOpen&&topic===p.topic&&<span className="map-selected" aria-hidden="true">⚑</span>}</button>)}
    <button className={'map-stop map-stop-world '+(worldOpen?'selected':'')} style={{'--x':'50%','--y':'50%'}} aria-pressed={worldOpen} onClick={onWorld}><span className="map-stop-icon" aria-hidden="true"><span className="art-earth"/></span><span className="map-stop-label">{worldTitle}</span>{worldOpen&&<span className="map-selected" aria-hidden="true">⚑</span>}</button>
-   <button className="all-trails" aria-pressed={!worldOpen&&topic==='all'} onClick={()=>onTopic('all')}>✧ Explore everywhere</button>
+   <button className="all-trails" aria-pressed={!worldOpen&&topic==='all'} onClick={()=>onTopic('all')}><img src={exploreEverythingIcon} alt="" width="48" height="48"/><span>Explore Everything</span></button>
   </div>
   <aside className="mission-card">
    {worldOpen?<section aria-labelledby="world-destinations-title">

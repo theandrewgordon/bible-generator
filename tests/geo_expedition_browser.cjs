@@ -25,7 +25,7 @@ const base = process.env.LABS_BASE_URL || 'http://127.0.0.1:5175';
         assert.notEqual(await page.locator('.mission-picture .landscape').evaluate(e => getComputedStyle(e).backgroundImage), 'none');
         await fits();
       }
-      await page.getByRole('button', {name:'Explore everywhere', exact:false}).click();
+      await page.getByRole('button', {name:'Explore Everything', exact:false}).click();
       await page.screenshot({path:'/tmp/geo-expedition-home-' + width + '.png', fullPage:true});
       await page.getByRole('button', {name:'Land & ice', exact:true}).click();
       await page.getByRole('button', {name:'Start fresh · 5 questions', exact:false}).click();

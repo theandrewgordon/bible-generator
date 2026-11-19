@@ -1,3 +1,11 @@
+@font-face {
+  font-family: Kalam;
+  src: url('./fonts/kalam-latin-700.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 .atlas-hero {
   position: relative;
   isolation: isolate;
@@ -32,8 +40,8 @@
 .atlas-title h1 {
   margin: 0;
   color: #173d60;
-  font: 700 clamp(30px, 7.1cqi, 88px)/1 Georgia, serif;
-  letter-spacing: -.045em;
+  font: 700 clamp(30px, 7.1cqi, 88px)/1 Kalam, Georgia, serif;
+  letter-spacing: -.028em;
   text-wrap: balance;
 }
 
