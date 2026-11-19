@@ -31,7 +31,7 @@ export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume
    <div className="mission-picture"><div className={'landscape '+(place?.art||'art-mountain')} role="img" aria-label={place?.topic||'Watercolor mountain landscape'}/><span className="mission-pin" aria-hidden="true">✦</span></div>
    <p className="mission-location">{place?.topic||'The whole wide world'}</p>
    <QuickStart startLabel={startLabel} disabled={!available} heading={mode==='compare'?'Spot the difference!':'Your mystery awaits…'} kicker="PACK YOUR CURIOSITY" onStart={onStart} onResume={onResume} resume={resume} description={mode==='compare'?'Two landscapes. What makes them alike—and different?':place?.description||'Three sealed clues per mystery. Let curiosity lead the way.'}/>
-   {!available&&<p className="mission-empty" role="status">{needsMoreQuestions?'Choose a broader trail so every player gets a turn.':'No mysteries match these options. Choose “All trails” under “More say in how you play”, or try another place.'}</p>}
+   {!available&&<p className="mission-empty" role="status">{needsMoreQuestions?'Choose a broader trail so every player gets a turn.':'No mysteries match these options. Choose “All trails” under “More Say in How You Play”, or try another place.'}</p>}
    <button className="review-postcard" disabled={!pending} onClick={onReview}>✦ Explore again <span>{pending?`${pending} discoveries to revisit`:'Your review trail will grow as you play'}</span></button>
    </>}
   </aside>

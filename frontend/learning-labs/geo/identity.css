@@ -325,3 +325,14 @@
     justify-content: flex-start;
   }
 }
+
+.atlas .labs-options {
+  background: #173e58;
+  color: #fff5d9;
+  border-color: #aa8a54;
+}
+
+.atlas .labs-options > summary,
+.atlas .labs-options .geo-help {
+  color: inherit;
+}
