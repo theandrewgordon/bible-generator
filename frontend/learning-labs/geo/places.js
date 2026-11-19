@@ -1,3 +1,4 @@
+import {locationQuestions,locationTrailName} from './locations.js';
 import {continentBranches} from './continents.js';
 import {capitalQuestions,capitalTrailName} from './capitals.js';
 
@@ -98,7 +99,7 @@ const geographicBranches = {
 };
 
 export const placeBranches = Object.fromEntries(Object.entries(geographicBranches).map(([id, branch])=>[
- id, {...branch, name:id==='australia'?'Australia & Oceania':branch.name, focusLabel:'Trail', trails:[...branch.trails, [capitalTrailName(id)]]},
+ id, {...branch, name:id==='australia'?'Australia & Oceania':branch.name, focusLabel:'Trail', trails:[...branch.trails, [capitalTrailName(id)], ...(id==='antarctica'?[]:[[locationTrailName]])]},
 ]));
 
 const alternateNames = {
@@ -141,4 +142,5 @@ export const placeQuestions = [
   return capitalMap ? {...question, capitalMap} : question;
  }),
  ...capitalQuestions,
+ ...locationQuestions,
 ];

@@ -58,7 +58,7 @@ test('place trails have stable unique IDs and resume without changing vocabulary
  assert.equal(new Set(ids).size,ids.length);
  assert.equal(placeQuestions.filter(card=>card.id.startsWith('g')).length,90);
  for(const branch of ['north-america','south-america','asia','africa','australia','antarctica']){
-  assert.equal(placeBranches[branch].trails.length,2);
+  assert.equal(placeBranches[branch].trails.length,branch==='antarctica'?2:3);
   assert.equal(placeQuestions.filter(card=>card.branch===branch&&card.id.startsWith('g')).length,5);
  }
  for(const card of placeQuestions){
@@ -99,6 +99,32 @@ test('capital trails cover 195 national jurisdictions, all 50 states, and one An
    }else{
     assert.equal(marker.length,2);
     assert(marker[0]>=60&&marker[0]<=540&&marker[1]>=40&&marker[1]<=340);
+   }
+  }
+ }
+});
+
+
+test('location trails reveal one distinct numbered place in each map question',async()=>{
+ const {locationQuestions,locationMaps,locationTrailName}=await import('../geo/locations.js');
+ const {placeBranches}=await import('../geo/places.js');
+ assert.equal(Object.keys(locationMaps.usa.paths).length,51);
+ for(const [branch,region] of Object.entries(placeBranches)){
+  const cards=locationQuestions.filter(card=>card.branch===branch);
+  assert.equal(region.trails.some(([name])=>name===locationTrailName),branch!=='antarctica');
+  assert.equal(cards.length,branch==='antarctica'?0:4);
+  for(const card of cards){
+   assert.equal(card.place,locationTrailName);
+   assert.deepEqual(card.choices,['1','2','3']);
+   assert.equal(card.locations[Number(card.answer)-1],card.target);
+   assert.equal(new Set(card.locations).size,3);
+   const {points,paths,view}=locationMaps[branch];
+   const [left,top,width,height]=view;
+   const pins=card.locations.map(place=>points[place]);
+   for(const [index,[shape,x,y]] of pins.entries()){
+    assert.ok(paths[shape],placeBranches[branch].name+' marker has an outline');
+    assert.ok(x>=left&&x<=left+width&&y>=top&&y<=top+height);
+    for(const [,otherX,otherY] of pins.slice(index+1))assert.ok(Math.hypot(x-otherX,y-otherY)>54);
    }
   }
  }

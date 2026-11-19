@@ -1,0 +1,12 @@
+.location-frame{border-radius:14px;overflow:hidden;border:1px solid #789e84;background:#d9ecdc}
+.location-map{display:block;width:100%;height:auto}
+.location-pin{outline:none}
+.location-pin[role="button"]{cursor:pointer}
+.location-pin circle{fill:#ffde76;stroke:#254e4b;stroke-width:3}
+.location-pin text{fill:#254e4b;text-anchor:middle;dominant-baseline:central;font:800 29px system-ui;pointer-events:none}
+.location-pin[role="button"]:hover circle,.location-pin:focus-visible circle{stroke-width:7}
+.location-pin.correct circle{fill:#c8edab;stroke:#246043;stroke-width:5}
+.location-pin.incorrect circle{fill:#f6c6a0;stroke:#923e2b;stroke-width:5}
+.location-zoom{margin-top:.5rem;min-height:44px}
+.location-dialog{width:min(96vw,1050px)}
+.location-choices.answer-choices button{justify-content:center;min-height:3.5rem;font-size:1.5rem}
