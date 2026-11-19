@@ -180,10 +180,21 @@ export const locationQuestions=Object.entries(completeLocationRows).flatMap(([br
   ]);
   const answer=String(correctIndex+1);
   const row=rows.find(row=>row.name===target);
+  // Use the actual numbered map markers for useful, testable clues.
+  // Generic region hints did not help children distinguish three choices.
+  const relativeDirection=(other)=>{
+   const [,x,y]=point(target);
+   const [,ox,oy]=point(other);
+   const dx=x-ox,dy=y-oy;
+   if(Math.abs(dx)>Math.abs(dy)*1.5)return dx>0?'east':'west';
+   if(Math.abs(dy)>Math.abs(dx)*1.5)return dy>0?'south':'north';
+   return (dy>0?'south':'north')+(dx>0?'east':'west');
+  };
+  const otherMarkers=locations.map((name,i)=>({name,marker:i+1})).filter(item=>item.name!==target);
   const clues=entries[target]||[
    `Find ${branch==='usa'?'the state of':'the country'} ${target} on the map.`,
-   branch==='usa'?'Look for its outline among the other U.S. states.':'Look for its location within this part of the world.',
-   `Its capital is ${row.capital}.`,
+   `Look ${relativeDirection(otherMarkers[0].name)} of marker ${otherMarkers[0].marker} on this map.`,
+   `Now look ${relativeDirection(otherMarkers[1].name)} of marker ${otherMarkers[1].marker}. ${target}'s capital is ${row.capital}.`,
   ];
   return {
    id:'location-'+target.toLowerCase().replaceAll(' ','-')+'-'+branch,
