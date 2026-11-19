@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {locationQuestions,locationMaps} from '../geo/locations.js';
-import {regionViews,centeredViewport,scaledViewport,shiftedViewport,markersViewport} from '../geo/map-viewport.js';
+import {regionViews,centeredViewport,scaledViewport,shiftedViewport,markersViewport,initialMapViewport} from '../geo/map-viewport.js';
 
 function inside(view,point){
  return point.x>=view[0]-1e-7 && point.x<=view[0]+view[2]+1e-7 &&
@@ -38,4 +38,30 @@ test('map zoom and pan clamp to full map bounds',()=>{
  assert.deepEqual(scaledViewport(full,zoomed,0.25),full);
  const moved=shiftedViewport(full,zoomed,100,100);
  assert.ok(inside(full,{x:moved[0]+moved[2],y:moved[1]+moved[3]}));
+});
+
+test('every geography question opens zoomed with all three markers visible',()=>{
+ for(const question of locationQuestions){
+  const map=locationMaps[question.branch];
+  const pins=question.locations.map(name=>{
+   const point=map.points[name];
+   return {x:point[1],y:point[2]};
+  });
+  const initial=initialMapViewport(map.view,pins,question.branch);
+  assert.ok(initial[2]<map.view[2],question.id+' should start closer than full map');
+  for(const pin of pins)assert.ok(inside(initial,pin),question.id+' missing a starting marker');
+ }
+});
+test('Caribbean country questions start with a closer map automatically',()=>{
+ const caribbean=['Antigua and Barbuda','Bahamas','Barbados','Cuba','Dominica',
+  'Dominican Republic','Grenada','Haiti','Jamaica','Saint Kitts and Nevis',
+  'Saint Lucia','Saint Vincent and the Grenadines','Trinidad and Tobago'];
+ for(const name of caribbean){
+  const question=locationQuestions.find(q=>q.branch==='north-america'&&q.target===name);
+  assert.ok(question,'Missing Caribbean country: '+name);
+  const map=locationMaps[question.branch];
+  const pins=question.locations.map(n=>({x:map.points[n][1],y:map.points[n][2]}));
+  const initial=initialMapViewport(map.view,pins,question.branch);
+  assert.ok(map.view[2]/initial[2]>=2,question.id+' should open at least 2× zoom');
+ }
 });
