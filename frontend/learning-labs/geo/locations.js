@@ -1,4 +1,5 @@
 import maps from './location-map-data.json' with {type:'json'};
+import {capitalMapData} from './capital-map-data.js';
 
 export const locationTrailName = 'Find it on the Map';
 
@@ -47,22 +48,99 @@ const cluesByRegion = {
  },
 };
 
-export const locationMaps = maps;
 
-export const locationQuestions = Object.entries(cluesByRegion).flatMap(([branch, entries])=>{
- const places = Object.keys(entries);
- return places.map((target, index)=>{
-  const correctIndex = (index+1)%3;
-  const locations = [places[(index+1)%places.length],places[(index+2)%places.length]];
+/* Build the complete location trail from the same canonical jurisdiction rows
+   used for the capital trail. This prevents capitals and map questions drifting. */
+const numericCodes=Object.fromEntries(`af:004 am:051 az:031 bh:048 bd:050 bt:064 bn:096 kh:116 cn:156 cy:196 ge:268 in:356 id:360 ir:364 iq:368 il:376 jp:392 jo:400 kz:398 kw:414 kg:417 la:418 lb:422 my:458 mv:462 mn:496 mm:104 np:524 kp:408 om:512 pk:586 ps:275 ph:608 qa:634 sa:682 sg:702 kr:410 lk:144 sy:760 tj:762 th:764 tl:626 tm:795 tr:792 ae:784 uz:860 vn:704 ye:887 dz:012 ao:024 bj:204 bw:072 bf:854 bi:108 cm:120 cv:132 cf:140 td:148 km:174 cg:178 cd:180 dj:262 eg:818 gq:226 er:232 sz:748 et:231 ga:266 gm:270 gh:288 gn:324 gw:624 ci:384 ke:404 ls:426 lr:430 ly:434 mg:450 mw:454 ml:466 mr:478 mu:480 ma:504 mz:508 na:516 ne:562 ng:566 rw:646 sn:686 sc:690 sl:694 so:706 za:710 ss:728 sd:729 st:678 tz:834 tg:768 tn:788 ug:800 zm:894 zw:716 al:008 ad:020 at:040 by:112 be:056 ba:070 bg:100 hr:191 cz:203 dk:208 ee:233 fi:246 fr:250 de:276 gr:300 hu:348 is:352 ie:372 it:380 lv:428 li:438 lt:440 lu:442 mt:470 md:498 mc:492 me:499 nl:528 mk:807 no:578 pl:616 pt:620 ro:642 ru:643 sm:674 rs:688 sk:703 si:705 es:724 se:752 ch:756 ua:804 gb:826 va:336 ar:032 bo:068 br:076 cl:152 co:170 ec:218 gy:328 py:600 pe:604 sr:740 uy:858 ve:862 ag:028 bs:044 bb:052 bz:084 ca:124 cr:188 cu:192 dm:212 do:214 sv:222 gd:308 gt:320 ht:332 hn:340 jm:388 mx:484 ni:558 pa:591 kn:659 lc:662 vc:670 tt:780 us:840 au:036 fj:242 ki:296 mh:584 fm:583 nr:520 nz:554 pw:585 pg:598 ws:882 sb:090 to:776 tv:798 vu:548`.split(' ').map(pair=>pair.split(':')));
+const tinyLocations=Object.fromEntries(`asia|Bahrain|230.6|379.4
+asia|Maldives|400|476.1
+asia|Singapore|589.8|476.4
+africa|Cape Verde|187.1|205.3
+africa|Comoros|698|415.9
+africa|Mauritius|798.3|476.6
+africa|Seychelles|780.4|359.3
+africa|São Tomé and Príncipe|419.8|317.4
+europe|Andorra|267|459
+europe|Liechtenstein|415.4|387.7
+europe|Malta|459|525.9
+europe|Monaco|385.8|430.1
+europe|San Marino|444.3|430.1
+europe|Vatican City|429|468
+north-america|Antigua and Barbuda|705.1|440.6
+north-america|Barbados|724.4|461.2
+north-america|Dominica|710.3|449.2
+north-america|Grenada|713.1|466.5
+north-america|Saint Kitts and Nevis|698.9|439
+north-america|Saint Lucia|714.7|457.3
+north-america|Saint Vincent and the Grenadines|714.3|460.6
+australia|Kiribati|650.6|138
+australia|Marshall Islands|610|72.1
+australia|Micronesia|518|143
+australia|Nauru|598.4|151.6
+australia|Palau|324.7|69.2
+australia|Samoa|725|322
+australia|Tonga|715|351
+australia|Tuvalu|690.8|219.4`.split('\n').map(line=>{
+ const [branch,name,x,y]=line.split('|');
+ return [branch+':'+name,[Number(x),Number(y)]];
+}));
+
+/* Most map outlines contain a dominant mainland ring. Its central area provides
+   an initial pin for places without a curated map coordinate. */
+function shapeCenter(path){
+ if(!path) return null;
+ const rings=path.split(/(?=M[\d.-])/).filter(Boolean);
+ const bounds=rings.map(ring=>{
+  const pairs=[...ring.matchAll(/[ML](-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)].map(m=>[Number(m[1]),Number(m[2])]);
+  if(!pairs.length) return null;
+  const xs=pairs.map(p=>p[0]),ys=pairs.map(p=>p[1]);
+  const left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);
+  return {x:(left+right)/2,y:(top+bottom)/2,area:(right-left)*(bottom-top)};
+ }).filter(Boolean).sort((a,b)=>b.area-a.area);
+ return bounds.length?[bounds[0].x,bounds[0].y]:null;
+}
+
+export const completeLocationRows=Object.fromEntries(Object.entries(capitalMapData)
+ .filter(([branch])=>branch!=='antarctica')
+ .map(([branch,rows])=>[branch,rows.map(([id,name,capital])=>({
+  name,capital,code:branch==='usa'?id.slice(6):numericCodes[id.slice(8)],
+ }))]));
+
+export const locationMaps=Object.fromEntries(Object.entries(maps).map(([branch,map])=>{
+ const points={...map.points};
+ for(const row of completeLocationRows[branch]||[]){
+  if(points[row.name])continue;
+  const fallback=tinyLocations[branch+':'+row.name];
+  const id=row.code&&map.paths[row.code]?row.code:null;
+  const pt=id?shapeCenter(map.paths[id]):fallback;
+  if(!pt)continue;
+  points[row.name]=[id||'tiny-'+row.name,...pt];
+ }
+ return [branch,{...map,points}];
+}));
+
+export const locationQuestions=Object.entries(completeLocationRows).flatMap(([branch,rows])=>{
+ const entries=cluesByRegion[branch]||{};
+ const places=rows.map(row=>row.name).filter(name=>locationMaps[branch].points[name]);
+ return places.map((target,index)=>{
+  const correctIndex=(index+1)%3;
+  const locations=[places[(index+7)%places.length],places[(index+19)%places.length]];
+  // Prevent accidental duplicate choices in a future shorter region.
+  if(locations[0]===target)locations[0]=places[(index+1)%places.length];
+  if(locations[1]===target||locations[1]===locations[0])locations[1]=places[(index+2)%places.length];
   locations.splice(correctIndex,0,target);
-  const choices = ['1','2','3'];
-  const answer = choices[correctIndex];
-  const clues = entries[target];
+  const answer=String(correctIndex+1);
+  const row=rows.find(row=>row.name===target);
+  const clues=entries[target]||[
+   `Find ${branch==='usa'?'the state of':'the country'} ${target} on the map.`,
+   branch==='usa'?'Look for its outline among the other U.S. states.':'Look for its location within this part of the world.',
+   `Its capital is ${row.capital}.`,
+  ];
   return {
    id:'location-'+target.toLowerCase().replaceAll(' ','-')+'-'+branch,
-   branch, place:locationTrailName, topic:locationTrailName, target, locations,
-   choices, answer, clues,
-   explanation:`Marker ${answer} shows ${target}. The last clue is a way to remember where it is: “${clues[2]}”`,
+   branch,place:locationTrailName,topic:locationTrailName,target,locations,
+   choices:['1','2','3'],answer,clues,
+   explanation:`Marker ${answer} shows ${target}. ${entries[target]?clues[2]:`Its capital is ${row.capital}.`}`,
   };
  });
 });
