@@ -63,9 +63,9 @@ function latinFixture(){
    assert.equal(await page.locator('#playerFields .level').last().inputValue(),'Summit');
    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('mathFactRally.v2')).progress.tessa['Addition:2:3'].right),3);
    await page.goto(geo);
-   await page.getByText('Manage players',{exact:true}).click();
-   await page.getByRole('textbox',{name:'Player name'}).fill('New Explorer');
-   await page.getByRole('button',{name:'Add player',exact:true}).click();
+   await page.getByText('Manage explorers',{exact:true}).click();
+   await page.getByRole('textbox',{name:'Explorer name'}).fill('New Explorer');
+   await page.getByRole('button',{name:'Add explorer',exact:true}).click();
    await page.getByRole('checkbox',{name:'Elsie'}).check();
    await page.getByRole('checkbox',{name:'Diana'}).uncheck();
    await page.getByRole('button',{name:/Start fresh/}).first().click();

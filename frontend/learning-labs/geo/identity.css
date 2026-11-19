@@ -255,17 +255,25 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
   align-items: center;
-  gap: 12px 24px;
+  gap: 7px 18px;
   margin: 0 0 10px;
-  padding: 9px 15px;
-  border: 1px solid #b29a68;
+  padding: 9px 14px;
+  color: #fff5d9;
+  border: 1px solid #aa8a54;
   border-radius: 14px;
-  background: #fbf2db;
+  background: #173e58;
   box-shadow: 0 2px 5px #354b3222;
+}
+.expedition-directions {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #e3eef0;
+  font: 500 .875rem/1.35 system-ui, sans-serif;
 }
 .expedition-setup .labs-players {
   min-width: 0;
   margin: 0;
+  color: inherit;
   font-size: .875rem;
 }
 .expedition-setup .labs-players fieldset {
@@ -281,21 +289,25 @@
 .expedition-setup .labs-player-choices label {
   border-color: #a7b08b;
   background: #fff9e9;
+  color: #173e58;
+  overflow-wrap: anywhere;
 }
 .expedition-setup .labs-player-choices label:has(input:checked) {
   background: #e3ead2;
   border-color: #829b67;
 }
 .expedition-setup .labs-players details {
-  margin-top: .3rem;
+  margin-top: .2rem;
   font-size: .8rem;
 }
 .atlas .expedition-setup .geo-field {
   gap: 8px;
+  color: inherit;
   font: 700 1rem Georgia, serif;
 }
 .expedition-setup .geo-field select {
-  min-height: 38px;
+  min-height: 36px;
+  color: #173e58;
   min-width: 0;
   padding: 5px 10px;
   border: 1px solid #ac9967;

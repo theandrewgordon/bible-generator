@@ -56,7 +56,7 @@ function ExpeditionPlayers({state,dispatch}){
  useEffect(()=>{
   const roster=profiles();
   const preferred=(current.current.roundPlayers||playingLearners(current.current)).flatMap(id=>roster.find(player=>gamePlayerId(player,'geo')===id)?.id||[]);
-  return mountPlayers(root.current,{game:'geo',limit:4,preferred,onChange:(selected,players)=>{
+  return mountPlayers(root.current,{game:'geo',limit:4,preferred,roleName:'explorer',legend:'Choose your explorers',onChange:(selected,players)=>{
    dispatch(playerSettings(current.current,selected,players));
   }});
  },[dispatch]);
@@ -127,12 +127,13 @@ function App(){
  return <><Family game="geo"/><main className={"atlas "+(s.screen==='play'?'on-expedition':'')}><header className="atlas-hero"><div className="atlas-title"><h1><span>Geo</span>{' '}<span>Detectives!</span></h1><p>A Geography Adventure</p></div></header>
  {s.screen==='home'?<section className="geo-home expedition-home">
  <div className="expedition-setup">
+  <p className="expedition-directions">Pick a trail and solve its mysteries. In Quest, use fewer clues to earn more points.</p>
   <ExpeditionPlayers state={s} dispatch={dispatch}/>
   <label className="geo-field">Scoring<select value={s.playMode==='teams'?'teams':'players'} onChange={e=>{
    const players=profiles();
    const preferred=(s.roundPlayers||[s.learner]).flatMap(id=>players.find(player=>gamePlayerId(player,'geo')===id)?.id||[]);
    dispatch(playerSettings({playMode:e.target.value},selectedPlayers('geo',4,preferred),players));
-  }}><option value="players">Individual players</option><option value="teams">Two teams</option></select></label>
+  }}><option value="players">Individual explorers</option><option value="teams">Two teams</option></select></label>
  </div>
  <ExpeditionMap topic={s.topic||'all'} mode={s.mode} onTopic={chooseTopic} onMode={value=>dispatch({type:'filter',key:'mode',value})} onStart={startFresh} onResume={()=>dispatch({type:'resume'})} resume={!!s.session&&s.rounds<s.session.ids.length} pending={pending.length} available={enoughQuestions?eligible.length:0} needsMoreQuestions={eligible.length>0&&!enoughQuestions} startLabel={freshLabel} onReview={()=>start(true)} worldOpen={worldOpen||!!branch} onWorld={()=>setWorldOpen(true)} regions={Object.entries(placeBranches).map(([id,entry])=><button key={id} aria-pressed={s.branch===id} onClick={()=>{
   dispatch({type:'branch',branch:id});

@@ -127,22 +127,23 @@ function node(tag, label, attributes = {}) {
   return element;
 }
 
-export function mountPlayers(root, {game, limit = 1, preferred = [], onChange = () => {}}) {
+export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 'player', legend, onChange = () => {}}) {
   const group = node('fieldset');
-  group.append(node('legend', limit === 1 ? 'Who’s playing?' : 'Who’s playing this round?'));
+  const roleLabel = roleName[0].toUpperCase() + roleName.slice(1);
+  group.append(node('legend', legend ?? (limit === 1 ? 'Who’s playing?' : 'Who’s playing this round?')));
   const choices = node('div', '', {class: 'labs-player-choices'});
   const note = node('p', '', {role: 'status', class: 'labs-player-note'});
   const manage = node('details');
-  manage.append(node('summary', 'Manage players'));
+  manage.append(node('summary', `Manage ${roleName}s`));
   const form = node('form');
-  const label = node('label', 'Player name');
+  const label = node('label', `${roleLabel} name`);
   const input = node('input', '', {maxlength: '30', required: '', autocomplete: 'off'});
   label.append(input);
-  const add = node('button', 'Add player', {type: 'submit'});
-  const rename = node('select', '', {'aria-label': 'Player to rename'});
-  const renameButton = node('button', 'Rename player', {type: 'button'});
+  const add = node('button', `Add ${roleName}`, {type: 'submit'});
+  const rename = node('select', '', {'aria-label': `${roleLabel} to rename`});
+  const renameButton = node('button', `Rename ${roleName}`, {type: 'button'});
   form.append(label, add, rename, renameButton);
-  manage.append(form, node('p', 'Players are available in all FaithSparks Labs games in this browser.'));
+  manage.append(form, node('p', `${roleLabel}s are available in all FaithSparks Labs games in this browser.`));
   group.append(choices, manage, note);
   root.classList.add('labs-players');
   root.replaceChildren(group);
@@ -172,7 +173,7 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], onChange = 
         else if (!control.checked && selection.length > 1) selection = selection.filter(id => id !== player.id);
         else {
           control.checked = !control.checked;
-          note.textContent = control.checked ? 'Choose at least one player.' : 'Choose up to ' + limit + ' players.';
+          note.textContent = control.checked ? `Choose at least one ${roleName}.` : `Choose up to ${limit} ${roleName}s.`;
           return;
         }
         note.textContent = '';
@@ -192,7 +193,7 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], onChange = 
     const name = input.value.trim();
     const roster = loadRoster();
     if (!name || roster.some(player => player.id !== id && nameKey(player.name) === nameKey(name))) {
-      note.textContent = name ? 'That name is already in use. Try a nickname.' : 'Enter a player name first.';
+      note.textContent = name ? 'That name is already in use. Try a nickname.' : `Enter a ${roleName} name first.`;
       return;
     }
     if (id) {
@@ -208,7 +209,7 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], onChange = 
     }
     write(rosterKey + '.' + game, selection);
     input.value = '';
-    note.textContent = id ? 'Player renamed.' : 'Player added.';
+    note.textContent = id ? `${roleLabel} renamed.` : `${roleLabel} added.`;
     saveRoster(roster);
   }
 
