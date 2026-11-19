@@ -26,10 +26,16 @@ function Picture({art,src,label}){
 }
 function App(){
  const [s,dispatch]=useReducer(reducer,initial,()=>{try{return restore(localStorage.getItem('faithsparks.geo.v2'))}catch{return initial}});
- const lens=useRef(null),lensTrigger=useRef(null);
+ const lens=useRef(null),lensTrigger=useRef(null),regionPanel=useRef(null);
  const [inputNotice,setInputNotice]=useState('');
  const [reveal,setReveal]=useState(false),[storage,setStorage]=useState(true),[length,setLength]=useState(5);
+ const [worldOpen,setWorldOpen]=useState(false);
  const branch=placeBranches[s.branch];
+ const chooseTopic=value=>{
+  setWorldOpen(false);
+  dispatch({type:'branch',branch:'vocabulary'});
+  dispatch({type:'filter',key:'topic',value});
+ };
  const place=s.place||'all';
  const placeDeck=branch?placeQuestions.filter(q=>q.branch===s.branch&&(place==='all'||q.place===place)):[];
  const eligible=branch?placeDeck:data[s.mode].filter(q=>(s.level==='all'||q.level===s.level)&&(s.topic==='all'||!s.topic||(s.mode==='compare'?q.terms.some(term=>termTopics.get(term.toLowerCase())===s.topic):q.topic===s.topic)));
@@ -83,11 +89,11 @@ function App(){
   }}>{[1,2,3,4].map(count=><option key={count} value={count}>{count} {count===1?'player':'players'}</option>)}<option value="teams">Two teams</option></select></label>
  </div>
  {s.playMode==='players'&&<ul className="geo-roster" aria-label="Player roster">{names.map((name,i)=><li key={roster[i]}>{name}</li>)}</ul>}
- <nav className="geo-branches" aria-label="Study branches">
-  <button aria-pressed={!branch} onClick={()=>dispatch({type:'branch',branch:'vocabulary'})}>Geography basics</button>
-  {Object.entries(placeBranches).map(([id,entry])=><button key={id} aria-pressed={s.branch===id} onClick={()=>dispatch({type:'branch',branch:id})}>{entry.name}</button>)}
- </nav>
- {branch?<section className="case-card geo-place-study" aria-label={branch.name+' study'}>
+ <ExpeditionMap topic={s.topic||'all'} mode={s.mode} onTopic={chooseTopic} onMode={value=>dispatch({type:'filter',key:'mode',value})} onStart={()=>start(false,s.learner,5)} onResume={()=>dispatch({type:'resume'})} resume={!!s.session&&s.rounds<s.session.ids.length} pending={pending.length} available={enoughQuestions?eligible.length:0} needsMoreQuestions={eligible.length>0&&!enoughQuestions} questionsPerPlayer={s.playMode==='players'?Math.min(5,completeRounds):undefined} onReview={()=>start(true)} worldOpen={worldOpen||!!branch} onWorld={()=>setWorldOpen(true)} regions={Object.entries(placeBranches).map(([id,entry])=><button key={id} aria-pressed={s.branch===id} onClick={()=>{
+  dispatch({type:'branch',branch:id});
+  requestAnimationFrame(()=>regionPanel.current?.focus());
+ }}>{entry.name}</button>)}/>
+ {branch?<section className="case-card geo-place-study" ref={regionPanel} tabIndex={-1} aria-label={branch.name+' study'}>
   <img className="geo-region-map" {...regionalMaps[s.branch]} width="1200" height="800"/>
   <div className="geo-place-controls">
   <label className="geo-field">{branch.focusLabel}<select value={place} onChange={e=>dispatch({type:'filter',key:'place',value:e.target.value})}>
@@ -102,7 +108,7 @@ function App(){
   {!enoughQuestions&&<p role="status">Choose a broader trail so every player gets a turn.</p>}
   {pending.length>0&&<button onClick={()=>start(true)}>Review missed discoveries →</button>}
   </div>
- </section>:<ExpeditionMap topic={s.topic||'all'} mode={s.mode} onTopic={value=>dispatch({type:'filter',key:'topic',value})} onMode={value=>dispatch({type:'filter',key:'mode',value})} onStart={()=>start(false,s.learner,5)} onResume={()=>dispatch({type:'resume'})} resume={!!s.session&&s.rounds<s.session.ids.length} pending={pending.length} available={enoughQuestions?eligible.length:0} needsMoreQuestions={eligible.length>0&&!enoughQuestions} questionsPerPlayer={s.playMode==='players'?Math.min(5,completeRounds):undefined} onReview={()=>start(true)}/>}
+ </section>:null}
  <PracticeOptions><div className="geo-option-grid">{!branch&&<><label>Practice<select value={s.mode} onChange={e=>dispatch({type:'filter',key:'mode',value:e.target.value})}><option value="quest">Vocabulary Quest</option><option value="compare">Compare & Contrast</option></select></label><label>Explore a theme<select value={s.topic||'all'} onChange={e=>dispatch({type:'filter',key:'topic',value:e.target.value})}><option value="all">All landscapes</option>{[...new Set(data.quest.map(q=>q.topic))].map(topic=><option key={topic}>{topic}</option>)}</select></label><label>Trail<select value={s.level} onChange={e=>dispatch({type:'filter',key:'level',value:e.target.value})}><option value="all">All trails</option><option value="easy">Starter trail</option><option value="explorer">Explorer trail</option></select></label></>}<label>Answer with<select value={s.response||'choice'} onChange={e=>dispatch({type:'filter',key:'response',value:e.target.value})}><option value="choice">Multiple choice</option><option value="type">Fill in the blank</option></select></label><label>Session length<select value={length} onChange={e=>setLength(Number(e.target.value))}><option value="5">{s.playMode==='players'?'5 questions per player':'5 questions'}</option><option value="10">{s.playMode==='players'?'10 questions per player':'10 questions'}</option><option value="0">{s.playMode==='players'?'All complete rounds':'Explore the full trail'}</option></select></label></div>
  {s.playMode!=='teams'&&roster.map((id,i)=><label className="geo-field" key={id}>{multiplayer?`Player ${i+1} name`:'Learner’s name'}<input maxLength="24" value={s.learnerNames[id]} onChange={e=>dispatch({type:'learner-name',id,value:e.target.value})}/></label>)}
  {s.playMode==='teams'&&s.names.map((name,i)=><div className="team-edit" key={i}><label>Team {i+1}<input value={name} maxLength="24" onChange={e=>dispatch({type:'name',team:i,value:e.target.value})}/></label>{learnerSelect('geo-team-'+i,s.teamLearners[i],id=>dispatch({type:'team-learner',team:i,id}))}</div>)}

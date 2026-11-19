@@ -175,3 +175,20 @@
 .mystery-scene .place-landscape {
   aspect-ratio: 3 / 2;
 }
+
+.world-destinations-title {
+  color: #174c74;
+  font: bold italic clamp(25px, 3vw, 34px) Georgia, serif;
+  margin: 18px 0 8px;
+}
+
+.map-stop-world .map-stop-icon {
+  background: radial-gradient(circle at 35% 20%, #e0f4d5, #75b8ae);
+}
+
+@media (max-width: 600px) {
+  .map-stop-world .map-stop-label {
+    max-width: 84px;
+    white-space: normal;
+  }
+}
