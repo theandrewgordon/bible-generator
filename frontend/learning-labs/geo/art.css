@@ -18,7 +18,7 @@
 .art-elevation{background-image:url("./art/art-eac952977863.webp");}
 .art-estuary{background-image:url("./art/art-c73b927875f5.webp");}
 .art-field{background-image:url("./art/art-48226ba99915.webp");}
-.art-fjord{background-image:url("./art/art-de8ef41912db.webp");}
+.art-fjord{background-image:url("./art/fjord.webp");}
 .art-forest{background-image:url("./art/art-c5dd7882e237.webp");}
 .art-glacier{background-image:url("./art/art-37882eafa5f2.webp");}
 .art-grove{background-image:url("./art/art-524c44a0a960.webp");}
@@ -46,8 +46,8 @@
 .art-river{background-image:url("./art/art-009953d10373.webp");}
 .art-sandbar{background-image:url("./art/sandbar.webp");}
 .art-shore{background-image:url("./art/art-54716d55ea18.webp");}
-.art-shoreline{background-image:url("./art/art-5179e82bf5a8.webp");}
-.art-strait{background-image:url("./art/art-f9a2713993e5.webp");}
+.art-shoreline{background-image:url("./art/shoreline.webp");}
+.art-strait{background-image:url("./art/strait.webp");}
 .art-stream{background-image:url("./art/art-a14ac7b971c4.webp");}
 .art-summit{background-image:url("./art/art-86e0a5df4c20.webp");}
 .art-swamp{background-image:url("./art/swamp.webp");}
@@ -60,8 +60,8 @@
 .art-watershed{background-image:url("./art/watershed.webp");}
 .art-waves{background-image:url("./art/art-f9beb35c852b.webp");}
 .art-diagram-dam{background-image:url("./art/diagram-dam.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
-.art-diagram-ocean{background-image:url("./art/diagram-ocean.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
-.art-diagram-river-source{background-image:url("./art/diagram-river-source.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
+.art-diagram-ocean{background-image:url("./art/ocean.webp");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
+.art-diagram-river-source{background-image:url("./art/river-source.webp");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-river-mouth{background-image:url("./art/river-mouth.webp");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-woods{background-image:url("./art/woods.webp");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-peak{background-image:url("./art/peak.webp");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
