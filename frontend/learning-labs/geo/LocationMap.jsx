@@ -16,7 +16,7 @@ export function LocationMap({question,result,onChoose}){
  const correct=marked&&numbered.find(pin=>pin.number===question.answer);
  const paint=zoom=>{
   const key=uid+(zoom?'-zoom':'');
-  return <svg className="location-map" viewBox={view.join(' ')} aria-label="Map with three numbered places">
+  return <svg className="location-map" viewBox={view.join(' ')} aria-label="Map with three numbered places; small island nations may be shown using approximate locator points">
    <defs>
     <radialGradient id={key+'-sea'}><stop stopColor="#6ac5cd"/><stop offset=".74" stopColor="#acdbd2"/><stop offset="1" stopColor="#fff1d7"/></radialGradient>
     <clipPath id={key+'-land'}>{Object.entries(paths).map(([id,d])=><path key={id} d={d} clipRule="evenodd"/>)}</clipPath>
@@ -28,7 +28,7 @@ export function LocationMap({question,result,onChoose}){
     {Object.entries(paths).map(([id,d])=><path key={id} d={d}/>)}
    </g>
    <rect {...{x,y,width,height}} filter={`url(#${key}-grain)`} opacity=".1" pointerEvents="none" style={{mixBlendMode:'multiply'}}/>
-   {correct&&<path d={paths[correct.id]} fill="#e8f8a5" fillOpacity=".62" stroke="#205438" strokeWidth="3" fillRule="evenodd"/>}
+   {correct&&(paths[correct.id]?<path d={paths[correct.id]} fill="#e8f8a5" fillOpacity=".62" stroke="#205438" strokeWidth="3" fillRule="evenodd"/>:<circle cx={correct.x} cy={correct.y} r="37" fill="none" stroke="#205438" strokeWidth="4" strokeDasharray="5 4" aria-label="Correct small country location"/>)}
    {numbered.map(pin=><g key={pin.number} transform={`translate(${pin.x},${pin.y})`}
     className={`location-pin${marked&&pin.number===question.answer?' correct':marked&&pin.number===result.selected?' incorrect':''}`}
     role={result?undefined:'button'} tabIndex={result?undefined:0} aria-label={`Choose marker ${pin.number}`}
