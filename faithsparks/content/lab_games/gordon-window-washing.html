@@ -1,6 +1,6 @@
 <!DOCTYPE html><head>
 <script src="/labs/games/assets/games-save-migration.js"></script>
-<title>Gordon Window Washing — Tessa’s Games</title>
+<title>Gordon Window Washing — Faith Sparks Labs</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 </head><body style="background:#000">
@@ -1500,7 +1500,7 @@ function getSharedPlayers()
     let players = [];
     try
     {
-        const raw = localStorage.getItem(TESSA_PLAYERS_KEY);
+        const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(TESSA_PLAYERS_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
         if (Array.isArray(parsed))
             players = parsed.filter(p => p && typeof p.id == 'string' && typeof p.name == 'string');
@@ -1514,7 +1514,7 @@ function saveSharedPlayers(players)
 {
     try
     {
-        localStorage.setItem(TESSA_PLAYERS_KEY, JSON.stringify(players.slice(0,8)));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(TESSA_PLAYERS_KEY, JSON.stringify(players.slice(0,8)));
     }
     catch(e) {}
 
@@ -1569,7 +1569,7 @@ function migrateLegacyProfiles()
 
     try
     {
-        const raw = localStorage.getItem(PROFILE_LIST_KEY);
+        const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(PROFILE_LIST_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
         if (Array.isArray(parsed))
             names.push(...parsed.filter(n => typeof n == 'string'));
@@ -1578,22 +1578,22 @@ function migrateLegacyProfiles()
 
     try
     {
-        for (let i=0; i<localStorage.length; ++i)
+        for (let i=0; i<(window.FaithSparksLabsStorage?.labsStorage ?? localStorage).length; ++i)
         {
-            const key = localStorage.key(i);
+            const key = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).key(i);
             if (!key || !key.startsWith(SAVE_PREFIX))
                 continue;
 
             try
             {
-                const data = JSON.parse(localStorage.getItem(key));
+                const data = JSON.parse((window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(key));
                 if (data && data.playerName)
                     names.push(data.playerName);
             }
             catch(e) {}
         }
 
-        const last = localStorage.getItem('windowWashLastPlayer');
+        const last = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem('windowWashLastPlayer');
         if (last)
             names.push(last);
     }
@@ -1637,7 +1637,7 @@ function loadGameSettings()
     {
         if (!data)
         {
-            const raw = localStorage.getItem(GAME_SETTINGS_KEY);
+            const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(GAME_SETTINGS_KEY);
             data = raw ? JSON.parse(raw) : null;
         }
 
@@ -1660,7 +1660,7 @@ function saveGameSettings()
 
     try
     {
-        localStorage.setItem(GAME_SETTINGS_KEY, JSON.stringify(data));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(GAME_SETTINGS_KEY, JSON.stringify(data));
     }
     catch(e) {}
 
@@ -1699,14 +1699,14 @@ function getProfileSummary(profile)
     {
         if (!data && id)
         {
-            const raw = localStorage.getItem(getProgressKey(id));
+            const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(getProgressKey(id));
             if (raw)
                 data = JSON.parse(raw);
         }
 
         if (!data)
         {
-            const legacy = localStorage.getItem(getSaveKey(name));
+            const legacy = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(getSaveKey(name));
             if (legacy)
                 data = JSON.parse(legacy);
         }
@@ -1792,9 +1792,9 @@ function saveProgress(showToast=false)
 
     try
     {
-        localStorage.setItem(getProgressKey(playerId), JSON.stringify(data));
-        localStorage.setItem(getSaveKey(playerName), JSON.stringify(data));
-        localStorage.setItem('windowWashLastPlayer', playerName);
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(getProgressKey(playerId), JSON.stringify(data));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(getSaveKey(playerName), JSON.stringify(data));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem('windowWashLastPlayer', playerName);
         rememberProfile(playerName);
     }
     catch(e) {}
@@ -1836,7 +1836,7 @@ function saveResumeState()
 
     try
     {
-        localStorage.setItem(getResumeKey(playerId), JSON.stringify(resume));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(getResumeKey(playerId), JSON.stringify(resume));
     }
     catch(e) {}
 }
@@ -1846,7 +1846,7 @@ function clearResumeState()
     if (!playerId)
         return;
 
-    try { localStorage.removeItem(getResumeKey(playerId)); }
+    try { (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).removeItem(getResumeKey(playerId)); }
     catch(e) {}
 }
 
@@ -1858,7 +1858,7 @@ function restoreResumeState()
     let resume = null;
     try
     {
-        const raw = localStorage.getItem(getResumeKey(playerId));
+        const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(getResumeKey(playerId));
         if (raw)
             resume = JSON.parse(raw);
     }
@@ -1920,7 +1920,7 @@ function loadProgress(profileOrName)
     {
         if (!data)
         {
-            const raw = localStorage.getItem(getProgressKey(playerId));
+            const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(getProgressKey(playerId));
             if (raw)
                 data = JSON.parse(raw);
         }
@@ -1928,7 +1928,7 @@ function loadProgress(profileOrName)
         // Adopt old name-keyed saves instead of replacing them.
         if (!data)
         {
-            const legacy = localStorage.getItem(getSaveKey(playerName));
+            const legacy = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(getSaveKey(playerName));
             if (legacy)
                 data = JSON.parse(legacy);
         }
@@ -2339,9 +2339,9 @@ function deletePlayerProfile(profile)
 
     try
     {
-        localStorage.removeItem(getProgressKey(profile.id));
-        localStorage.removeItem(getResumeKey(profile.id));
-        localStorage.removeItem(getSaveKey(profile.name));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).removeItem(getProgressKey(profile.id));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).removeItem(getResumeKey(profile.id));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).removeItem(getSaveKey(profile.name));
     }
     catch(e) {}
 }

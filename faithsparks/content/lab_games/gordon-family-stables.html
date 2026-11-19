@@ -1,6 +1,6 @@
 <!DOCTYPE html><head>
 <script src="/labs/games/assets/games-save-migration.js"></script>
-<title>Gordon Family Stables — Tessa's Games</title>
+<title>Gordon Family Stables — Faith Sparks Labs</title>
 <meta charset="utf-8">
 <link rel="stylesheet" href="/labs/games/assets/games-ui.css">
 <script src="/labs/games/assets/games-core.js"></script>
@@ -1802,7 +1802,7 @@ function tcLoadSharedPlayerRegistry()
 {
     try
     {
-        const raw = localStorage.getItem(tcPlayerRegistryKey);
+        const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(tcPlayerRegistryKey);
         const parsed = raw ? JSON.parse(raw) : null;
         tcPlayerRegistry = parsed && parsed.players ? parsed : {players:{}};
     }
@@ -1816,7 +1816,7 @@ function tcSaveSharedPlayerRegistry()
 {
     try
     {
-        localStorage.setItem(tcPlayerRegistryKey, JSON.stringify(tcPlayerRegistry));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(tcPlayerRegistryKey, JSON.stringify(tcPlayerRegistry));
     }
     catch (e) {}
 }
@@ -1897,7 +1897,7 @@ function tcLoadGameStats()
 {
     try
     {
-        const raw = localStorage.getItem(tcGameStatsStorageKey);
+        const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(tcGameStatsStorageKey);
         tcGameStats = raw ? JSON.parse(raw) : {};
     }
     catch (e)
@@ -1910,7 +1910,7 @@ function tcSaveGameStats()
 {
     try
     {
-        localStorage.setItem(tcGameStatsStorageKey, JSON.stringify(tcGameStats));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(tcGameStatsStorageKey, JSON.stringify(tcGameStats));
     }
     catch (e) {}
 }
@@ -2027,7 +2027,7 @@ function tcLoadSettings()
 
     try
     {
-        const raw = localStorage.getItem(tcSettingsStorageKey);
+        const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(tcSettingsStorageKey);
         const all = raw ? JSON.parse(raw) : {};
         const saved = all[TC_GAME_ID] || {};
         tcSettings = {
@@ -2052,10 +2052,10 @@ function tcSaveSettings()
 
     try
     {
-        const raw = localStorage.getItem(tcSettingsStorageKey);
+        const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(tcSettingsStorageKey);
         const all = raw ? JSON.parse(raw) : {};
         all[TC_GAME_ID] = {...tcSettings};
-        localStorage.setItem(tcSettingsStorageKey, JSON.stringify(all));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(tcSettingsStorageKey, JSON.stringify(all));
     }
     catch (e) {}
 }
@@ -2133,7 +2133,7 @@ function tcLoadProfiles()
 {
     try
     {
-        const raw = localStorage.getItem(tcProfileStorageKey);
+        const raw = (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(tcProfileStorageKey);
         tcProfiles = raw ? JSON.parse(raw) : {};
     }
     catch (e)
@@ -2152,7 +2152,7 @@ function tcSaveProfiles()
 {
     try
     {
-        localStorage.setItem(tcProfileStorageKey, JSON.stringify(tcProfiles));
+        (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(tcProfileStorageKey, JSON.stringify(tcProfiles));
     }
     catch (e)
     {
@@ -2470,7 +2470,7 @@ function tcRenameProfile(oldName, newName)
 {
     if (tcGames())
     {
-        tcProfileMessage = 'Player names are shared across Tessa’s Games and are not renamed here.';
+        tcProfileMessage = 'Player names are shared across Games Lab and are not renamed here.';
         tcSyncDomUi();
         return false;
     }

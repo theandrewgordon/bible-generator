@@ -1,3 +1,5 @@
+import {labsStorage, labsStorageKey} from './labs-storage.js';
+
 const rosterKey = 'faithsparks.labs.players.v1';
 const guest = {id: 'player-guest', name: 'Guest', legacy: {}};
 const mathKey = 'mathFactRally.v2';
@@ -9,7 +11,7 @@ let memory = null;
 
 function read(key, fallback) {
   try {
-    return JSON.parse(localStorage.getItem(key)) ?? fallback;
+    return JSON.parse(labsStorage.getItem(key)) ?? fallback;
   } catch {
     return fallback;
   }
@@ -17,7 +19,7 @@ function read(key, fallback) {
 
 function write(key, value) {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    labsStorage.setItem(key, JSON.stringify(value));
   } catch {
     // The current tab can still play when browser storage is unavailable.
   }
@@ -216,7 +218,7 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], onChange = 
   });
   renameButton.addEventListener('click', () => edit(rename.value));
   const refresh = event => {
-    if (event.type === changed || event.key === rosterKey) render();
+    if (event.type === changed || event.key === labsStorageKey(rosterKey)) render();
   };
   const restore = event => {
     if (event.persisted) render();

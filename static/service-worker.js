@@ -40,6 +40,8 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || !request.url.startsWith(self.location.origin)) return;
   const url = new URL(request.url);
 
+  if (url.pathname.startsWith('/static/labs/')) return;
+
   if (request.mode === 'navigate') {
     // Pages always come from the network; only a total failure shows the offline page.
     event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
@@ -55,7 +57,7 @@ self.addEventListener('fetch', (event) => {
     caches.open(CACHE_NAME).then(async (cache) => {
       const cached = await cache.match(request);
       const network = fetch(request).then((response) => {
-        if (response && response.status === 200) {
+        if (response && response.status === 200 && !/\bno-store\b/i.test(response.headers.get('Cache-Control') || '')) {
           cache.put(request, response.clone()).then(() => trim(cache));
         }
         return response;

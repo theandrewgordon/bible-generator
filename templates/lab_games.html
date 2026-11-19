@@ -74,6 +74,7 @@ window.__GAMES_ACCOUNT_ROSTER__ = {{ games_roster|default({}, true)|tojson }};
 window.__GAMES_SYNC_CONFIG__ = {{ games_sync_config|default({}, true)|tojson }};
 </script>
 <script src="{{ url_for('lab_games.asset', filename='games-save-migration.js') }}"></script>
+<script src="/static/js/labs-storage-runtime.js"></script>
 <script src="{{ url_for('lab_games.asset', filename='games-core.js') }}"></script>
 <script>
 (() => {

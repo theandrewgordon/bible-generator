@@ -1,15 +1,20 @@
 (function(){
 'use strict';
 const config=JSON.parse(document.getElementById('lq-config').textContent),core=window.LatinQuestCore,$=id=>document.getElementById(id);
+const storage=window.LatinQuestPlayers?.storage??localStorage;
 const PLAYERS='faithsparks.latinQuest.players.v1';
 let players=[{id:'player-1',name:'Player 1'},{id:'player-2',name:'Player 2'},{id:'player-3',name:'Player 3'}],player='player-1';
-try{const saved=JSON.parse(localStorage.getItem(PLAYERS)||'null');if(saved&&Array.isArray(saved.players)){const valid=saved.players.filter(p=>p&&/^player-[a-z0-9-]+$/.test(p.id)&&typeof p.name==='string'&&p.name.trim()&&p.name.length<=24).slice(0,12);if(valid.length){players=valid;player=players.some(p=>p.id===saved.current)?saved.current:players[0].id;}}}catch(_){}
+try{const saved=JSON.parse(storage.getItem(PLAYERS)||'null');if(saved&&Array.isArray(saved.players)){const valid=saved.players.filter(p=>p&&/^player-[a-z0-9-]+$/.test(p.id)&&typeof p.name==='string'&&p.name.trim()&&p.name.length<=24).slice(0,12);if(valid.length){players=valid;player=players.some(p=>p.id===saved.current)?saved.current:players[0].id;}}}catch(_){}
 const shared=window.LatinQuestPlayers;
 const preferred=shared?.profiles().filter(profile=>shared.gamePlayerId(profile,'latin')===player).map(profile=>profile.id)||[];
 const sharedList=roster=>roster.map(profile=>({id:shared.gamePlayerId(profile,'latin'),name:profile.name}));
+let roster=[];
+const groupKey='faithsparks.latinQuest.group.v1';
+let group=null;
 if(shared){
  players=sharedList(shared.profiles());
- player=shared.gamePlayerId(shared.selectedPlayers('latin',1,preferred)[0],'latin');
+ roster=shared.selectedPlayers('latin',4,preferred).map(profile=>shared.gamePlayerId(profile,'latin'));
+ player=roster[0];
 }
 function lockPlayers(locked){
  for(const id of ['lq-player','lq-player-add','lq-player-rename']){const control=$(id);if(control)control.disabled=locked;}
@@ -24,21 +29,104 @@ let studyCue=null,resetBackup=null,choiceButtons=[],selectedChoice=null,requeste
 let settings={},generation=0,audio=null,recognition=null,nextTimer=null;
 const memory=new Map(),pending=new Map(),Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 function notice(text){$('lq-notice').textContent=text;}
-function loadStats(){stats={};try{const saved=JSON.parse(localStorage.getItem(STORE)||'{}');for(const [key,value]of Object.entries(saved)){if(value&&Number.isInteger(value.attempts)&&value.attempts>=0&&Number.isInteger(value.correct)&&value.correct>=0&&Number.isInteger(value.streak)&&value.streak>=0&&value.streak<=9)stats[key]=value;}}catch(_){notice('Progress storage is unavailable. You can still practice this session.');}}
+function loadStats(){stats={};try{const saved=JSON.parse(storage.getItem(STORE)||'{}');for(const [key,value]of Object.entries(saved)){if(value&&Number.isInteger(value.attempts)&&value.attempts>=0&&Number.isInteger(value.correct)&&value.correct>=0&&Number.isInteger(value.streak)&&value.streak>=0&&value.streak<=9)stats[key]=value;}}catch(_){notice('Progress storage is unavailable. You can still practice this session.');}}
 loadStats();loadFlashReviewed();
 function reviewedKey(){return 'faithsparks.latinQuest.player.'+player+'.flash-reviewed.v1';}
-function saveFlashReviewed(){try{localStorage.setItem(reviewedKey(),JSON.stringify([...reviewedFlashcards]));}catch(_){notice('Flashcard review history could not be saved on this browser.');}}
-function loadFlashReviewed(){let saved=[];try{const value=JSON.parse(localStorage.getItem(reviewedKey())||'[]');if(Array.isArray(value))saved=value;}catch(_){}reviewedFlashcards=core.reviewedCards(config.questions,stats,saved);saveFlashReviewed();}
+function saveFlashReviewed(){try{storage.setItem(reviewedKey(),JSON.stringify([...reviewedFlashcards]));}catch(_){notice('Flashcard review history could not be saved on this browser.');}}
+function loadFlashReviewed(){let saved=[];try{const value=JSON.parse(storage.getItem(reviewedKey())||'[]');if(Array.isArray(value))saved=value;}catch(_){}reviewedFlashcards=core.reviewedCards(config.questions,stats,saved);saveFlashReviewed();}
 function markFlashReviewed(){reviewedFlashcards.add(current().card);saveFlashReviewed();reviewedStatus();}
 function reviewedStatus(){$('lq-reviewed-count').textContent=reviewedFlashcards.size+' flashcards reviewed for '+playerName()+'. A card counts after you flip it to see the answer.';}
-function save(){try{localStorage.setItem(STORE,JSON.stringify(stats));}catch(_){notice('This browser could not save progress. Keep this page open to retain this session.');}}
+function save(){try{storage.setItem(STORE,JSON.stringify(stats));}catch(_){notice('This browser could not save progress. Keep this page open to retain this session.');}}
 function summary(){const practiced=new Set(Object.keys(stats).filter(id=>stats[id].attempts>0&&config.questions.some(q=>id===q.id||id===q.id+':choice'||id===q.id+':flash')).map(id=>id.split(':')[0]));$('lq-progress-summary').textContent=practiced.size+' of '+(config.cardCount||new Set(config.questions.map(q=>q.card)).size)+' cards practiced for '+players.find(p=>p.id===player).name+' on this device.';}
 function playerName(){return players.find(p=>p.id===player).name;}
-function learningUI(){reviewedStatus();window.LabsUI?.quick('latin',{id:'lq-quick-five',resume:!!readSavedQuest(),onResume:resumeQuest,resumeLabel:'Resume '+playerName()+'’s saved game →',description:'Five questions for '+playerName()+'. Uses this learner’s saved practice options.',onStart:()=>{$('lq-size').value='5';begin();}});}
+function learningUI(){
+ reviewedStatus();
+ const together=roster.length>1;
+ const names=roster.map(id=>players.find(p=>p.id===id).name).join(' & ');
+ window.LabsUI?.quick('latin',{id:'lq-quick-five',resume:together?!!readGroup():!!readSavedQuest(),onResume:resumeSelected,
+  resumeLabel:together?'Resume group quest →':'Resume '+playerName()+'’s saved game →',
+  description:together?'Up to five questions per player, taking turns: '+names+'.':'Five questions for '+playerName()+'. Uses this learner’s saved practice options.',
+  onStart:()=>{$('lq-size').value='5';begin();}});
+}
+function resumeSelected(){if(roster.length>1)resumeGroup();else resumeQuest();}
 function questKey(){return 'faithsparks.latinQuest.player.'+player+'.session.v1';}
-function readSavedQuest(){try{return core.restoreQuestSnapshot(JSON.parse(localStorage.getItem(questKey())||'null'),config.questions)}catch(_){return null}}
-function persistQuest(){if(!active||!queue.length)return;try{localStorage.setItem(questKey(),JSON.stringify({version:1,ids:queue.map(q=>q.id),position,score,assisted,completed,resolved,helped,settings,flashBack,flashSeen,draft:$('lq-answer').value.slice(0,200)}))}catch(_){notice('This browser could not save your unfinished round. Learning history is still available.')}}
-function clearQuest(){try{localStorage.removeItem(questKey())}catch(_){}}
+function readSavedQuest(){try{return core.restoreQuestSnapshot(JSON.parse(storage.getItem(questKey())||'null'),config.questions)}catch(_){return null}}
+function snapshot(){
+ return {version:1,ids:queue.map(q=>q.id),position,score,assisted,completed,resolved,helped,settings,flashBack,flashSeen,draft:$('lq-answer').value.slice(0,200)};
+}
+function persistQuest(){
+ if(!active||!queue.length)return;
+ try{
+  if(group){
+   group.rounds[group.turn]={id:player,...snapshot()};
+   storage.setItem(groupKey,JSON.stringify(group));
+  }else storage.setItem(questKey(),JSON.stringify(snapshot()));
+ }catch(_){notice('This browser could not save your unfinished round. Learning history is still available.');}
+}
+function readGroup(){
+ try{
+  const saved=JSON.parse(storage.getItem(groupKey)||'null');
+  if(!saved||!Array.isArray(saved.rounds)||saved.rounds.length!==roster.length||!Number.isInteger(saved.turn)||!saved.rounds[saved.turn])return null;
+  if(!saved.rounds.every((round,i)=>round?.id===roster[i]&&core.restoreQuestSnapshot(round,config.questions)))return null;
+  return saved;
+ }catch(_){return null;}
+}
+function enterTurn(turn){
+ group.turn=turn;
+ const saved=group.rounds[turn];
+ loadPlayerContext(saved.id);
+ settings={...saved.settings,handsfree:false};
+ queue=saved.ids.map(id=>config.questions.find(q=>q.id===id));
+ ({position,score,assisted,completed}=saved);
+ position+=saved.resolved?1:0;
+ undoAnswers=[];
+ paint(saved.resolved?false:saved.helped);
+ if(!saved.resolved){
+  $('lq-answer').value=saved.draft;
+  if(settings.response==='flash'){flashBack=saved.flashBack;flashSeen=saved.flashSeen;flashSide();}
+ }
+ persistQuest();
+}
+function nextGroupTurn(){
+ for(let offset=1;offset<=group.rounds.length;offset++){
+  const index=(group.turn+offset)%group.rounds.length,round=group.rounds[index];
+  if(round.completed<round.ids.length)return index;
+ }
+ return -1;
+}
+function resumeGroup(){
+ if(active)return;
+ const saved=readGroup();
+ if(!saved){notice('No saved round is available for these players.');return;}
+ group=saved;
+ const turn=group.rounds[group.turn].resolved?nextGroupTurn():group.turn;
+ if(turn<0){finishGroup(false);return;}
+ openSession();
+ enterTurn(turn);
+}
+function openSession(){
+ active=true;lockPlayers(true);notice('');$('lq-setup').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=false;$('lq-study').hidden=true;
+}
+function finishGroup(paused){
+ if(paused)persistQuest();else try{storage.removeItem(groupKey)}catch(_){}
+ stopMedia();active=false;
+ const results=group.rounds;
+ group=null;
+ loadPlayerContext(roster[0]);
+ lockPlayers(false);
+ window.LabsUI?.summary('latin',null);
+ $('lq-session').hidden=true;$('lq-result').hidden=false;$('lq-study').hidden=false;
+ $('lq-result-title').textContent=paused?'Group quest paused.':'Group quest complete.';
+ $('lq-score').textContent='';
+ $('lq-result-breakdown').textContent=results.map(round=>{
+  const name=players.find(p=>p.id===round.id).name;
+  return name+': '+round.score+' / '+round.completed+(round.settings.response==='flash'?' marked known':' independent');
+ }).join(' · ');
+ $('lq-result-copy').textContent='Practice is saved separately for each player.';
+ $('lq-resume').hidden=!paused;$('lq-retest-same').hidden=true;
+ summary();$('lq-result-title').focus?.({preventScroll:true});$('lq-result').scrollIntoView?.({block:'start'});
+}
+function clearQuest(){try{storage.removeItem(questKey())}catch(_){}}
 function resumeQuest(){
  if(active)return;const saved=readSavedQuest();if(!saved){notice('No saved round is available for this learner. Choose Start fresh.');return}
  stopMedia();settings=saved.settings;queue=saved.ids.map(id=>config.questions.find(q=>q.id===id));position=saved.position+(saved.resolved?1:0);score=saved.score;assisted=saved.assisted;completed=saved.completed;undoAnswers=[];active=true;
@@ -51,16 +139,16 @@ function resumeQuest(){
 function statusUI(){window.LabsUI?.status('latin',{learner:playerName(),current:completed,total:queue.length});if($('lq-undo-answer'))$('lq-undo-answer').disabled=!undoAnswers.length;}
 const preferenceIds=['lq-mode','lq-size','lq-response','lq-voice','lq-pronunciation','lq-focus','lq-details','lq-auto','lq-word-type','lq-reviewed-only'];
 const preferenceDefaults=Object.fromEntries(preferenceIds.map(id=>[id,$(id).type==='checkbox'?$(id).checked:$(id).value]));
-function savePreferences(){try{localStorage.setItem('faithsparks.latinQuest.player.'+player+'.settings.v1',JSON.stringify(Object.fromEntries(preferenceIds.map(id=>[id,$(id).type==='checkbox'?$(id).checked:$(id).value]))));}catch(_){}}
-function loadPreferences(){let saved={};try{saved=JSON.parse(localStorage.getItem('faithsparks.latinQuest.player.'+player+'.settings.v1')||'{}')}catch(_){}for(const id of preferenceIds){const node=$(id),value=saved?.[id]??preferenceDefaults[id];if(node.type==='checkbox')node.checked=value===true;else if(Array.from(node.options||[]).some(o=>o.value===value))node.value=value;}syncResponse();learningUI();}
-function undoAnswer(){if(!undoAnswers.length)return;stopMedia();const old=undoAnswers.pop();stats=old.stats;position=old.position;score=old.score;assisted=old.assisted;completed=old.completed;active=true;lockPlayers(true);save();summary();$('lq-result').hidden=true;$('lq-setup').hidden=true;$('lq-study').hidden=true;$('lq-session').hidden=false;lockPlayers(true);window.LabsUI?.summary('latin',null);paint();helped=old.helped;statusUI();$('lq-feedback').textContent='Last answer undone. Try this card again.';}
+function savePreferences(){try{storage.setItem('faithsparks.latinQuest.player.'+player+'.settings.v1',JSON.stringify(Object.fromEntries(preferenceIds.map(id=>[id,$(id).type==='checkbox'?$(id).checked:$(id).value]))));}catch(_){}}
+function loadPreferences(refresh=true){let saved={};try{saved=JSON.parse(storage.getItem('faithsparks.latinQuest.player.'+player+'.settings.v1')||'{}')}catch(_){}for(const id of preferenceIds){const node=$(id),value=saved?.[id]??preferenceDefaults[id];if(node.type==='checkbox')node.checked=value===true;else if(Array.from(node.options||[]).some(o=>o.value===value))node.value=value;}syncResponse();if(refresh)learningUI();}
+function undoAnswer(){if(!undoAnswers.length)return;stopMedia();const old=undoAnswers.pop();stats=old.stats;position=old.position;score=old.score;assisted=old.assisted;completed=old.completed;active=true;lockPlayers(true);save();summary();$('lq-result').hidden=true;$('lq-setup').hidden=true;$('lq-study').hidden=true;$('lq-session').hidden=false;lockPlayers(true);window.LabsUI?.summary('latin',null);paint(old.helped);statusUI();$('lq-feedback').textContent='Last answer undone. Try this card again.';}
 function current(){return queue[position];}
 let WEEK='faithsparks.latinQuest.player.'+player+'.week.v2-independent';
 const deckCards=Array.from(new Map(config.questions.map(q=>[q.card,q])).values());
 let weekly=new Set(),weekEnabled=false;
-try{const saved=JSON.parse(localStorage.getItem(WEEK)||'{}');weekly=new Set((Array.isArray(saved.cards)?saved.cards:[]).filter(id=>deckCards.some(q=>q.card===id)));weekEnabled=saved.enabled===true;}catch(_){}
+try{const saved=JSON.parse(storage.getItem(WEEK)||'{}');weekly=new Set((Array.isArray(saved.cards)?saved.cards:[]).filter(id=>deckCards.some(q=>q.card===id)));weekEnabled=saved.enabled===true;}catch(_){}
 $('lq-week-use').checked=weekEnabled;
-function saveWeek(){try{localStorage.setItem(WEEK,JSON.stringify({enabled:$('lq-week-use').checked,cards:[...weekly]}));}catch(_){notice('Weekly deck could not be saved on this browser.');}weekCount();}
+function saveWeek(){try{storage.setItem(WEEK,JSON.stringify({enabled:$('lq-week-use').checked,cards:[...weekly]}));}catch(_){notice('Weekly deck could not be saved on this browser.');}weekCount();}
 function weekCount(){$('lq-week-count').textContent=weekly.size+' cards selected. Changes save automatically on this browser.';}
 function paintWeek(){const list=$('lq-week-cards'),search=core.normalize($('lq-week-search').value);list.replaceChildren();for(const q of deckCards){const labelText=q.mode==='grammar'?q.prompt:(config.questions.find(x=>x.card===q.card&&x.mode==='meaning')?.prompt||q.prompt)+' — '+(config.questions.find(x=>x.card===q.card&&x.mode==='meaning')?.answer||'');if(search&&!core.normalize(labelText).includes(search))continue;const label=document.createElement('label');label.className='lq-check';const box=document.createElement('input');box.type='checkbox';box.checked=weekly.has(q.card);box.addEventListener('change',()=>{if(box.checked)weekly.add(q.card);else weekly.delete(q.card);saveWeek();});label.appendChild(box);const text=document.createElement('span');text.textContent=labelText;label.appendChild(text);list.appendChild(label);}weekCount();}
 function practicePool(){let pool=core.filterPractice(config.questions,{wordType:$('lq-word-type').value||'all',reviewedOnly:$('lq-reviewed-only').checked&&settings.response!=='flash',reviewed:reviewedFlashcards},stats);if($('lq-week-use').checked)pool=pool.filter(q=>weekly.has(q.card));const focus=$('lq-focus').value;if(settings.mode==='nouns'&&['nominative','genitive','gender','declension'].includes(focus))pool=pool.filter(q=>q.id.endsWith('nouns-'+focus));if(settings.mode==='verbs'&&focus==='principal')pool=pool.filter(q=>q.id.includes(':verbs-part'));return pool;}
@@ -147,29 +235,58 @@ function paint(previousHelp=false){
  $('lq-memory').hidden=!config.memory?.[q.card];for(const id of ['lq-memory-text','lq-memory-source','lq-memory-hear'])$(id).hidden=true;
  paintChoices();paintFlash();$('lq-question').focus?.({preventScroll:true});$('lq-session').scrollIntoView?.({block:'start'});if(previousHelp)$('lq-feedback').textContent='A hint was already used for this card. This counts as practice with help.';persistQuest();if(settings.response!=='flash')repeatQuestion();
 }
+function practiceSettings(){return {response:['choice','flash'].includes($('lq-response').value)?$('lq-response').value:'recall',mode:$('lq-mode').value,voice:$('lq-voice').value,pronunciation:$('lq-pronunciation').value,details:$('lq-details').checked,handsfree:$('lq-auto').checked&&!!Recognition&&!['choice','flash'].includes($('lq-response').value)};}
 function begin(kind='practice'){
- savePreferences();stopMedia();settings={response:['choice','flash'].includes($('lq-response').value)?$('lq-response').value:'recall',mode:$('lq-mode').value,voice:$('lq-voice').value,pronunciation:$('lq-pronunciation').value,details:$('lq-details').checked,handsfree:$('lq-auto').checked&&!!Recognition};
- if(['choice','flash'].includes(settings.response))settings.handsfree=false;
+ if(active)return;
+ savePreferences();stopMedia();
+ if(kind==='practice'&&roster.length>1){beginGroup();return;}
+ $('lq-retest-same').hidden=false;settings=practiceSettings();
  const nextQueue=kind==='same'?core.shuffled(queue):core.buildQueue(practicePool(),settings.mode,Number($('lq-size').value),kind==='retest'?{}:sessionStats(),kind==='review');
  if(!nextQueue.length){notice($('lq-reviewed-only').checked&&settings.response!=='flash'?'No reviewed flashcards match these filters. Choose Flashcards under Answer with, review some cards, then return to your quiz. You can also turn off Only quiz reviewed flashcards.':'No cards match this practice. Check Words to practice, this week’s cards, and your focus, or use Retest all cards if there are no misses.');return;}
  queue=nextQueue;undoAnswers=[];resetBackup=null;requestedReset=null;$('lq-reset-confirm').hidden=true;$('lq-undo-reset').hidden=true;position=0;score=0;assisted=0;completed=0;active=true;lockPlayers(true);notice('');$('lq-setup').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=false;$('lq-study').hidden=true;paint();
+}
+function beginGroup(){
+ const size=Number($('lq-size').value);
+ const rounds=[];
+ for(const id of roster){
+  loadPlayerContext(id);
+  settings={...practiceSettings(),handsfree:false};
+  const cards=core.buildQueue(practicePool(),settings.mode,size,sessionStats());
+  if(!cards.length){
+   const name=playerName();
+   loadPlayerContext(roster[0]);paintWeek();summary();learningUI();
+   notice(name+' has no cards matching their saved options. Select that player alone to adjust their filters or review more flashcards.');
+   return;
+  }
+  rounds.push({id,version:1,ids:cards.map(card=>card.id),position:0,score:0,assisted:0,completed:0,resolved:false,settings});
+ }
+ const turnsPerPlayer=Math.min(...rounds.map(round=>round.ids.length));
+ for(const round of rounds)round.ids=round.ids.slice(0,turnsPerPlayer);
+ group={turn:0,rounds};resetBackup=null;requestedReset=null;
+ $('lq-reset-confirm').hidden=true;$('lq-undo-reset').hidden=true;
+ openSession();enterTurn(0);
 }
 async function hint(){if(!active||resolved)return;helped=true;persistQuest();$('lq-feedback').textContent=current().hint;const played=await speak(current().id+':hint');if(played&&settings.handsfree&&!resolved)listen();}
 async function resolve(correct){
  if(!active||resolved)return;undoAnswers.push({stats:JSON.parse(JSON.stringify(stats)),position,score,assisted,completed,helped});if(undoAnswers.length>20)undoAnswers.shift();if(settings.response==='flash')helped=false;stopMedia();for(const button of choiceButtons){button.disabled=true;if(core.matches(current(),button.value)){button.dataset.result='correct';button.textContent=button.value+' ✓';}else if(button===selectedChoice){button.dataset.result='incorrect';button.textContent=button.value+' — try this again later';}}resolved=true;currentCorrect=correct;completed++;if(correct&&!helped)score++;if(correct&&helped)assisted++;stats=core.record(stats,progressQuestion(),correct,helped);save();summary();statusUI();
  $('lq-answer').disabled=true;$('lq-check').disabled=true;for(const name of ['hint','reveal','skip'])$('lq-'+name).disabled=true;
  $('lq-feedback').textContent=correct?(helped?'You got it with a little help. We will revisit this card.':'Correct! One valid answer is enough.'):'Good try. Let us learn this card together.';
- $('lq-card-answer').textContent=current().answer;$('lq-after').hidden=false;$('lq-override').hidden=correct||['choice','flash'].includes(settings.response);$('lq-next').textContent=position+1===queue.length?'Finish quest →':'Next question →';$('lq-bar').value=completed;
- persistQuest();const token=generation;if(settings.response==='flash'){$('lq-flash-known').disabled=true;$('lq-flash-again').disabled=true;$('lq-feedback').textContent=correct?'Marked known.':'Saved for more practice.';}else if(!correct)await speak(current().id+':answer');
+ $('lq-card-answer').textContent=current().answer;$('lq-after').hidden=false;$('lq-override').hidden=correct||['choice','flash'].includes(settings.response);$('lq-next').textContent=group?'Next turn →':position+1===queue.length?'Finish quest →':'Next question →';$('lq-bar').value=completed;
+ persistQuest();
+ if(group){
+  const next=nextGroupTurn();
+  $('lq-next').textContent=next<0?'Finish quest →':'Next turn: '+players.find(p=>p.id===group.rounds[next].id).name+' →';
+ }
+ const token=generation;if(settings.response==='flash'){$('lq-flash-known').disabled=true;$('lq-flash-again').disabled=true;$('lq-feedback').textContent=correct?'Marked known.':'Saved for more practice.';}else if(!correct)await speak(current().id+':answer');
  // A new question or manual action invalidates this continuation.
  if(active&&resolved&&settings.handsfree&&generation===(correct?token:token+1))nextTimer=setTimeout(advance,3000);
 }
 function check(text){if(!String(text).trim()){ $('lq-feedback').textContent='Give one answer, or choose Show answer to study this card.';return;}resolve(core.matches(current(),text));}
 function reveal(){if(!active||resolved)return;helped=true;resolve(false);}
-function advance(){if(!active||!resolved)return;stopMedia();position++;if(position>=queue.length){finish(false);return;}paint();}
-function override(){if(!active||!resolved||currentCorrect)return;stopMedia();if(previousStat)stats[progressQuestion().id]=previousStat;else delete stats[progressQuestion().id];stats=core.record(stats,progressQuestion(),true,helped);save();if(!helped)score++;else assisted++;currentCorrect=true;$('lq-feedback').textContent='Marked correct together. Thanks for checking the meaning.';$('lq-override').hidden=true;summary();}
+function advance(){if(!active||!resolved)return;stopMedia();if(group){persistQuest();const next=nextGroupTurn();if(next<0)finishGroup(false);else enterTurn(next);return;}position++;if(position>=queue.length){finish(false);return;}paint();}
+function override(){if(!active||!resolved||currentCorrect)return;stopMedia();if(previousStat)stats[progressQuestion().id]=previousStat;else delete stats[progressQuestion().id];stats=core.record(stats,progressQuestion(),true,helped);save();if(!helped)score++;else assisted++;currentCorrect=true;$('lq-feedback').textContent='Marked correct together. Thanks for checking the meaning.';$('lq-override').hidden=true;summary();persistQuest();}
 function finish(paused){
- if(!active)return;if(paused)persistQuest();else clearQuest();stopMedia();active=false;lockPlayers(false);$('lq-session').hidden=true;$('lq-result').hidden=false;$('lq-result-title').textContent=paused?'A good place to pause.':'Quest complete.';$('lq-score').textContent=score+' / '+completed;$('lq-result-copy').textContent=(settings.response==='flash'?'Flashcard self-ratings — Known / reviewed. These are separate from quiz scores. ':settings.response==='choice'?'Multiple-choice results. Choice practice is tracked separately from speak/type recall. ':'')+'Correct without hints or reveals. Completed questions are saved on this device. Missed and hinted cards will return for review.';$('lq-result-breakdown').textContent=settings.response==='flash'?score+' marked known · '+(completed-score)+' to practice again':score+' on your own · '+assisted+' with help · '+(completed-score-assisted)+' to practice again';if(settings.response==='flash')$('lq-result-copy').textContent='Self-rated flashcard practice, saved separately from quiz results. Flip each card, then choose Know it or Practice again. No spoken score summary.';$('lq-resume').hidden=!paused;summary();statusUI();window.LabsUI?.summary('latin',{independent:score,helped:assisted,review:completed-score-assisted,autoFocus:true,title:paused?'A good place to pause.':'Small steps, real progress.',notes:settings.response==='flash'?['Flashcard self-ratings are kept separate from recall and choice practice.']:[],onReview:()=>begin('review'),reviewDisabled:completed-score-assisted===0&&assisted===0,onStart:()=>{$('lq-size').value='5';begin()},onHome:()=>$('lq-again').click(),onUndo:undoAnswers.length?undoAnswer:undefined});$('lq-study').hidden=false;$('lq-result-title').focus?.({preventScroll:true});$('lq-result').scrollIntoView?.({block:'start'});
+ if(!active)return;if(group){finishGroup(paused);return;}if(paused)persistQuest();else clearQuest();stopMedia();active=false;lockPlayers(false);$('lq-session').hidden=true;$('lq-result').hidden=false;$('lq-result-title').textContent=paused?'A good place to pause.':'Quest complete.';$('lq-score').textContent=score+' / '+completed;$('lq-result-copy').textContent=(settings.response==='flash'?'Flashcard self-ratings — Known / reviewed. These are separate from quiz scores. ':settings.response==='choice'?'Multiple-choice results. Choice practice is tracked separately from speak/type recall. ':'')+'Correct without hints or reveals. Completed questions are saved on this device. Missed and hinted cards will return for review.';$('lq-result-breakdown').textContent=settings.response==='flash'?score+' marked known · '+(completed-score)+' to practice again':score+' on your own · '+assisted+' with help · '+(completed-score-assisted)+' to practice again';if(settings.response==='flash')$('lq-result-copy').textContent='Self-rated flashcard practice, saved separately from quiz results. Flip each card, then choose Know it or Practice again. No spoken score summary.';$('lq-resume').hidden=!paused;summary();statusUI();window.LabsUI?.summary('latin',{independent:score,helped:assisted,review:completed-score-assisted,autoFocus:true,title:paused?'A good place to pause.':'Small steps, real progress.',notes:settings.response==='flash'?['Flashcard self-ratings are kept separate from recall and choice practice.']:[],onReview:()=>begin('review'),reviewDisabled:completed-score-assisted===0&&assisted===0,onStart:()=>{$('lq-size').value='5';begin()},onHome:()=>$('lq-again').click(),onUndo:undoAnswers.length?undoAnswer:undefined});$('lq-study').hidden=false;$('lq-result-title').focus?.({preventScroll:true});$('lq-result').scrollIntoView?.({block:'start'});
 }
 function studySettings(){settings={...settings,voice:$('lq-voice').value,pronunciation:$('lq-pronunciation').value};}
 async function speakStudy(){if(!studyCue)return;studySettings();$('lq-study-status').textContent='Preparing the spoken card answer…';const played=await speak(studyCue,true);$('lq-study-status').textContent=played?'AI-generated OpenAI voice · saved for replay':$('lq-audio-status').textContent;}
@@ -211,8 +328,8 @@ $('lq-followup-form').addEventListener('submit',e=>{e.preventDefault();askFollow
 $('lq-study-form').addEventListener('submit',e=>{e.preventDefault();if(!active)askStudy($('lq-study-question').value);});$('lq-study-mic').addEventListener('click',()=>listenStudy(false));$('lq-study-repeat').addEventListener('click',speakStudy);
 if($('lq-undo-answer'))$('lq-undo-answer').addEventListener('click',undoAnswer);
 $('lq-start').addEventListener('click',()=>begin());$('lq-review').addEventListener('click',()=>begin('review'));$('lq-retest').addEventListener('click',()=>begin('retest'));$('lq-retest-same').addEventListener('click',()=>begin('same'));$('lq-stop').addEventListener('click',()=>finish(true));$('lq-form').addEventListener('submit',e=>{e.preventDefault();if(active&&!resolved)check($('lq-answer').value);});$('lq-mic').addEventListener('click',listen);$('lq-repeat').addEventListener('click',repeatQuestion);$('lq-hint').addEventListener('click',hint);$('lq-reveal').addEventListener('click',reveal);$('lq-skip').addEventListener('click',reveal);$('lq-next').addEventListener('click',advance);$('lq-override').addEventListener('click',override);
-$('lq-again').addEventListener('click',()=>{learningUI();$('lq-result').hidden=true;$('lq-setup').hidden=false;$('lq-study').hidden=false;$('lq-setup').scrollIntoView?.({block:'start'});});
-$('lq-resume').addEventListener('click',resumeQuest);
+$('lq-again').addEventListener('click',()=>{paintWeek();learningUI();$('lq-result').hidden=true;$('lq-setup').hidden=false;$('lq-study').hidden=false;$('lq-setup').scrollIntoView?.({block:'start'});});
+$('lq-resume').addEventListener('click',()=>{$('lq-retest-same').hidden?resumeSelected():resumeQuest();});
 function resetDeck(all=false){undoAnswers=[];
  if(active){notice('Pause your quest before resetting progress.');return;}
  const mode=$('lq-mode').value,response=['choice','flash'].includes($('lq-response').value)?$('lq-response').value:'recall';
@@ -228,16 +345,18 @@ $('lq-undo-reset').addEventListener('click',()=>{if(!resetBackup)return;stats={.
 $('lq-clear-audio').addEventListener('click',async()=>{stopMedia();for(const url of memory.values())URL.revokeObjectURL(url);memory.clear();try{if('caches'in window){for(const key of await caches.keys())if(key.startsWith('faithsparks-latin-voice-'))await caches.delete(key);}notice('Saved Latin voice clips cleared on this device. Shared audio remains available for replay.');}catch(_){notice('This browser could not clear its saved audio.');}});
 window.addEventListener('pagehide',()=>{persistQuest();stopMedia();for(const url of memory.values())URL.revokeObjectURL(url);memory.clear();});
 if(!Recognition){$('lq-followup-mic').disabled=true;$('lq-study-mic').disabled=true;$('lq-study-status').textContent='This browser does not offer voice recognition. Type a study question above.';$('lq-mic').disabled=true;$('lq-auto').disabled=true;$('lq-auto').closest('label').title='Voice answers require a browser with speech recognition. Use typed answers here.';}
-function savePlayers(){if(shared)return;try{localStorage.setItem(PLAYERS,JSON.stringify({players,current:player}));}catch(_){notice('Player settings could not be saved on this browser.');}}
+function savePlayers(){if(shared)return;try{storage.setItem(PLAYERS,JSON.stringify({players,current:player}));}catch(_){notice('Player settings could not be saved on this browser.');}}
 function paintPlayers(){learningUI();const select=$('lq-player');select.replaceChildren();for(const p of players){const option=document.createElement('option');option.value=p.id;option.textContent=p.name;select.appendChild(option);}select.value=player;const name=$('lq-player-name');if(name)name.value=playerName();}
-function switchPlayer(id){if(active||!players.some(p=>p.id===id))return;stopMedia();undoAnswers=[];player=id;loadPreferences();STORE='faithsparks.latinQuest.player.'+player+'.progress.v1';WEEK='faithsparks.latinQuest.player.'+player+'.week.v2-independent';loadStats();loadFlashReviewed();weekly=new Set();$('lq-week-use').checked=false;try{const w=JSON.parse(localStorage.getItem(WEEK)||'{}');weekly=new Set((Array.isArray(w.cards)?w.cards:[]).filter(id=>deckCards.some(q=>q.card===id)));$('lq-week-use').checked=w.enabled===true;}catch(_){}queue=[];position=0;score=0;assisted=0;completed=0;resetBackup=null;requestedReset=null;studyCue=null;$('lq-reset-confirm').hidden=true;$('lq-undo-reset').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=true;$('lq-setup').hidden=false;$('lq-study').hidden=false;$('lq-study-result').textContent='';$('lq-study-repeat').hidden=true;$('lq-week-search').value='';paintWeek();paintPlayers();savePlayers();summary();notice('Ready for '+players.find(p=>p.id===player).name+'.');}
+function loadPlayerContext(id){player=id;STORE='faithsparks.latinQuest.player.'+player+'.progress.v1';WEEK='faithsparks.latinQuest.player.'+player+'.week.v2-independent';loadStats();loadFlashReviewed();weekly=new Set();$('lq-week-use').checked=false;try{const w=JSON.parse(storage.getItem(WEEK)||'{}');weekly=new Set((Array.isArray(w.cards)?w.cards:[]).filter(id=>deckCards.some(q=>q.card===id)));$('lq-week-use').checked=w.enabled===true;}catch(_){}loadPreferences(false);}
+function switchPlayer(id){if(active||!players.some(p=>p.id===id))return;stopMedia();undoAnswers=[];loadPlayerContext(id);queue=[];position=0;score=0;assisted=0;completed=0;resetBackup=null;requestedReset=null;studyCue=null;$('lq-reset-confirm').hidden=true;$('lq-undo-reset').hidden=true;$('lq-result').hidden=true;$('lq-session').hidden=true;$('lq-setup').hidden=false;$('lq-study').hidden=false;$('lq-study-result').textContent='';$('lq-study-repeat').hidden=true;$('lq-week-search').value='';paintWeek();paintPlayers();savePlayers();summary();notice('Ready for '+players.find(p=>p.id===player).name+'.');}
 $('lq-player').addEventListener('change',()=>switchPlayer($('lq-player').value));
 $('lq-player-add')?.addEventListener('click',()=>{if(active)return;if(players.length>=12){notice('This browser already has 12 players. Rename an existing player to use it.');return;}const name=$('lq-player-name').value.trim().slice(0,24);if(!name||players.some(p=>p.name.toLowerCase()===name.toLowerCase())){notice('Enter a different player name or nickname first.');return;}const id='player-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);players.push({id,name});switchPlayer(id);});
 $('lq-player-rename')?.addEventListener('click',()=>{if(active)return;const name=$('lq-player-name').value.trim().slice(0,24);if(!name||players.some(p=>p.id!==player&&p.name.toLowerCase()===name.toLowerCase())){notice('Choose a different player name or nickname.');return;}players.find(p=>p.id===player).name=name;savePlayers();paintPlayers();summary();notice('Player name saved.');});
-if(shared) shared.mountPlayers($('lq-shared-players'),{game:'latin',preferred,onChange:([profile],roster)=>{
- players=sharedList(roster);
- const id=shared.gamePlayerId(profile,'latin');
- if(id!==player) switchPlayer(id);
+if(shared) shared.mountPlayers($('lq-shared-players'),{game:'latin',limit:4,preferred,onChange:(selected,profiles)=>{
+ players=sharedList(profiles);
+ roster=selected.map(profile=>shared.gamePlayerId(profile,'latin'));
+ const id=roster[0];
+ if(id!==player||(!active&&!$('lq-result').hidden)) switchPlayer(id);
  else if(!active){paintPlayers();summary();}
 }});
 paintPlayers();savePlayers();syncResponse();summary();

@@ -1,3 +1,4 @@
+import {labsStorage} from '../../../static/js/labs-storage.js';
 import {gamePlayerId, importMathPlayers, mountPlayers, profiles, selectedPlayers} from '../../../static/js/labs-players.js';
 import '../../../static/js/labs-players.css';
 
@@ -26,8 +27,8 @@ const LEVEL_HELP={
 const KEY='mathFactRally.v2';
 const get=id=>document.getElementById(id);
 let players=[],sequence=[],position=0,graded=false,answerRevealed=false,hintUsed=false,progress={},settings={},previousSnapshot=null,session=null,outcomes={},choiceOptions={};
-function readSaved(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(_){return {}}}
-function persist(){try{localStorage.setItem(KEY,JSON.stringify({progress,settings,session}))}catch(_){}}
+function readSaved(){try{return JSON.parse(labsStorage.getItem(KEY)||'{}')}catch(_){return {}}}
+function persist(){try{labsStorage.setItem(KEY,JSON.stringify({progress,settings,session}))}catch(_){}}
 function safeText(s){return String(s||'').slice(0,40)}
 function shuffle(items){const a=items.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function el(tag,cls,text){const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node}

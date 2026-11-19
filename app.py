@@ -82,7 +82,7 @@ from faithsparks.services.worship_presentations import (
 from faithsparks.services.collections import get_collections, get_collection_meta, get_collection_verses, COLLECTIONS
 from faithsparks.services.scripture import TRANSLATIONS as SCRIPTURE_TRANSLATIONS, translation_options as scripture_translation_options, available_translation_ids, copywork_translation_ids
 from faithsparks.services.usage import _month_key, _get_user_plan, _get_usage, _quota_for_plan, _update_usage, _get_free_slugs
-from faithsparks.services.users import get_user_doc
+from faithsparks.services.users import get_user_doc, has_active_plus
 from faithsparks.services.themes import THEMES, get_theme_vars, list_all_themes, get_theme_selection
 from faithsparks.services.stripe_svc import (
     stripe, STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY,
@@ -369,6 +369,8 @@ if enable_proxy_fix:
 @app.after_request
 def cache_versioned_vendor_assets(response):
     """Vendor files carry their version in the filename, so they never change."""
+    if _is_labs_path(request.path):
+        return response
     if request.path.startswith("/static/vendor/") and response.status_code == 200 and re.search(r"-\d+\.\d+\.\d+", request.path):
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     elif request.path.startswith("/static/dist/shared/") and response.status_code in (200, 304) and re.search(r"-[A-Za-z0-9_-]{8}\.js$", request.path):
@@ -795,6 +797,50 @@ def load_user_info():
         session.pop("user_email", None)
         session.pop("user_owned_packs", None)
         session.pop("_uc", None)
+
+
+_LABS_OWNER_COOKIE = "faithsparks_labs_owner"
+
+
+def _is_labs_path(path):
+    return (
+        path in {"/labs", "/same-brain"}
+        or path.startswith(("/labs/", "/static/labs/", "/same-brain/"))
+        or (path == "/lesson-pack" and request.method in {"GET", "HEAD"}
+            and request.args.get("coloring", "").strip().lower() in {"1", "true", "yes", "on"})
+    )
+
+
+@app.before_request
+def require_labs_access():
+    if not _is_labs_path(request.path):
+        return
+    email = session.get("user_email") if google.authorized else None
+    if not email:
+        if request.method in ("GET", "HEAD") and not request.path.startswith("/static/"):
+            return redirect(url_for("start_google_login", next=request.full_path.rstrip("?")))
+        return "Sign in to access Faith Sparks Labs.", 401
+    if not is_admin_email(email) and not has_active_plus(get_user_doc(email)):
+        return "Faith Sparks Labs requires an active Plus membership.", 403
+    secret = app.secret_key
+    if isinstance(secret, str):
+        secret = secret.encode("utf-8")
+    g.labs_owner = hmac.new(secret, ("faithsparks-labs:" + email.casefold()).encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+@app.after_request
+def protect_labs_response(response):
+    if not _is_labs_path(request.path):
+        return response
+    response.headers["Cache-Control"] = "private, no-store"
+    response.vary.add("Cookie")
+    owner = getattr(g, "labs_owner", None)
+    previous = request.cookies.get(_LABS_OWNER_COOKIE)
+    if owner and owner != previous:
+        response.set_cookie(_LABS_OWNER_COOKIE, owner, secure=request.is_secure or APP_ENV in {"prod", "production"}, samesite="Lax")
+    elif not owner and previous:
+        response.delete_cookie(_LABS_OWNER_COOKIE)
+    return response
 
 
 _COOKIE_SESSION_SOFT_LIMIT = 3400
@@ -4171,9 +4217,9 @@ def logout():
         return redirect(url_for("public.index") if "public.index" in app.view_functions else url_for("browse"))
     google_signin_token_storage.delete(google_bp)
     session.clear()
-    if "public.index" in app.view_functions:
-        return redirect(url_for("public.index"))
-    return redirect(url_for("browse"))
+    response = redirect(url_for("public.index") if "public.index" in app.view_functions else url_for("browse"))
+    response.delete_cookie(_LABS_OWNER_COOKIE)
+    return response
 
 
 def _delete_user_worship_memberships(email: str) -> int:

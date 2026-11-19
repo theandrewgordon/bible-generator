@@ -142,7 +142,7 @@ def _has_beta_access(email: str | None) -> bool:
     if not email:
         return False
     allowlist = _beta_allowlist()
-    if email.casefold() in allowlist or _is_admin(email):
+    if email.casefold() in allowlist or _is_admin(email) or has_active_plus(get_user_doc(email)):
         return True
     return not allowlist and not _is_production()
 

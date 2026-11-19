@@ -47,7 +47,7 @@ function defaultState(){
 }
 function load(){
   try {
-    const parsed = safeParse(localStorage.getItem(STORAGE_KEY), null);
+    const parsed = safeParse((window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(STORAGE_KEY), null);
     if (!parsed || typeof parsed !== 'object') return defaultState();
     parsed.version = VERSION;
     parsed.players = Array.isArray(parsed.players) ? parsed.players : [];
@@ -113,7 +113,7 @@ function normalizePlayers(){
     state.activePlayerId=canonical?canonical.id:'';
   }
 }
-function save(){ try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {} queueAccountRosterSync(); }
+function save(){ try { (window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {} queueAccountRosterSync(); }
 function playerByName(name){
   const key = cleanPlayerName(name).toLocaleLowerCase();
   return state.players.find(p => String(p.name || '').toLocaleLowerCase() === key) || null;
@@ -230,7 +230,8 @@ function queueAccountRosterSync(){
         credentials:'same-origin',
         headers:{
           'Content-Type':'application/json',
-          'X-CSRF-Token':config.csrfToken||''
+          'X-CSRF-Token':config.csrfToken||'',
+          'X-Labs-Owner':config.owner||''
         },
         body:JSON.stringify(payload)
       });
@@ -240,7 +241,7 @@ function queueAccountRosterSync(){
         global.__GAMES_ACCOUNT_ROSTER__=merged;
         mergeAccountRosterBootstrap();
         normalizePlayers();
-        try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch(_){}
+        try{(window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(STORAGE_KEY,JSON.stringify(state));}catch(_){}
       }
       lastRosterFingerprint=rosterFingerprint(accountRosterPayload());
     }catch(_){}
@@ -614,7 +615,7 @@ function getAchievements(playerRef){
   const out=[];
   const add=(id,name,description,icon='🏅')=>out.push({id,name,description,icon});
 
-  if (played>=1) add('first-game','First Adventure','Play a Tessa’s Games game.','✨');
+  if (played>=1) add('first-game','First Adventure','Play a Games Lab game.','✨');
   if (played>=4) add('all-four','Around Town','Play all four games.','🧭');
   if (completions>=10) add('ten-completions','Keep Going!','Complete 10 rounds or levels.','🏆');
   if (completions>=25) add('twenty-five-completions','Games Regular','Complete 25 rounds or levels.','🌟');

@@ -1,6 +1,6 @@
 <!DOCTYPE html><head>
 <script src="/labs/games/assets/games-save-migration.js"></script>
-<title>Gordon Ice Cream Town — Tessa’s Games</title>
+<title>Gordon Ice Cream Town — Faith Sparks Labs</title>
 <meta charset="utf-8">
 </head><body style="background:#000"><style>
 html,body{margin:0;overflow:hidden;overscroll-behavior:none;background:#231912;}
@@ -1563,11 +1563,11 @@ function defaultProgress(){
  };
 }
 function loadJson(key,fallback){
- try{const v=JSON.parse(localStorage.getItem(key)||'null');return v??fallback;}
+ try{const v=JSON.parse((window.FaithSparksLabsStorage?.labsStorage ?? localStorage).getItem(key)||'null');return v??fallback;}
  catch(e){return fallback;}
 }
 function saveJson(key,value){
- try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}
+ try{(window.FaithSparksLabsStorage?.labsStorage ?? localStorage).setItem(key,JSON.stringify(value));}catch(e){}
 }
 function normalizePlayer(p){
  return {id:String(p.id||('player-'+Date.now()+Math.floor(Math.random()*9999))),

@@ -1,3 +1,4 @@
+import {labsStorage} from '../../../static/js/labs-storage.js';
 import React,{useReducer,useEffect,useState,useRef} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Family} from '../shared/Family.jsx';
@@ -42,7 +43,7 @@ function currentPlayerSettings(state){
 }
 function restoreGame(){
  let saved=initial;
- try{saved=restore(localStorage.getItem('faithsparks.geo.v2'))}catch{}
+ try{saved=restore(labsStorage.getItem('faithsparks.geo.v2'))}catch{}
  const action=currentPlayerSettings(saved);
  // A paused expedition retains its own players until it is resumed or replaced.
  return saved.session ? {...saved,learnerNames:{...saved.learnerNames,...action.names}} : reducer(saved,action);
@@ -111,7 +112,7 @@ function App(){
  const skipped=Object.values(s.answers).filter(a=>a.outcome==='skipped').length;
  const counts=outcomeCounts(Object.values(s.answers).map(a=>a.outcome|| (a.correct?'right':'wrong')));
  const cumulative=Object.values(s.progress[s.learner]||{}).reduce((n,r)=>({independent:n.independent+(r.right||0),helped:n.helped+(r.assisted||0),review:n.review+(r.wrong||0)+(r.skipped||0)}),{independent:0,helped:0,review:0});
- useEffect(()=>{try{localStorage.setItem('faithsparks.geo.v2',JSON.stringify({...s,history:s.history.slice(-5)}));}catch{setStorage(false)}},[s]);
+ useEffect(()=>{try{labsStorage.setItem('faithsparks.geo.v2',JSON.stringify({...s,history:s.history.slice(-5)}));}catch{setStorage(false)}},[s]);
  useEffect(()=>{stopVoice();setInputNotice('');setReveal(false);if(s.screen==='play'){const heading=document.querySelector('.mystery-board h2');heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true});document.querySelector('.mystery-board')?.scrollIntoView({block:'start',behavior:'auto'})}},[q.id,s.screen]);
  useEffect(()=>{if(s.screen==='summary')document.querySelector('.expedition-results h2')?.focus()},[s.screen]);
  useEffect(()=>{if(result)document.querySelector('.discovery')?.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})},[q.id,result]);

@@ -11,7 +11,7 @@ from pathlib import Path
 from firebase_admin import firestore as google_firestore
 from google.cloud import firestore as cloud_firestore
 from openai import OpenAI
-from flask import Blueprint, Response, jsonify, make_response, render_template, redirect, request, session, send_file
+from flask import Blueprint, Response, g, jsonify, make_response, render_template, redirect, request, session, send_file
 
 from faithsparks.services.firestore import db
 from faithsparks.services.users import get_user_doc, has_active_plus
@@ -108,7 +108,7 @@ def _has_beta_access(email: str | None) -> bool:
         return False
     allowlist = _beta_allowlist()
     admins = {item.strip().casefold() for item in os.getenv("ADMIN_EMAILS", "").split(",") if item.strip()}
-    if email.casefold() in allowlist or email.casefold() in admins:
+    if email.casefold() in allowlist or email.casefold() in admins or has_active_plus(get_user_doc(email)):
         return True
     return not allowlist and os.getenv("APP_ENV", "dev").lower() not in {"prod", "production"}
 
@@ -297,6 +297,7 @@ def _games_bootstrap(email: str | None) -> tuple[dict, dict]:
     roster = _load_games_roster(email)
     config = {
         "url": "/labs/games/roster",
+        "owner": getattr(g, "labs_owner", None),
         "csrfToken": _csrf_token_value(),
     }
     return roster, config
@@ -351,6 +352,10 @@ def roster():
     email = _signed_in_email()
     if request.method == "GET":
         return jsonify(_load_games_roster(email))
+
+    owner = getattr(g, "labs_owner", None)
+    if owner and not hmac.compare_digest(owner.encode(), request.headers.get("X-Labs-Owner", "").encode()):
+        return jsonify({"error": "account_changed"}), 409
 
     sent_token = request.headers.get("X-CSRF-Token") or request.headers.get("X-CSRFToken") or ""
     expected_token = _csrf_token_value()
@@ -1377,6 +1382,8 @@ def play(slug: str):
         "window.__GAMES_SYNC_CONFIG__=" + json.dumps(sync_config).replace("<", "\\u003c") + ";"
         "</script>"
     )
+    storage_script = '<script src="/static/js/labs-storage-runtime.js"></script>'
+    html = html.replace("<head>", "<head>" + storage_script, 1) if "<head>" in html else storage_script + html
     if "</head>" in html:
         html = html.replace("</head>", bootstrap + "</head>", 1)
     else:

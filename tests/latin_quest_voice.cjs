@@ -3,7 +3,7 @@ const core=require('../static/js/latin-quest-core.js');
 const source=fs.readFileSync('static/js/latin-quest.js','utf8');
 const tick=()=>new Promise(r=>setImmediate(r));
 const study=[...Array.from({length:25},(_,i)=>({id:'noun-'+i,word:'testword'+i,aliases:['testword'+i],fact:'gender',answer:'feminine',cue:'study:noun-'+i+':gender'})),{id:'noun-014',word:'terra',aliases:['terra','terrae'],fact:'gender',answer:'feminine',cue:'study:noun-014:gender'}];
-function setup(response='recall',initialStats={},customQuestions=null,extraStorage={}){
+function setup(response='recall',initialStats={},customQuestions=null,extraStorage={},groupProfiles=null){
  let quick=null;const lifecycle={};const nodes={},recognizers=[],sent=[],cache=new Map(),storage={'faithsparks.latinQuest.player.player-1.progress.v1':JSON.stringify(initialStats),...extraStorage};
  const node=id=>nodes[id]??={value:'',checked:false,hidden:false,textContent:'',children:[],dataset:{},addEventListener(n,f){this[n]=f;},replaceChildren(){this.children=[];},appendChild(x){this.children.push(x);},closest(){return {title:''};}};
  node('lq-reviewed-only').type='checkbox';node('lq-word-type').value='all';
@@ -13,10 +13,42 @@ function setup(response='recall',initialStats={},customQuestions=null,extraStora
  class Recognition{constructor(){recognizers.push(this);}start(){this.started=true;}abort(){this.onend?.();}}
  const caches={open:async()=>({match:async k=>cache.has(k.url)?new Response(cache.get(k.url),{headers:{'Content-Type':'audio/mpeg'}}):null,put:async(k,r)=>cache.set(k.url,await r.arrayBuffer()),delete:async k=>cache.delete(k.url)}),keys:async()=>[],delete:async()=>true};
  const win={LatinQuestCore:core,SpeechRecognition:Recognition,caches,LabsUI:{quick:(_game,props)=>{quick=props},status(){},summary(){}},addEventListener(n,f){lifecycle[n]=f}};
+ if(groupProfiles){
+  node('lq-shared-players').querySelector=()=>node('player-fieldset');
+  const selected=groupProfiles.map(id=>({id,name:id==='player-1'?'First':'Second'}));
+  win.LatinQuestPlayers={profiles:()=>selected,selectedPlayers:()=>selected,gamePlayerId:p=>p.id,mountPlayers:(_root,options)=>assert.equal(options.limit,4)};
+ }
  const context={window:win,document:{getElementById:node,createElement:()=>node('child-'+Math.random())},localStorage:{getItem:k=>storage[k]||null,setItem:(k,v)=>storage[k]=v,removeItem:k=>delete storage[k]},caches,location:{origin:'https://latin.test'},Request,Response,AbortController,URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},setTimeout,clearTimeout,confirm:()=>true,Audio:function(){this.pause=()=>this.onpause?.();this.play=async()=>setImmediate(()=>this.onended?.());},fetch:async(u,options)=>{sent.push(JSON.parse(options.body));return new Response('audio',{headers:{'Content-Type':'audio/mpeg','X-TTS-Cache':'MISS'}});}};
  vm.runInNewContext(source,context);return {nodes,recognizers,sent,storage,node,quick:()=>quick,leave:()=>lifecycle.pagehide?.()};
 }
 (async()=>{
+ const groupKey='faithsparks.latinQuest.group.v1',groupProfiles=['player-1','player-2'];
+ const groupSetup=setup('recall',{},null,{},groupProfiles);
+ groupSetup.quick().onStart();
+ const groupState=run=>JSON.parse(run.storage[groupKey]);
+ const answer=run=>{run.nodes['lq-answer'].value='earth';run.nodes['lq-form'].submit({preventDefault(){}});};
+ assert.equal(groupState(groupSetup).rounds.length,2);
+ assert.equal(groupState(groupSetup).rounds[0].ids.length,5);
+ answer(groupSetup);
+ groupSetup.nodes['lq-next'].click();
+ assert.equal(groupState(groupSetup).turn,1);
+ assert(!groupSetup.storage['faithsparks.latinQuest.player.player-2.progress.v1']);
+ groupSetup.nodes['lq-answer'].value='unsent';
+ groupSetup.leave();
+ const groupResume=setup('recall',{},null,groupSetup.storage,groupProfiles);
+ assert(groupResume.quick().resume);
+ groupResume.quick().onResume();
+ assert.equal(groupResume.nodes['lq-answer'].value,'unsent');
+ assert.equal(groupState(groupResume).turn,1);
+ for(let i=0;i<9;i++){answer(groupResume);groupResume.nodes['lq-next'].click();}
+ for(const id of groupProfiles){
+  const stats=JSON.parse(groupResume.storage['faithsparks.latinQuest.player.'+id+'.progress.v1']);
+  assert.equal(Object.values(stats).reduce((sum,record)=>sum+record.attempts,0),5);
+  assert(!groupResume.storage['faithsparks.latinQuest.player.'+id+'.session.v1']);
+ }
+ assert.equal(groupResume.nodes['lq-result-breakdown'].textContent,'First: 5 / 5 independent · Second: 5 / 5 independent');
+ assert(!groupResume.storage[groupKey]);
+ console.log('Latin group turns, resume, and independent learner history passed.');
  const a=setup();a.nodes['lq-study-mic'].click();assert(a.recognizers[0].started);
  a.recognizers[0].onresult({results:[[{transcript:'What gender is terra?'}]]});await tick();await tick();
  assert.match(a.nodes['lq-study-result'].textContent,/terra.*feminine/);
