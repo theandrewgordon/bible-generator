@@ -55,3 +55,23 @@ export function markersViewport(base,markers){
  const zoom=Math.min(4.8,Math.max(1,Math.min(base[2]/(spanX+145),base[3]/(spanY+115))));
  return centeredViewport(base,center,zoom);
 }
+
+/**
+ * Open each question at the closest useful view without hiding answer choices.
+ * A named regional view is preferred when all markers safely fit in it; otherwise
+ * frame the three markers directly. Leave the full map for widely separated choices.
+ */
+export function initialMapViewport(base,markers,branch){
+ const focus=markersViewport(base,markers);
+ const presets=regionViews[branch]||[];
+ const fits=(view,padding=40)=>markers.every(({x,y})=>
+  x>=view[0]+padding && x<=view[0]+view[2]-padding &&
+  y>=view[1]+padding && y<=view[1]+view[3]-padding);
+ const regional=presets.map(preset=>centeredViewport(base,preset.center,preset.scale))
+  .filter(view=>fits(view))
+  .sort((a,b)=>a[2]-b[2])[0];
+ // Keep all three tappable markers in frame. Regional shortcuts are optional,
+ // while the actual question markers are the primary focus.
+ if(regional && regional[2]<focus[2])return regional;
+ return focus;
+}
