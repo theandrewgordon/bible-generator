@@ -70,7 +70,8 @@ test.onerror=()=>document.documentElement.classList.add('watercolor-pending');
 test.src=artwork;
 })();
 </script>
-</head><body><main class="wrap">
+<link rel="stylesheet" href="/static/labs/learning-nav.css">
+</head><body><div id="labs-family" data-game="grammar"></div><script type="module">import {mountNavigation} from "/static/js/labs-navigation.js";mountNavigation(document.getElementById("labs-family"),"grammar");</script><main class="wrap">
 <header class="landscape"><div class="hero-title"><span class="ribbon">FaithSparks Labs</span><h1>Grammar Grove</h1><p>The Sentence Workshop</p></div><span class="hillside">✦ A watercolor woodland adventure in language ✦</span></header>
 <nav class="paper row between" aria-label="Game navigation"><div class="row"><button type="button" class="wood" id="home">⌂ Grove Home</button><span id="location" class="eyebrow">Welcome to the Grove</span></div><div class="row"><span id="turn">Solo adventure</span><strong id="score">Score: 0</strong></div></nav>
 
