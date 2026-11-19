@@ -10,3 +10,53 @@
 .location-zoom{margin-top:.5rem;min-height:44px}
 .location-dialog{width:min(96vw,1050px)}
 .location-choices.answer-choices button{justify-content:center;min-height:3.5rem;font-size:1.5rem}
+
+
+/* Map navigation is compact, keyboard accessible, and available inside the enlarged map. */
+.location-controls{
+ display:grid;
+ gap:.4rem;
+ margin-top:.5rem;
+ padding:.65rem .75rem;
+ border:1px solid #b89455;
+ border-radius:12px;
+ background:#fff5da;
+ color:#214557;
+ font:600 .82rem/1.35 system-ui,sans-serif;
+}
+.location-zoom-actions,.location-regions,.location-pan{
+ display:flex;
+ gap:.35rem;
+ align-items:center;
+ flex-wrap:wrap;
+}
+.location-controls button{
+ min-height:36px;
+ padding:.35rem .6rem;
+ border:1px solid #ad894d;
+ border-radius:8px;
+ background:#fffdf3;
+ color:#214557;
+ font:700 .82rem system-ui,sans-serif;
+}
+.location-controls button:hover:not(:disabled){background:#e2efdd;color:#193e50}
+.location-controls button:disabled{opacity:.55;cursor:default}
+.location-controls button:focus-visible{
+ outline:3px solid #ad6f21;
+ outline-offset:2px;
+}
+.location-zoom-status{
+ margin-inline:auto .2rem;
+ color:#234d63;
+ font-variant-numeric:tabular-nums;
+}
+.location-regions{border-top:1px solid #d4bc8e;padding-top:.45rem}
+.location-regions>span,.location-pan>span{margin-right:.3rem;color:#365347}
+.location-pan button{min-width:38px}
+.location-dialog .location-map{max-height:68vh}
+.location-dialog .location-controls{margin-bottom:.4rem}
+@media(max-width:650px){
+ .location-controls{padding:.5rem}
+ .location-controls button{min-height:40px}
+ .location-zoom-status{margin-left:0}
+}
