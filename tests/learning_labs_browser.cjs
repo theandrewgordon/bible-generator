@@ -132,7 +132,7 @@ function latinFixture(){
   assert.equal(await page.locator('.lq-roman-welcome').evaluate(n=>!!n.closest('details')),false);
   assert.equal(await page.locator('.lq-roman-paths').evaluate(n=>!!n.closest('details')),false);
   assert.equal(await page.locator('#latin-quick').evaluate(n=>!!n.closest('details')),false);
-  assert.equal(await page.locator('#lq-quick-five').isVisible(),true);
+  await page.waitForSelector('#lq-quick-five',{state:'visible'});
   assert.equal(await page.locator('[data-lq-preset="quiz"]').isVisible(),true);
   for(const id of ['lq-mode','lq-word-type','lq-response','lq-reviewed-only'])assert.equal(await page.locator('#'+id).evaluate(n=>!!n.closest('details')),false);
   await page.locator('#lq-quick-five').click();
