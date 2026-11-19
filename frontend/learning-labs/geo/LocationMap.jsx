@@ -1,6 +1,6 @@
 import React,{useEffect,useId,useRef,useState} from 'react';
 import {locationMaps} from './locations.js';
-import {centeredViewport,markersViewport,regionViews,scaledViewport,shiftedViewport} from './map-viewport.js';
+import {centeredViewport,initialMapViewport,markersViewport,regionViews,scaledViewport,shiftedViewport} from './map-viewport.js';
 import watercolor from './region-maps/location-watercolor.webp';
 import './location-map.css';
 
@@ -8,18 +8,22 @@ export function LocationMap({question,result,onChoose}){
  const uid=useId(),dialog=useRef(null),opener=useRef(null);
  const [enlarged,setEnlarged]=useState(false);
  const {view,paths,points}=locationMaps[question.branch];
- const [viewport,setViewport]=useState(view);
  const [x,y,width,height]=view;
  const numbered=question.locations.map((place,index)=>{
   const [id,px,py]=points[place];
   return {id,x:px,y:py,number:question.choices[index]};
  });
+ const [viewport,setViewport]=useState(()=>initialMapViewport(view,numbered,question.branch));
  const marked=result&&result.outcome!=='skipped';
  const correct=marked&&numbered.find(pin=>pin.number===question.answer);
  const presets=regionViews[question.branch]||[];
  const zoomLevel=Math.round(view[2]/viewport[2]*10)/10;
  const isFull=zoomLevel<=1.01;
- useEffect(()=>{setViewport(view);setEnlarged(false);dialog.current?.close();},[question.id,question.branch]);
+ useEffect(()=>{
+  setViewport(initialMapViewport(view,numbered,question.branch));
+  setEnlarged(false);
+  dialog.current?.close();
+ },[question.id,question.branch]);
  const reset=()=>setViewport(view);
  const zoom=multiplier=>setViewport(current=>scaledViewport(view,current,multiplier));
  const pan=(dx,dy)=>setViewport(current=>shiftedViewport(view,current,dx,dy));
