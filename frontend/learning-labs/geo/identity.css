@@ -1,8 +1,8 @@
 @font-face {
-  font-family: Kalam;
-  src: url('./fonts/kalam-latin-700.woff2') format('woff2');
-  font-style: normal;
-  font-weight: 700;
+  font-family: Alegreya;
+  src: url('./fonts/alegreya-latin-800-italic.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 800;
   font-display: swap;
 }
 
@@ -41,9 +41,10 @@
 
 .atlas-title h1 {
   margin: 0;
-  color: #143955;
-  font: 700 clamp(32px, 8.15cqi, 104px)/.98 Kalam, Georgia, serif;
-  letter-spacing: -.035em;
+  color: #143e48;
+  font: italic 800 clamp(36px, 9.15cqi, 112px)/.94 Alegreya, Georgia, serif;
+  letter-spacing: -.025em;
+  text-shadow: 0 1px #fff9e9;
   white-space: nowrap;
 }
 
@@ -69,7 +70,7 @@
 }
 
 .on-expedition .atlas-title h1 {
-  font-size: clamp(30px, 6.8cqi, 86px);
+  font-size: clamp(34px, 8.1cqi, 94px);
 }
 
 @media (max-width: 680px) {
@@ -97,7 +98,7 @@
 
   .atlas-title h1,
   .on-expedition .atlas-title h1 {
-    font-size: clamp(32px, 10.6cqi, 60px);
+    font-size: clamp(36px, 11.5cqi, 66px);
     line-height: .9;
   }
 
