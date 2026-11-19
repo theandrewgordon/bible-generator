@@ -342,3 +342,88 @@
 .atlas .labs-options .geo-help {
   color: inherit;
 }
+
+
+/* Readability audit: dark expedition panels must not inherit ink intended for parchment. */
+.atlas .expedition-home > .labs-options,
+.atlas .on-expedition .labs-options,
+.atlas .labs-options {
+  color: #fff5d9;
+}
+.atlas .geo-home .labs-options > summary,
+.atlas .expedition-home > .labs-options > summary,
+.atlas .labs-options > summary {
+  color: #fff5d9;
+  font-weight: 750;
+}
+.atlas .labs-options .labs-options-body,
+.atlas .labs-options .geo-option-grid label,
+.atlas .labs-options .team-edit label,
+.atlas .labs-options .geo-help,
+.atlas .labs-options .team-edit > span,
+.atlas .labs-options p,
+.atlas .labs-options fieldset,
+.atlas .labs-options legend {
+  color: #f8f1db;
+}
+.atlas .labs-options .geo-option-grid label,
+.atlas .labs-options .team-edit label {
+  font-weight: 700;
+  font-size: .9rem;
+  line-height: 1.4;
+}
+.atlas .labs-options select,
+.atlas .labs-options input {
+  color: #173e58;
+  background: #fff9e9;
+  border: 2px solid #b99b62;
+  opacity: 1;
+}
+.atlas .labs-options select:focus-visible,
+.atlas .labs-options input:focus-visible,
+.atlas .labs-options button:focus-visible,
+.atlas .labs-options summary:focus-visible {
+  outline: 3px solid #f4c968;
+  outline-offset: 3px;
+}
+.atlas .labs-options button:not(:disabled) {
+  color: #173e58;
+  background: #fff3d3;
+  border-color: #b99b62;
+}
+.atlas .labs-options button:hover:not(:disabled) {
+  color: #12354c;
+  background: #ffe3a6;
+}
+.atlas .labs-options button:disabled {
+  color: #3f4c4c;
+  background: #e4e0d4;
+  opacity: 1;
+}
+/* Keep important labels readable on the map, question cards, and results. */
+.atlas .expedition-setup .labs-players legend,
+.atlas .expedition-setup .geo-field,
+.atlas .expedition-how-to-title {
+  color: #fff5d9;
+}
+.atlas .case-card .geo-help,
+.atlas .case-card .case-meta,
+.atlas .expedition-results p {
+  color: #523d27;
+}
+.atlas .team-banner:not(.active) {
+  opacity: 1;
+}
+.atlas .team-banner > span,
+.atlas .team-banner > span small {
+  color: #fff9e8;
+}
+.atlas .answer-choices button:not(:disabled) {
+  color: #173e58;
+}
+.atlas .answer-choices button.correct-answer {
+  color: #254b28;
+}
+.atlas .answer-choices button.wrong-answer {
+  color: #693224;
+}
