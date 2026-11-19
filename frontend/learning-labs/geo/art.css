@@ -44,7 +44,7 @@
 .art-reservoir{background-image:url("./art/reservoir.webp");}
 .art-ridge{background-image:url("./art/art-1465d4ef5237.webp");}
 .art-river{background-image:url("./art/art-009953d10373.webp");}
-.art-sandbar{background-image:url("./art/art-bb00b0daa1ff.webp");}
+.art-sandbar{background-image:url("./art/sandbar.webp");}
 .art-shore{background-image:url("./art/art-54716d55ea18.webp");}
 .art-shoreline{background-image:url("./art/art-5179e82bf5a8.webp");}
 .art-strait{background-image:url("./art/art-f9a2713993e5.webp");}
@@ -63,7 +63,7 @@
 .art-diagram-ocean{background-image:url("./art/diagram-ocean.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-river-source{background-image:url("./art/diagram-river-source.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-river-mouth{background-image:url("./art/river-mouth.webp");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
-.art-diagram-woods{background-image:url("./art/diagram-woods.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
+.art-diagram-woods{background-image:url("./art/woods.webp");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-peak{background-image:url("./art/diagram-peak.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-current{background-image:url("./art/diagram-current.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-cove{background-image:url("./art/diagram-cove.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
@@ -75,7 +75,7 @@
 .art-diagram-geyser{background-image:url("./art/shared-geyser.svg");background-size:contain;background-repeat:no-repeat;background-color:#f1eedb}
 .art-diagram-globe{background-image:url("./art/shared-globe.svg");background-size:contain;background-repeat:no-repeat;background-color:#f0eddb}
 .art-diagram-moraine{background-image:url("./art/shared-moraine.svg");background-size:contain;background-repeat:no-repeat;background-color:#f1eedb}
-.art-diagram-lock{background-image:url("./art/shared-lock.svg");background-size:contain;background-repeat:no-repeat;background-color:#f1eedb}
+.art-diagram-lock{background-image:url("./art/lock.webp");background-size:contain;background-repeat:no-repeat;background-color:#f1eedb}
 .art-drainage-basin{background-image:url("./art/drainage-basin.webp");}
 .art-continental-shelf{background-image:url("./art/continental-shelf.webp");}
 .art-inlet{background-image:url("./art/inlet.webp");}
