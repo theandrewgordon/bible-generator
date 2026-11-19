@@ -264,6 +264,12 @@
   background: #173e58;
   box-shadow: 0 2px 5px #354b3222;
 }
+.expedition-how-to-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #fff5d9;
+  font: 700 1rem Georgia, serif;
+}
 .expedition-directions {
   grid-column: 1 / -1;
   margin: 0;
