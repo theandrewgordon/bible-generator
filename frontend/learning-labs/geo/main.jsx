@@ -137,26 +137,10 @@ function App(){
    dispatch(playerSettings({playMode:e.target.value},selectedPlayers('geo',4,preferred),players));
   }}><option value="players">Individual explorers</option><option value="teams">Two teams</option></select></label>
  </div>
- <ExpeditionMap topic={s.topic||'all'} mode={s.mode} onTopic={chooseTopic} onMode={value=>dispatch({type:'filter',key:'mode',value})} onStart={startFresh} onResume={()=>dispatch({type:'resume'})} resume={!!s.session&&s.rounds<s.session.ids.length} pending={pending.length} available={enoughQuestions?eligible.length:0} needsMoreQuestions={eligible.length>0&&!enoughQuestions} startLabel={freshLabel} onReview={()=>start(true)} worldOpen={worldOpen||!!branch} onWorld={()=>setWorldOpen(true)} regions={Object.entries(placeBranches).map(([id,entry])=><button key={id} aria-pressed={s.branch===id} onClick={()=>{
+ <ExpeditionMap topic={s.topic||'all'} mode={s.mode} onTopic={chooseTopic} onMode={value=>dispatch({type:'filter',key:'mode',value})} onStart={startFresh} onResume={()=>dispatch({type:'resume'})} resume={!!s.session&&s.rounds<s.session.ids.length} pending={pending.length} available={enoughQuestions?eligible.length:0} needsMoreQuestions={eligible.length>0&&!enoughQuestions} startLabel={freshLabel} onReview={()=>start(true)} worldOpen={worldOpen||!!branch} onWorld={()=>setWorldOpen(true)} branch={branch} trail={place} onTrail={value=>dispatch({type:'filter',key:'place',value})} regionPanelRef={regionPanel} regions={Object.entries(placeBranches).map(([id,entry])=><button key={id} aria-pressed={s.branch===id} onClick={()=>{
   dispatch({type:'branch',branch:id});
   requestAnimationFrame(()=>regionPanel.current?.focus());
  }}>{entry.name}</button>)}/>
- {branch?<section className={'case-card geo-place-study'+(regionalMaps[s.branch]?'':' geo-place-study-compact')} ref={regionPanel} tabIndex={-1} aria-label={branch.name+' study'}>
-  {regionalMaps[s.branch]&&<img className="geo-region-map" {...regionalMaps[s.branch]} width="1200" height="800"/>}
-  <div className="geo-place-controls">
-  {branch.trails.length>1&&<label className="geo-field">{branch.focusLabel}<select value={place} onChange={e=>dispatch({type:'filter',key:'place',value:e.target.value})}>
-   <option value="all">All trails</option>
-   {branch.trails.map(([name])=><option key={name}>{name}</option>)}
-  </select></label>}
-  <QuickStart heading={place==='all'?branch.name:place} kicker="PLACE GEOGRAPHY"
-   description={`${eligible.length} geography mysteries to explore.`}
-   startLabel={freshLabel}
-   disabled={!enoughQuestions} onStart={startFresh}
-   resume={!!s.session&&s.rounds<s.session.ids.length} onResume={()=>dispatch({type:'resume'})}/>
-  {!enoughQuestions&&<p role="status">Choose a broader trail so every player gets a turn.</p>}
-  {pending.length>0&&<button onClick={()=>start(true)}>Review missed discoveries →</button>}
-  </div>
- </section>:null}
  <PracticeOptions label="More Say in How You Play"><div className="geo-option-grid">{!branch&&<><label>Practice<select value={s.mode} onChange={e=>dispatch({type:'filter',key:'mode',value:e.target.value})}><option value="quest">Vocabulary Quest</option><option value="compare">Compare & Contrast</option></select></label><label>Explore a theme<select value={s.topic||'all'} onChange={e=>dispatch({type:'filter',key:'topic',value:e.target.value})}><option value="all">All landscapes</option>{[...new Set(data.quest.map(q=>q.topic))].map(topic=><option key={topic}>{topic}</option>)}</select></label><label>Trail<select value={s.level} onChange={e=>dispatch({type:'filter',key:'level',value:e.target.value})}><option value="all">All trails</option><option value="easy">Starter trail</option><option value="explorer">Explorer trail</option></select></label></>}<label>Answer with<select value={s.response||'choice'} onChange={e=>dispatch({type:'filter',key:'response',value:e.target.value})}><option value="choice">Multiple choice</option><option value="type">Fill in the blank</option></select></label><label>Session length<select value={length} onChange={e=>setLength(Number(e.target.value))}><option value="10">{playerMode?'10 questions per player':'10 questions'}</option><option value={DEFAULT_SESSION_LENGTH}>{DEFAULT_SESSION_LENGTH} questions{playerMode?' per player':''}</option><option value="0">{s.playMode==='players'?'All complete rounds':'Explore the full trail'}</option></select></label></div>
 
  {s.playMode==='teams'&&s.names.map((name,i)=><div className="team-edit" key={i}><label>Team {i+1}<input value={name} maxLength="24" onChange={e=>dispatch({type:'name',team:i,value:e.target.value})}/></label>{learnerSelect('geo-team-'+i,s.teamLearners[i],id=>dispatch({type:'team-learner',team:i,id}))}</div>)}
