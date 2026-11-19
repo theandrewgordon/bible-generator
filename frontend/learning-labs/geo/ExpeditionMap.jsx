@@ -10,7 +10,7 @@ const places=[
  {topic:'Maps & our planet',art:'art-altitude',iconArt:'art-diagram-compass',x:48,y:81,description:'Find your bearings and see our world in a new way.'},
  {topic:'Changing Earth',art:'art-volcano',x:18,y:35,description:'Look for the forces that shape a changing planet.'}
 ];
-export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume,pending,onReview,available,needsMoreQuestions,startLabel,worldOpen,onWorld,regions}){
+export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume,pending,onReview,available,needsMoreQuestions,startLabel,worldOpen,onWorld,regions,branch,trail,onTrail,regionPanelRef}){
  const place=places.find(p=>p.topic===topic);
  return <section className="expedition-board" aria-label="Choose an expedition">
   <div className="world-map">
@@ -21,11 +21,25 @@ export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume
    <button className="all-trails" aria-pressed={!worldOpen&&topic==='all'} onClick={()=>onTopic('all')}><img src={exploreEverythingIcon} alt="" width="48" height="48"/><span>Explore Everything</span></button>
   </div>
   <aside className="mission-card">
-   {worldOpen?<section aria-labelledby="world-destinations-title">
+   {worldOpen?<section className="world-destination-panel" ref={regionPanelRef} tabIndex={-1} aria-labelledby="world-destinations-title">
     <div className="mission-picture"><div className="landscape art-earth" aria-hidden="true"/><span className="mission-pin" aria-hidden="true">✦</span></div>
     <h2 id="world-destinations-title" className="world-destinations-title">{worldTitle}</h2>
-    <p>Choose a destination to explore its geography.</p>
+    <p>Choose a destination and trail to begin exploring.</p>
     <nav className="geo-branches" aria-labelledby="world-destinations-title">{regions}</nav>
+    {branch&&<div className="world-trail-controls">
+     <label className="world-trail-select">Choose a trail in {branch.name}
+      <select value={trail} onChange={event=>onTrail(event.target.value)}>
+       <option value="all">All trails</option>
+       {branch.trails.map(([name])=><option key={name} value={name}>{name}</option>)}
+      </select>
+     </label>
+     <p className="world-trail-count">{available} geography {available===1?'mystery':'mysteries'} ready to explore</p>
+     <QuickStart heading={trail==='all'?branch.name:trail} kicker="PLACE GEOGRAPHY"
+      description="Choose a trail and start your expedition." startLabel={startLabel}
+      disabled={!available} onStart={onStart} resume={resume} onResume={onResume}/>
+     {!available&&<p className="mission-empty" role="status">{needsMoreQuestions?'Choose a broader trail so every explorer gets a turn.':'No mysteries match these options. Choose another trail.'}</p>}
+     {pending>0&&<button className="world-review-button" onClick={onReview}>✦ Review missed discoveries ({pending})</button>}
+    </div>}
    </section>:<>
    <div className="mission-tabs" aria-label="Choose your adventure"><button aria-pressed={mode==='quest'} onClick={()=>onMode('quest')}>Quest</button><button aria-pressed={mode==='compare'} onClick={()=>onMode('compare')}>⛰ Compare</button></div>
    <div className="mission-picture"><div className={'landscape '+(place?.art||'art-mountain')} role="img" aria-label={place?.topic||'Watercolor mountain landscape'}/><span className="mission-pin" aria-hidden="true">✦</span></div>
