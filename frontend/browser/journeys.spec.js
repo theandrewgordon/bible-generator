@@ -4,7 +4,7 @@ test('shared settings save preferences and theme without horizontal overflow',as
  await page.goto('/settings.html');await page.getByLabel('Usual setting').selectOption('house-church');await page.getByLabel('Writer level').selectOption('beginner');await page.getByLabel('Use cursive tracing').check();
  await page.getByRole('button',{name:'Save preferences'}).click();await expect(page.getByRole('status')).toContainText('Preferences saved');
  await page.reload();await expect(page.getByLabel('Writer level')).toHaveValue('beginner');await expect(page.getByLabel('Use cursive tracing')).toBeChecked();
- await page.getByRole('button',{name:'Toggle dark mode'}).click();await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+ await page.locator('.journey-panel .theme-toggle').click();await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(errors).toEqual([]);
 });
 test('shared account menus close with Escape on each screen size',async({page},info)=>{
@@ -30,5 +30,16 @@ test('settings and theme remain usable when browser storage is blocked',async({p
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  await page.addInitScript(()=>{for(const key of ['localStorage','sessionStorage'])Object.defineProperty(window,key,{get(){throw new Error('Storage blocked');}});});
  await page.goto('/settings.html');await page.getByRole('button',{name:'Save preferences'}).click();await expect(page.getByRole('status')).toContainText('Browser storage is unavailable');
- await page.getByRole('button',{name:'Toggle dark mode'}).click();await expect(page.locator('html')).toHaveAttribute('data-theme','dark');await page.getByRole('button',{name:'Toggle light mode'}).click();await expect(page.locator('html')).toHaveAttribute('data-theme','light');expect(errors).toEqual([]);
+ await page.locator('.journey-panel .theme-toggle').click();await expect(page.locator('html')).toHaveAttribute('data-theme','dark');await page.locator('.journey-panel .theme-toggle').click();await expect(page.locator('html')).toHaveAttribute('data-theme','light');expect(errors).toEqual([]);
+});
+
+test('day and night controls are directly accessible in the shared navigation',async({page},info)=>{
+ await page.goto('/account.html');
+ if(info.project.name==='phone')await page.getByRole('button',{name:'Toggle menu'}).click();
+ const toggle=page.locator('.main-header .theme-toggle:visible');
+ await expect(toggle).toHaveCount(1);await expect(toggle).toHaveAccessibleName('Toggle dark mode');
+ await toggle.click();await expect(page.locator('html')).toHaveAttribute('data-theme','dark');await expect(toggle).toHaveAttribute('aria-pressed','true');
+ await toggle.click();await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+ await toggle.click();await page.goto('/learning.html');await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });

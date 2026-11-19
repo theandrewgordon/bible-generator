@@ -506,6 +506,8 @@ input[type="checkbox"] + label,
 
 /* Theme toggle */
 .theme-toggle {
+  min-width: 44px;
+  min-height: 44px;
   appearance: none;
   border: 1px solid var(--header-border);
   background: transparent;

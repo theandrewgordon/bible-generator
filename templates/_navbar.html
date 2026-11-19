@@ -1,3 +1,8 @@
+{% macro theme_control(mobile=false) %}
+<button type="button" class="theme-toggle {{ 'mobile-only nav-theme-mobile' if mobile else 'desktop-only' }}" aria-pressed="false" aria-label="Toggle dark mode">
+  <span aria-hidden="true">🌙</span><span data-theme-label class="{{ '' if mobile else 'sr-only' }}">Switch to dark theme</span>
+</button>
+{% endmacro %}
 {% macro account_menu(extra_class) %}
 <details class="profile-drop {{ extra_class }}" aria-label="Account menu">
   <summary class="profile-summary">Account</summary>
@@ -36,8 +41,10 @@
         <a class="nav-link nav-signin mobile-only" href="{{ url_for('google.login', next=request.full_path.rstrip('?')) }}" data-preserve-task>Sign in</a>
         <a class="nav-link mobile-only" href="/settings">Settings</a>
       {% endif %}
+      {{ theme_control(mobile=true) }}
     </nav>
     <div class="auth-theme">
+      {{ theme_control() }}
       {% if is_signed_in and usage_nav and usage_nav.get('pct',0)>=70 %}
         <span class="usage-chip" id="usageChip" title="{{ usage_nav.title }}" role="status">{{ usage_nav.text }}</span>
       {% endif %}
