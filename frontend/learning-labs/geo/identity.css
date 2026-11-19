@@ -304,7 +304,44 @@
 }
 .expedition-setup .labs-players details {
   margin-top: .2rem;
-  font-size: .8rem;
+  font-size: .875rem;
+  color: #fff5d9;
+}
+.atlas .expedition-setup .labs-players details > summary {
+  color: #f4cb80;
+  font-weight: 700;
+  text-decoration-color: currentColor;
+}
+.atlas .expedition-setup .labs-players details[open] {
+  padding: 8px 10px 10px;
+  border: 1px solid #9dbaaf;
+  border-radius: 9px;
+  background: #224a61;
+}
+.atlas .expedition-setup .labs-players details form label,
+.atlas .expedition-setup .labs-players details p,
+.atlas .expedition-setup .labs-players .labs-player-note {
+  color: #fff5d9;
+}
+.atlas .expedition-setup .labs-players details input,
+.atlas .expedition-setup .labs-players details select {
+  color: #173e58;
+  background: #fff9e9;
+  border: 2px solid #b99b62;
+  opacity: 1;
+}
+.atlas .expedition-setup .labs-players details button {
+  color: #173e58;
+  background: #ffe9b8;
+  border: 2px solid #c7a05e;
+  opacity: 1;
+}
+.atlas .expedition-setup .labs-players details button:hover:not(:disabled) {
+  background: #ffda87;
+}
+.atlas .expedition-setup .labs-players details :is(summary,button,input,select):focus-visible {
+  outline: 3px solid #ffd479;
+  outline-offset: 2px;
 }
 .atlas .expedition-setup .geo-field {
   gap: 8px;
