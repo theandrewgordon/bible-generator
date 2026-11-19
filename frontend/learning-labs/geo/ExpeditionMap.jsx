@@ -5,7 +5,7 @@ const places=[
  {topic:'Water & coasts',art:'art-beach',x:18,y:65,description:'Follow the water from quiet shores to the open sea.'},
  {topic:'Land & ice',art:'art-mountain',x:46,y:19,description:'Head for the heights, icy valleys and wide-open land.'},
  {topic:'Living landscapes',art:'art-forest',x:74,y:39,description:'Step into green places and discover what grows there.'},
- {topic:'Human-Made Features',art:'art-canal',x:79,y:76,description:'Explore canals, dams and other features people build.'},
+ {topic:'Man-Made Features',art:'art-canal',x:79,y:76,description:'Explore canals, dams and other features people build.'},
  {topic:'Maps & our planet',art:'art-altitude',iconArt:'art-diagram-compass',x:45,y:78,description:'Find your bearings and see our world in a new way.'},
  {topic:'Changing Earth',art:'art-volcano',x:18,y:22,description:'Look for the forces that shape a changing planet.'}
 ];
