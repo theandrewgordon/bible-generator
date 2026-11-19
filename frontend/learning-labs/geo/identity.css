@@ -146,3 +146,14 @@
   justify-content: center;
   gap: 8px;
 }
+
+.landscape.place-landscape {
+  background-color: #f8edd3;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.mystery-scene .place-landscape {
+  aspect-ratio: 3 / 2;
+}

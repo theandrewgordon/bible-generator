@@ -76,3 +76,19 @@ test('each geography term has one dedicated image across Quest and Compare', () 
     termByHash.set(hash, term);
   }
 });
+
+test('every Europe and United States question has distinct original artwork', async()=>{
+  const {placeQuestions}=await import('../geo/places.js');
+  const artwork=path.join(geo,'place-art');
+  const expected=placeQuestions.map(({id})=>id+'.webp').sort();
+  assert.deepEqual(fs.readdirSync(artwork).sort(),expected);
+  const hashes=new Set();
+  for (const file of expected) {
+    const bytes=fs.readFileSync(path.join(artwork,file));
+    assert.equal(bytes.subarray(0,4).toString(),'RIFF',file);
+    assert.equal(bytes.subarray(8,12).toString(),'WEBP',file);
+    const hash=createHash('sha256').update(bytes).digest('hex');
+    assert.ok(!hashes.has(hash),'Duplicate artwork: '+file);
+    hashes.add(hash);
+  }
+});
