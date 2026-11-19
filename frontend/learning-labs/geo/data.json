@@ -121,7 +121,8 @@
       "example": "A small sheltered cove might hold tiny boats.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "A cove is a small inlet, often sheltered by land on both sides of its opening. Picture a pocket of water along the coast. A fjord also reaches inland from the sea, but its long, steep-sided valley was carved by a glacier."
     },
     {
       "id": "g28",
@@ -182,7 +183,8 @@
       "example": "The Mississippi River makes a delta near the Gulf.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "A delta is land built from sediment a river leaves near its mouth. Water may split into smaller channels as it flows around that growing land. A river mouth is the place where the river empties, and only some mouths have deltas."
     },
     {
       "id": "g54",
@@ -446,7 +448,8 @@
       "example": "The Mississippi River empties into the Gulf of Mexico.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "A river mouth is where the river empties into an ocean, a lake, or another river. Water can slow and drop sediment as it enters a wider body of water. Where enough sediment builds up, it may form a delta near the mouth."
     },
     {
       "id": "g50",
@@ -466,7 +469,8 @@
       "example": "A mountain spring may be a river's source.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "Trace a river upstream to where it starts and you reach its source. A spring, a lake outlet, or melting snow can feed its first flow. At the other end, the river reaches its mouth and empties into another body of water."
     },
     {
       "id": "g7",
@@ -506,7 +510,8 @@
       "example": "The shore of a lake is where its water meets land.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "The shore is the strip of land next to a lake, river, or sea. The shoreline is the edge where the water meets that land. On a beach, the shoreline moves up and down the shore as the tide changes."
     },
     {
       "id": "g22",
@@ -526,7 +531,8 @@
       "example": "A lake's shoreline curves around its edges.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "The shoreline is the boundary where water meets land. Imagine tracing the edge of the water on a map. The shore is the strip of land along that edge, and the shoreline can move as water levels change."
     },
     {
       "id": "g27",
@@ -648,8 +654,8 @@
       "example": "The Grand Canyon has deep sides carved by a river.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Canyon and gorge can describe similar steep-sided valleys. There is no exact width rule.",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A canyon is a deep valley with steep sides. Many canyons form as a river cuts downward into rock over a long time. The word gorge often draws attention to a narrow stretch between steep walls, and both names can fit the same valley."
     },
     {
       "id": "g25",
@@ -690,7 +696,8 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "note": "Bluff and cliff can describe the same steep face of land.",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A cliff is a very steep face of rock or earth. Look for the sudden drop from the top to the foot of the slope. A bluff is a steep bank or broad headland that can have a cliff face."
     },
     {
       "id": "g41",
@@ -750,7 +757,8 @@
       "example": "A glacier slowly moves down an Alaskan valley.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A glacier is a large mass of ice that forms on land when layers of snow build up and compact. Over time it moves under its own weight. A piece that breaks off into water and floats can become an iceberg."
     },
     {
       "id": "g12",
@@ -790,7 +798,8 @@
       "example": "Icebergs float in the cold North Atlantic Ocean.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "An iceberg is a floating piece of ice that broke off a glacier or an ice shelf. Much of it sits below the water. The glacier it came from began as snow that built up and compacted into ice on land."
     },
     {
       "id": "g38",
@@ -891,7 +900,8 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "note": "Peak and summit may mean the same high place. Neither needs a particular height.",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A peak can mean a pointed mountain top or the mountain itself. A summit is the highest point you can reach on a particular mountain, even if its top is rounded or flat. A pointed summit may be called a peak."
     },
     {
       "id": "g19",
@@ -911,7 +921,8 @@
       "example": "The Great Plains spread across central North America.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A plain is a broad stretch of mostly flat or gently rolling land. A plateau can look equally flat from the middle. Look at the edges and the surrounding land to see whether the flat area stands higher."
     },
     {
       "id": "g68",
@@ -932,7 +943,8 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "note": "Mesas often stand apart, while plateaus cover wider areas. There is no exact size cutoff.",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A plateau is a broad area of fairly level land raised above its surroundings. It can stretch across a large region and even contain valleys cut by rivers. A mesa is usually smaller and stands out as a separate flat-topped landform with steep sides."
     },
     {
       "id": "g44",
@@ -993,7 +1005,8 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "note": "Peak and summit can mean the same high point, whether it is rounded or pointed.",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "The summit is the highest point on a hill or mountain. Even a mountain with a broad, rounded top has a summit. The word peak often brings a pointed top to mind, and both words can refer to the same high point."
     },
     {
       "id": "g13",
@@ -1013,7 +1026,8 @@
       "example": "Yosemite Valley sits between high rocky walls.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A valley is low land between hills or mountains. It can be broad with gently sloping sides or narrow with steep walls. A canyon is a deep, steep-sided kind of valley."
     },
     {
       "id": "g40",
@@ -1114,7 +1128,8 @@
       "example": "Grassy marshes grow in the Florida Everglades.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Living landscapes"
+      "topic": "Living landscapes",
+      "explanation": "A marsh is a wetland where soft-stemmed plants such as grasses, reeds, or cattails dominate. A swamp usually has many trees or shrubs. Both can be wet for part or all of the year."
     },
     {
       "id": "g17",
@@ -1194,7 +1209,8 @@
       "example": "Cypress trees can grow in a flooded swamp.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Living landscapes"
+      "topic": "Living landscapes",
+      "explanation": "A swamp is a wetland dominated by woody plants such as trees or shrubs. Look for trunks or branches rising from wet ground or shallow water. In a marsh, grasses and other soft-stemmed plants usually dominate."
     },
     {
       "id": "g64",
@@ -1255,7 +1271,8 @@
       "example": "Ships travel through the Panama Canal.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Human-Made Features"
+      "topic": "Human-Made Features",
+      "explanation": "A canal is a waterway people build to carry water or let boats pass. Channel is a broader word for a path that water flows through. A river can cut a natural channel, and a canal has a human-made channel."
     },
     {
       "id": "g10",
@@ -1518,7 +1535,8 @@
       "example": "Ships follow deep channels through shallow waters.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "A channel is the path that holds and guides flowing water. In a river, it is the space between the banks that contains the ordinary flow. A canal is a channel people build for a purpose such as carrying water or boats."
     },
     {
       "id": "g83",
@@ -1559,7 +1577,8 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "note": "Watershed and drainage basin usually name the same area of land.",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "A drainage basin is the area of land that drains toward one outlet, such as a point on a river. A ridge can mark its edge if rain on opposite sides flows toward different outlets. Watershed is another name for this area."
     },
     {
       "id": "g85",
@@ -1579,7 +1598,8 @@
       "example": "Chesapeake Bay is an estuary where fresh and salt water mix.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "An estuary is a coastal body of water where fresh water from land typically mixes with salty seawater. A delta is built from sediment deposited at a river mouth. They describe different features and can occur in the same area."
     },
     {
       "id": "g86",
@@ -1599,7 +1619,8 @@
       "example": "Norway has fjords cut by ancient glaciers.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "A fjord is a long, narrow arm of the sea with steep sides. It forms when seawater fills a valley carved by a glacier. A strait leads from one larger body of water to another, while a fjord reaches inland from the sea."
     },
     {
       "id": "g118",
@@ -1781,7 +1802,8 @@
       "example": "The Strait of Gibraltar is narrow water between lands.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "A strait is a natural, narrow passage of water between two pieces of land. It connects two larger bodies of water. An isthmus is a narrow strip of land connecting two larger land areas, with water on either side."
     },
     {
       "id": "g98",
@@ -1822,7 +1844,8 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "note": "Watershed often means drainage basin. In some places it means the ridge separating drainage areas.",
-      "topic": "Water & coasts"
+      "topic": "Water & coasts",
+      "explanation": "A watershed, also called a drainage basin here, is all the land that sends water toward the same outlet. Picture rain falling on slopes, then joining streams that flow to the same river. The river is one part of that larger area."
     },
     {
       "id": "g74",
@@ -1863,7 +1886,8 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "note": "Bluff and cliff can describe similar steep land.",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A bluff is a steep bank or high headland, often beside a river or coast. The word describes the landform as a whole. Its steep face can also be called a cliff."
     },
     {
       "id": "g81",
@@ -1883,8 +1907,8 @@
       "example": "A deep chasm splits rock with steep sides.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Chasm, canyon, and gorge can describe similar deep gaps with steep sides.",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A chasm is a deep opening in the ground or rock. Imagine standing at the edge and looking down between rock walls. The word describes the gap itself, so it can apply to a deep crack or to a gap within a canyon or gorge."
     },
     {
       "id": "g82",
@@ -1924,8 +1948,8 @@
       "example": "A river may run through a steep rocky gorge.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "note": "Gorge and canyon can describe similar steep-sided valleys.",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A gorge is a deep, narrow valley with steep walls. Picture a river squeezed between two rocky walls. The word gorge emphasizes how narrow the valley feels, and there is no fixed width that separates a gorge from a canyon."
     },
     {
       "id": "g93",
@@ -1946,7 +1970,8 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "note": "A mesa often stands apart and looks like a table. A plateau is usually a wider high area.",
-      "topic": "Land & ice"
+      "topic": "Land & ice",
+      "explanation": "A mesa has a broad, flat top and steep sides that stand above nearby land. Picture a tabletop with a clear edge. It often remains after erosion wears away the land around it."
     },
     {
       "id": "g125",
@@ -1967,7 +1992,8 @@
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
       "topic": "Land & ice",
-      "note": "A moraine contains rock and soil moved or left by a glacier, not just sand blown by wind."
+      "note": "A moraine contains rock and soil moved or left by a glacier, not just sand blown by wind.",
+      "explanation": "A moraine is a pile or ridge of sediment left by a glacier. It can contain fine dirt, gravel, and large rocks together. Its shape can mark where the edge of the ice once stood."
     },
     {
       "id": "g77",
@@ -2048,7 +2074,8 @@
       "example": "Waterlogged ground supports plants adapted to saturated soil.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Living landscapes"
+      "topic": "Living landscapes",
+      "explanation": "A wetland has water at or near the surface long enough to shape its soil and plants. It can be wet all year or only during part of the year. Marshes, swamps, and bogs are kinds of wetlands."
     },
     {
       "id": "g91",
@@ -2451,7 +2478,8 @@
       "example": "A river slows and leaves a sandbar beside its channel.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Changing Earth"
+      "topic": "Changing Earth",
+      "explanation": "Deposition happens when material carried by water, wind, or ice is left somewhere. A slowing river can drop sand and build a sandbar. Erosion removes sediment from one place, and deposition adds it to another."
     },
     {
       "id": "g114",
@@ -2471,7 +2499,8 @@
       "example": "After rain, a stream carries loosened sand downstream.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Changing Earth"
+      "topic": "Changing Earth",
+      "explanation": "Erosion wears away a place as moving water, wind, or ice carries material away. Weathering can loosen pieces first. When the moving water, wind, or ice leaves those pieces somewhere else, deposition occurs."
     },
     {
       "id": "g124",
@@ -2533,7 +2562,8 @@
       "example": "Water freezes inside a rock crack and helps widen it without transporting the rock away.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording",
-      "topic": "Changing Earth"
+      "topic": "Changing Earth",
+      "explanation": "Weathering breaks down rock where it is. For example, water can freeze in a crack and widen it. When flowing water carries broken pieces away, that movement is part of erosion."
     }
   ],
   "compare": [
@@ -2612,8 +2642,8 @@
         "art-valley",
         "art-canyon"
       ],
-      "explanation": "A valley is low land between higher places. A canyon is a valley with steep sides. The same place may be both; gorge is another similar word.",
-      "example": "Yosemite Valley sits between high rocky walls. The Grand Canyon has deep sides carved by a river.",
+      "explanation": "A valley is any low area between higher land. A canyon is a deep kind of valley with steep walls, often carved by a river. Gorge often emphasizes a narrow passage between steep walls, and chasm emphasizes a deep opening. These words can overlap without a fixed width rule.",
+      "example": "The Colorado River runs through the Grand Canyon. The Arkansas River runs through Colorado’s Royal Gorge. At either place, you can look for the river at the bottom and steep rock walls on either side.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
     },
@@ -2724,8 +2754,8 @@
         "art-diagram-river-source",
         "art-diagram-river-mouth"
       ],
-      "explanation": "A river's source is where it starts. Its mouth is where it enters a lake, another river, or the sea.",
-      "example": "A mountain spring may be a river's source. The Mississippi River empties into the Gulf of Mexico.",
+      "explanation": "A source is the beginning of a river, and a mouth is where it flows into another body of water. Follow a river upstream to reach its source and downstream to reach its mouth. A river can begin at a spring and end by joining another river.",
+      "example": "On a map, trace a small stream from its first visible channel to the place it joins a larger river.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
     },
@@ -3012,8 +3042,8 @@
         "art-delta",
         "art-diagram-river-mouth"
       ],
-      "explanation": "A river mouth is where a river enters another body of water. A delta is land built from sand and mud the river leaves near some mouths.",
-      "example": "The Mississippi River makes a delta near the Gulf. The Mississippi River empties into the Gulf of Mexico.",
+      "explanation": "A mouth is the place where a river empties. A delta is a landform that can build up there as the river drops sediment. If too little sediment stays at the mouth, the river can still empty there without building a delta.",
+      "example": "The Mississippi River empties into the Gulf of Mexico through channels in its delta.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
     },
@@ -3028,8 +3058,8 @@
         "art-estuary",
         "art-delta"
       ],
-      "explanation": "An estuary is coastal water where river water and seawater often mix. A delta is sediment built up near a river mouth. One place can have both.",
-      "example": "Chesapeake Bay is an estuary where fresh and salt water mix. The Mississippi River makes a delta near the Gulf.",
+      "explanation": "An estuary describes a coastal body of water where river water typically mixes with seawater. A delta describes land built by sediment the river deposits near its mouth. The same river mouth can have both features.",
+      "example": "Look for branching channels around sediment-built land when spotting a delta. Look for the mixing of river water and seawater when identifying an estuary.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
     },
@@ -3076,8 +3106,8 @@
         "art-bluff",
         "art-cliff"
       ],
-      "explanation": "A bluff is often a steep bank above land or water. A cliff is a steep face of rock or earth. Both names may describe the same place.",
-      "example": "Some tall bluffs overlook the Mississippi River. The Cliffs of Moher rise above the ocean in Ireland.",
+      "explanation": "A cliff is a very steep face. A bluff is a steep bank or headland that may have a cliff face. The names can overlap when the side of a bluff drops sharply.",
+      "example": "On a river bend, you might call the high bank a bluff and its exposed rock face a cliff.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
     },
@@ -3092,8 +3122,8 @@
         "art-fjord",
         "art-diagram-cove"
       ],
-      "explanation": "A fjord is a long, narrow sea inlet carved by a glacier. A cove is a smaller, sheltered bay. Both can be along a coast.",
-      "example": "Norway has fjords cut by ancient glaciers. A small sheltered cove might hold tiny boats.",
+      "explanation": "Both are inlets where water reaches into land. A cove is a small, often sheltered pocket along the coast. A fjord extends inland along a deep valley carved by a glacier, typically between steep walls.",
+      "example": "A cove may curve around a short beach. In a fjord, steep mountain slopes may rise straight from the water for miles.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
     },
@@ -3156,8 +3186,8 @@
         "art-mesa",
         "art-plateau"
       ],
-      "explanation": "Both are high areas with fairly flat tops. A mesa is often a separate, table-shaped landform. A plateau usually covers a wider area, but there is no exact size cutoff.",
-      "example": "A mesa looks like a table standing in a desert. The Colorado Plateau is a broad high land area.",
+      "explanation": "Both have high, fairly flat tops. A plateau can extend over a wide region. A mesa is usually a smaller, distinct landform with a flat top and steep sides. Look for its clear edge and the lower land around it.",
+      "example": "A river can cut a canyon through a plateau. Erosion can leave a smaller flat-topped mesa standing apart.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
     },
@@ -3204,8 +3234,8 @@
         "art-erosion",
         "art-weathering"
       ],
-      "explanation": "Weathering breaks down or changes rock where it is. Erosion moves soil and rock pieces to new places. Weathered pieces can later be carried away.",
-      "example": "Try explaining the relationship in your own words, then name an example.",
+      "explanation": "Weathering breaks rock down where it sits. Erosion carries rock and soil away by water, wind, or ice. Both processes can happen at the same spot.",
+      "example": "Freezing water widens a crack in a cliff. Later, runoff washes the loose fragments downhill.",
       "reviewed": "2026-11-16",
       "provenance": "FaithSparks original wording"
     },
