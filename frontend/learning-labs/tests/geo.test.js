@@ -51,11 +51,15 @@ test('reset scores preserves the current question, answers and learning history,
 });
 
 test('place trails have stable unique IDs and resume without changing vocabulary settings',async()=>{
- const {placeQuestions}=await import('../geo/places.js');
+ const {placeBranches,placeQuestions}=await import('../geo/places.js');
  const data=JSON.parse(fs.readFileSync(new URL('../geo/data.json',import.meta.url)));
  const ids=[...data.quest,...data.compare,...placeQuestions].map(card=>card.id);
  assert.equal(new Set(ids).size,ids.length);
- assert.equal(placeQuestions.length,60);
+ assert.equal(placeQuestions.length,90);
+ for(const branch of ['north-america','south-america','asia','africa','australia','antarctica']){
+  assert.equal(placeBranches[branch].trails.length,1);
+  assert.equal(placeQuestions.filter(card=>card.branch===branch).length,5);
+ }
  for(const card of placeQuestions){
   assert.equal(new Set(card.choices).size,3);
   assert.ok(card.choices.includes(card.answer));

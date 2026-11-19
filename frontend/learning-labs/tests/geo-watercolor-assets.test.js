@@ -80,7 +80,7 @@ test('each geography term has one dedicated image across Quest and Compare', () 
 test('every Europe and United States question has distinct original artwork', async()=>{
   const {placeQuestions}=await import('../geo/places.js');
   const artwork=path.join(geo,'place-art');
-  const expected=placeQuestions.map(({id})=>id+'.webp').sort();
+  const expected=placeQuestions.filter(({branch})=>branch==='europe'||branch==='usa').map(({id})=>id+'.webp').sort();
   assert.deepEqual(fs.readdirSync(artwork).sort(),expected);
   const hashes=new Set();
   for (const file of expected) {

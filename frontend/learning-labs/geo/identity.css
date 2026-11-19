@@ -143,6 +143,10 @@
   text-align: center;
 }
 
+.geo-place-study-compact {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .geo-region-map {
   display: block;
   width: 100%;

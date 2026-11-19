@@ -1,3 +1,5 @@
+import {continentBranches} from './continents.js';
+
 const europe = [
  ['France', [
   ['Paris', 'Lyon', 'Marseille', 'Which city is the capital of France?', 'The Seine flows through it.', 'The Eiffel Tower stands here.'],
@@ -89,6 +91,7 @@ const usa = [
 ];
 
 export const placeBranches = {
+ ...continentBranches,
  europe: {name:'Europe', focusLabel:'Country', trails:europe},
  usa: {name:'United States', focusLabel:'Region', trails:usa},
 };
@@ -97,6 +100,8 @@ const alternateNames = {
  'Washington, D.C.':['Washington DC','Washington','DC','District of Columbia'],
  Seine:['Seine River'], Rhine:['Rhine River'], Danube:['Danube River'],
  Po:['Po River','River Po'], Ebro:['Ebro River','River Ebro'], Thames:['Thames River','River Thames'],
+ 'Amazon River':['Amazon'], 'Yangtze River':['Yangtze','Chang Jiang'],
+ 'Nile River':['Nile'], 'Mount Kilimanjaro':['Kilimanjaro'], 'Galápagos Islands':['Galápagos'],
  'Mount Olympus':['Olympus'], 'Appalachian Mountains':['Appalachians'],
  'Rocky Mountains':['Rockies'], 'Sonoran Desert':['Sonora Desert'],
 };
@@ -116,4 +121,5 @@ function makePlaceQuestions(branch, firstId, trails) {
 export const placeQuestions = [
  ...makePlaceQuestions('europe', 1000, europe),
  ...makePlaceQuestions('usa', 2000, usa),
+ ...Object.entries(continentBranches).flatMap(([id,{firstId,trails}])=>makePlaceQuestions(id,firstId,trails)),
 ];
