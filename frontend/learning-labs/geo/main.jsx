@@ -56,7 +56,7 @@ function ExpeditionPlayers({state,dispatch}){
  useEffect(()=>{
   const roster=profiles();
   const preferred=(current.current.roundPlayers||playingLearners(current.current)).flatMap(id=>roster.find(player=>gamePlayerId(player,'geo')===id)?.id||[]);
-  return mountPlayers(root.current,{game:'geo',limit:4,preferred,roleName:'explorer',legend:'Choose your explorers',onChange:(selected,players)=>{
+  return mountPlayers(root.current,{game:'geo',limit:4,preferred,roleName:'explorer',legend:'Today’s Explorers',onChange:(selected,players)=>{
    dispatch(playerSettings(current.current,selected,players));
   }});
  },[dispatch]);
@@ -127,7 +127,7 @@ function App(){
  return <><Family game="geo"/><main className={"atlas "+(s.screen==='play'?'on-expedition':'')}><header className="atlas-hero"><div className="atlas-title"><h1><span>Geo</span>{' '}<span>Detectives!</span></h1><p>Explore and discover the world we live in</p></div></header>
  {s.screen==='home'?<section className="geo-home expedition-home">
  <div className="expedition-setup">
-  <p className="expedition-directions">Pick a trail and solve its mysteries. In Quest, use fewer clues to earn more points.</p>
+  <p className="expedition-directions">Check who’s joining and choose how to score. Then pick a trail on the map and select <strong>Start fresh</strong>. Scroll below the map and open <strong>Practice options</strong> to change how you answer, how many questions you play, and more.</p>
   <ExpeditionPlayers state={s} dispatch={dispatch}/>
   <label className="geo-field">Scoring<select value={s.playMode==='teams'?'teams':'players'} onChange={e=>{
    const players=profiles();
