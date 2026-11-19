@@ -123,8 +123,17 @@ function latinFixture(){
   await page.locator('#next').click();await page.locator('[data-part-answer]').nth(0).fill('Leaves');
   await page.reload();await page.locator('#grammar-resume').click();
   assert.equal(await page.locator('[data-part-answer]').nth(0).inputValue(),'Leaves');
-  // The actual Latin template exposes the main controls outside collapsed options.
+  // The Roman welcome contains Quick Start one level deeper. The Vite adapter
+  // must preserve the visible mode selectors and never move the welcome/cards
+  // into the collapsed settings drawer or throw during DOM reparenting.
   await page.goto(base+'/labs/latin-quest');
+  await page.waitForSelector('#lq-setup > .lq-primary-options');
+  assert.equal(await page.locator('#lq-setup > .lq-primary-options').count(),1);
+  assert.equal(await page.locator('.lq-roman-welcome').evaluate(n=>!!n.closest('details')),false);
+  assert.equal(await page.locator('.lq-roman-paths').evaluate(n=>!!n.closest('details')),false);
+  assert.equal(await page.locator('#latin-quick').evaluate(n=>!!n.closest('details')),false);
+  assert.equal(await page.locator('#lq-quick-five').isVisible(),true);
+  assert.equal(await page.locator('[data-lq-preset="quiz"]').isVisible(),true);
   for(const id of ['lq-mode','lq-word-type','lq-response','lq-reviewed-only'])assert.equal(await page.locator('#'+id).evaluate(n=>!!n.closest('details')),false);
   await page.locator('#lq-quick-five').click();
   const prompt=await page.locator('#lq-question').textContent();await page.locator('#lq-answer').fill(prompt.includes('via')?'road':'carry');await page.locator('#lq-check').click();
