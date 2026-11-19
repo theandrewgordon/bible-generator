@@ -43,7 +43,7 @@ function App(){
  const placeDeck=branch?placeQuestions.filter(q=>q.branch===s.branch&&(place==='all'||q.place===place)):[];
  const eligible=branch?placeDeck:data[s.mode].filter(q=>(s.level==='all'||q.level===s.level)&&(s.topic==='all'||!s.topic||(s.mode==='compare'?q.terms.some(term=>termTopics.get(term.toLowerCase())===s.topic):q.topic===s.topic)));
  const deck=(s.session?.ids||eligible.map(q=>q.id)).map(id=>byId.get(id)).filter(Boolean);
- const index=deck.length?s.index%deck.length:0,q=deck[index]||data[s.mode][0],isQuest=q.id.startsWith('g'),result=s.answers[q.id];
+ const index=deck.length?s.index%deck.length:0,q=deck[index]||data[s.mode][0],isQuest=Array.isArray(q.clues),result=s.answers[q.id];
  const placeImage=placeArtwork[`./place-art/${q.id}.webp`];
  const typed=s.answerDrafts?.[q.id]||'',setTyped=value=>dispatch({type:'draft',id:q.id,value});
  const person=activeLearner(s),label=id=>s.learnerNames[id]||'Learner';
