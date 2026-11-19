@@ -14,7 +14,7 @@ export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume
  const place=places.find(p=>p.topic===topic);
  return <section className="expedition-board" aria-label="Choose an expedition">
   <div className="world-map">
-   <div className="map-heading"><span>YOUR NEXT ADVENTURE</span><h2>Where shall we explore?</h2><p>Tap a place on the map to choose your trail.</p></div>
+   <div className="map-heading"><span>EXPEDITION MAP</span><h2>Where shall we explore?</h2><p>Tap a place on the map to choose your trail.</p></div>
    <svg className="map-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M18 36 C27 29 36 26 46 31 S69 18 82 25 C96 37 96 63 79 75 S57 85 45 79 S25 78 18 67 Q27 54 50 50 Q33 46 18 36 Z"/></svg>
    {places.map(p=><button key={p.topic} className={'map-stop '+(!worldOpen&&topic===p.topic?'selected':'')} style={{'--x':p.x+'%','--y':p.y+'%'}} aria-pressed={!worldOpen&&topic===p.topic} onClick={()=>onTopic(p.topic)}><span className="map-stop-icon" aria-hidden="true"><span className={p.iconArt||p.art}/></span><span className="map-stop-label">{p.topic.replace(/\band\b/gi,"&")}</span>{!worldOpen&&topic===p.topic&&<span className="map-selected" aria-hidden="true">⚑</span>}</button>)}
    <button className={'map-stop map-stop-world '+(worldOpen?'selected':'')} style={{'--x':'50%','--y':'50%'}} aria-pressed={worldOpen} onClick={onWorld}><span className="map-stop-icon" aria-hidden="true"><span className="art-earth"/></span><span className="map-stop-label">{worldTitle}</span>{worldOpen&&<span className="map-selected" aria-hidden="true">⚑</span>}</button>
