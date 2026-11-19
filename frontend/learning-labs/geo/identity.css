@@ -186,22 +186,27 @@
   margin: 18px 0 8px;
 }
 
-.map-stop-world .map-stop-icon {
+/* Frame existing watercolor scenes as small expedition medallions. */
+.map-stop-icon {
   overflow: hidden;
+  background: #fff2d5;
 }
-
-.map-stop-world .map-stop-icon::before {
-  content: '';
+.map-stop-icon > span {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
-  background: url('./art-replacements/earth.webp') 48% 64% / 177% auto no-repeat;
+  border-radius: inherit;
+  background-size: cover;
+  background-position: center;
 }
-
-@media (max-width: 600px) {
-  .map-stop-world .map-stop-label {
-    max-width: 84px;
+.map-stop-world .map-stop-icon > .art-earth {
+  background-position: 48% 64%;
+  background-size: 177% auto;
+}
+@media (max-width: 650px) {
+  .map-stop-label {
+    max-width: 92px;
     white-space: normal;
+    text-align: center;
   }
 }
 
