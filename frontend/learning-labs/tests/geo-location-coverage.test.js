@@ -31,10 +31,15 @@ test('every state and country can be found on a regional map',()=>{
    assert.equal(question.locations.length,3,question.id);
    assert.equal(new Set(question.locations).size,3,question.id+' distinct markers');
    assert.ok(question.locations.includes(question.target),question.id+' correct marker');
-   for(const name of question.locations){
+   const points=question.locations.map(name=>{
     const point=locationMaps[branch].points[name];
     assert.ok(point,question.id+' missing '+name+' map point');
     assert.ok(Number.isFinite(point[1])&&Number.isFinite(point[2]),question.id+' invalid coordinates for '+name);
+    return point;
+   });
+   for(let i=0;i<points.length;i++)for(let j=i+1;j<points.length;j++){
+    assert.ok(Math.hypot(points[i][1]-points[j][1],points[i][2]-points[j][2])>=56,
+      question.id+' overlapping marker circles');
    }
   }
  }
