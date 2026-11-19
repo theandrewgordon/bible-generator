@@ -127,8 +127,7 @@ function App(){
  return <><Family game="geo"/><main className={"atlas "+(s.screen==='play'?'on-expedition':'')}><header className="atlas-hero"><div className="atlas-title"><h1><span>Geo</span>{' '}<span>Detectives!</span></h1><p>Explore and discover the world we live in</p></div></header>
  {s.screen==='home'?<section className="geo-home expedition-home">
  <div className="expedition-setup">
-  <h2 className="expedition-how-to-title">How To Play:</h2>
-  <p className="expedition-directions">Prepare for your journey by declaring today's explorer(s) and then choosing a trail on the Expedition Map below. For all trails except Countries &amp; Continents, decide if you'd like to play Vocabulary Quest or Compare mode. Playing Countries &amp; Continents: Choose your destination and then select your trail from the dropdown menu. Click &quot;Start fresh&quot; to begin exploring the world we live in. (Scroll down past the map to have more say in how you play.)</p>
+  <p className="expedition-directions"><strong className="expedition-how-to-title">How To Play:</strong> Prepare for your journey by declaring today's explorer(s) and then choosing a trail on the Expedition Map below. For all trails except Countries &amp; Continents, decide if you'd like to play Vocabulary Quest or Compare mode. Playing Countries &amp; Continents: Choose your destination and then select your trail from the dropdown menu. Click &quot;Start fresh&quot; to begin exploring the world we live in. (Scroll down past the map to have more say in how you play.)</p>
   <ExpeditionPlayers state={s} dispatch={dispatch}/>
   <label className="geo-field">Scoring<select value={s.playMode==='teams'?'teams':'players'} onChange={e=>{
    const players=profiles();
