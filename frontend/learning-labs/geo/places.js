@@ -1,4 +1,5 @@
 import {continentBranches} from './continents.js';
+import {capitalQuestions,capitalTrailName} from './capitals.js';
 
 const europe = [
  ['France', [
@@ -90,11 +91,15 @@ const usa = [
  ]],
 ];
 
-export const placeBranches = {
+const geographicBranches = {
  ...continentBranches,
  europe: {name:'Europe', focusLabel:'Country', trails:europe},
  usa: {name:'United States', focusLabel:'Region', trails:usa},
 };
+
+export const placeBranches = Object.fromEntries(Object.entries(geographicBranches).map(([id, branch])=>[
+ id, {...branch, name:id==='australia'?'Australia & Oceania':branch.name, focusLabel:'Trail', trails:[...branch.trails, [capitalTrailName(id)]]},
+]));
 
 const alternateNames = {
  'Washington, D.C.':['Washington DC','Washington','DC','District of Columbia'],
@@ -118,8 +123,22 @@ function makePlaceQuestions(branch, firstId, trails) {
   };
  }));
 }
-export const placeQuestions = [
+// Use the same boundary and pin placement when a geography trail revisits a capital.
+const capitalById = new Map(capitalQuestions.map(question=>[question.id,question.capitalMap]));
+const recurringCapitals = {
+ g1000:'country-fr', g1100:'country-de', g1200:'country-gr', g1300:'country-it',
+ g1400:'country-es', g1500:'country-gb', g2002:'state-25', g2101:'state-12',
+ g2204:'state-19', g2302:'state-35', g2500:'country-us', g7002:'country-au',
+};
+const geographicQuestions = [
  ...makePlaceQuestions('europe', 1000, europe),
  ...makePlaceQuestions('usa', 2000, usa),
  ...Object.entries(continentBranches).flatMap(([id,{firstId,trails}])=>makePlaceQuestions(id,firstId,trails)),
+];
+export const placeQuestions = [
+ ...geographicQuestions.map(question=>{
+  const capitalMap = capitalById.get(recurringCapitals[question.id]);
+  return capitalMap ? {...question, capitalMap} : question;
+ }),
+ ...capitalQuestions,
 ];

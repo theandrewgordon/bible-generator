@@ -204,3 +204,11 @@
     white-space: normal;
   }
 }
+
+.landscape.capital-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 600 / 380;
+  background: #fbf2dd;
+}

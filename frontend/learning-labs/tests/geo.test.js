@@ -1,4 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {initial,reducer,restore,shuffled,reviewIds,selectPracticeIds} from '../geo/logic.js';
+import {matchesTerm} from '../geo/answers.js';
 test('expanded original cases and comparisons remain valid and illustrated',()=>{const d=JSON.parse(fs.readFileSync(new URL('../geo/data.json',import.meta.url)));assert.equal(d.quest.length,125);assert.equal(d.compare.length,55);assert.equal(new Set([...d.quest,...d.compare].map(q=>q.id)).size,180);for(const q of d.quest){assert.equal(q.clues.length,3);assert.equal(q.choices.length,3);assert(q.choices.includes(q.answer))}for(const q of d.compare){assert.equal(q.terms.length,2);assert.notEqual(q.arts[0],q.arts[1]);assert(q.explanation)}});
 test('one award per case; team alternation; exact undo restores learner progress',()=>{let s=reducer({...initial,playMode:'teams'},{type:'start',ids:['g1','g2']});s=reducer(s,{type:'award',id:'g1',points:3,correct:true});assert.deepEqual(s.scores,[3,0]);assert.equal(reducer(s,{type:'award',id:'g1',points:3}),s);s=reducer(s,{type:'next',length:2});assert.equal(s.team,1);s=reducer(s,{type:'clue'});s=reducer(s,{type:'award',id:'g2',points:2,correct:true});assert.deepEqual(s.scores,[3,2]);assert.equal(s.progress['player-2'].g2.assisted,1);s=reducer(s,{type:'next',length:2});assert.equal(s.screen,'summary');s=reducer(s,{type:'undo'});assert.deepEqual(s.scores,[3,0]);assert.equal(s.screen,'play');assert.equal(s.team,1);assert.equal(s.index,1);assert(!s.answers.g2);assert(!s.progress['player-2']);s=reducer(s,{type:'undo'});assert.deepEqual(s.scores,[0,0]);assert.equal(s.index,0)});
 test('wrong answers and reveals record zero; history stays bounded',()=>{let s=initial;for(let i=0;i<100;i++)s=reducer(s,{type:'award',id:'g'+i,points:0,correct:false});assert.equal(s.rounds,100);assert.deepEqual(s.scores,[0,0]);assert.equal(s.history.length,20);assert(JSON.stringify(s).length<600000)});
@@ -55,10 +56,10 @@ test('place trails have stable unique IDs and resume without changing vocabulary
  const data=JSON.parse(fs.readFileSync(new URL('../geo/data.json',import.meta.url)));
  const ids=[...data.quest,...data.compare,...placeQuestions].map(card=>card.id);
  assert.equal(new Set(ids).size,ids.length);
- assert.equal(placeQuestions.length,90);
+ assert.equal(placeQuestions.filter(card=>card.id.startsWith('g')).length,90);
  for(const branch of ['north-america','south-america','asia','africa','australia','antarctica']){
-  assert.equal(placeBranches[branch].trails.length,1);
-  assert.equal(placeQuestions.filter(card=>card.branch===branch).length,5);
+  assert.equal(placeBranches[branch].trails.length,2);
+  assert.equal(placeQuestions.filter(card=>card.branch===branch&&card.id.startsWith('g')).length,5);
  }
  for(const card of placeQuestions){
   assert.equal(new Set(card.choices).size,3);
@@ -77,4 +78,28 @@ test('place trails have stable unique IDs and resume without changing vocabulary
  assert.equal(state.mode,'compare');
  assert.equal(state.topic,'Land & ice');
  assert.equal(state.session,null);
+});
+
+test('capital trails cover 195 national jurisdictions, all 50 states, and one Antarctica question',async()=>{
+ const {capitalQuestions,capitalTrailName}=await import('../geo/capitals.js');
+ const totals={'north-america':23,'south-america':12,europe:44,asia:48,africa:54,australia:14,usa:50,antarctica:1};
+ const outlines=new Set();
+ for(const [branch,total] of Object.entries(totals)){
+  const cards=capitalQuestions.filter(card=>card.branch===branch);
+  assert.equal(cards.length,total);
+  for(const card of cards){
+   assert.equal(card.place,capitalTrailName(branch));
+   const {outline,marker}=card.capitalMap;
+   assert.match(outline,/^[MLZ0-9.,]+$/);
+   assert(!outlines.has(outline));
+   outlines.add(outline);
+   if(branch==='antarctica'){
+    assert.equal(marker,null);
+    assert(matchesTerm('no',card));
+   }else{
+    assert.equal(marker.length,2);
+    assert(marker[0]>=60&&marker[0]<=540&&marker[1]>=40&&marker[1]<=340);
+   }
+  }
+ }
 });
