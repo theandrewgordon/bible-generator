@@ -15,7 +15,7 @@ export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume
    <div className="map-heading"><span>YOUR NEXT ADVENTURE</span><h2>Where shall we explore?</h2><p>Tap a place on the map to choose your trail.</p></div>
    <svg className="map-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M18 22 C27 7 40 7 46 19 S78 15 74 39 S91 63 79 76 S51 95 45 78 S9 94 18 65 Q45 65 45 52 Q35 38 18 22"/></svg>
    {places.map(p=><button key={p.topic} className={'map-stop '+(!worldOpen&&topic===p.topic?'selected':'')} style={{'--x':p.x+'%','--y':p.y+'%'}} aria-pressed={!worldOpen&&topic===p.topic} onClick={()=>onTopic(p.topic)}><span className="map-stop-icon" aria-hidden="true">{p.icon}</span><span className="map-stop-label">{p.topic}</span>{!worldOpen&&topic===p.topic&&<span className="map-selected" aria-hidden="true">⚑</span>}</button>)}
-   <button className={'map-stop map-stop-world '+(worldOpen?'selected':'')} style={{'--x':'45%','--y':'52%'}} aria-pressed={worldOpen} onClick={onWorld}><span className="map-stop-icon" aria-hidden="true">🌐</span><span className="map-stop-label">Around the World</span>{worldOpen&&<span className="map-selected" aria-hidden="true">⚑</span>}</button>
+   <button className={'map-stop map-stop-world '+(worldOpen?'selected':'')} style={{'--x':'45%','--y':'52%'}} aria-pressed={worldOpen} onClick={onWorld}><span className="map-stop-icon" aria-hidden="true"/><span className="map-stop-label">Around the World</span>{worldOpen&&<span className="map-selected" aria-hidden="true">⚑</span>}</button>
    <button className="all-trails" aria-pressed={!worldOpen&&topic==='all'} onClick={()=>onTopic('all')}>✧ Explore everywhere</button>
   </div>
   <aside className="mission-card">

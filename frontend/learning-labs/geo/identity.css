@@ -183,7 +183,15 @@
 }
 
 .map-stop-world .map-stop-icon {
-  background: radial-gradient(circle at 35% 20%, #e0f4d5, #75b8ae);
+  overflow: hidden;
+}
+
+.map-stop-world .map-stop-icon::before {
+  content: '';
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: url('./art-replacements/earth.webp') 48% 64% / 177% auto no-repeat;
 }
 
 @media (max-width: 600px) {
