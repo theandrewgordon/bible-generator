@@ -1,4 +1,4 @@
-export const initial={mode:'quest',topic:'all',level:'all',index:0,order:null,team:0,scores:[0,0],names:['Explorers','Pathfinders'],answers:{},answerDrafts:{},clue:1,history:[],rounds:0,screen:'home',session:null,clueHistory:{},progress:{},learner:'player-1',learnerNames:{'player-1':'Player 1','player-2':'Player 2','player-3':'Player 3','player-4':'Player 4'},playMode:'solo',playerCount:2,teamLearners:['player-1','player-2']};
+export const initial={mode:'quest',branch:'vocabulary',place:'all',topic:'all',level:'all',index:0,order:null,team:0,scores:[0,0],names:['Explorers','Pathfinders'],answers:{},answerDrafts:{},clue:1,history:[],rounds:0,screen:'home',session:null,clueHistory:{},progress:{},learner:'player-1',learnerNames:{'player-1':'Player 1','player-2':'Player 2','player-3':'Player 3','player-4':'Player 4'},playMode:'solo',playerCount:2,teamLearners:['player-1','player-2']};
 export function playingLearners(s){
  if(s.playMode==='players')return Object.keys(initial.learnerNames).slice(0,s.playerCount);
  return s.playMode==='teams'?s.teamLearners:[s.learner];
@@ -35,6 +35,10 @@ export function reducer(s,a){
  if(a.type==='clue'){const clue=Math.min(3,s.clue+1),id=s.session?.ids[s.index];return {...s,clue,clueHistory:id?{...s.clueHistory,[id]:clue}:s.clueHistory};}
  if(a.type==='next'){if(s.session&&s.index+1>=a.length)return {...s,screen:'summary'};const index=(s.index+1)%a.length,team=teamAt(s,index),id=s.session?.ids[index];return {...s,index,team,session:s.session?{...s.session,turns:{...s.session.turns,[id]:team}}:null,clue:s.clueHistory?.[id]||1};}
  if(a.type==='jump')return {...s,index:a.index,team:teamAt(s,a.index),clue:s.clueHistory?.[s.session?.ids[a.index]]||1};
+ if(a.type==='branch'){
+  if(s.branch===a.branch)return s;
+  return reducer({...s,place:'all'},{type:'filter',key:'branch',value:a.branch});
+ }
  if(a.type==='filter'&&s[a.key]===a.value)return s;
  if(a.type==='filter'){
   const settings={...s,[a.key]:a.value};

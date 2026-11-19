@@ -121,3 +121,28 @@
     grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
   }
 }
+
+.geo-branches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.geo-branches button[aria-pressed="true"] {
+  background: #1d5476;
+  color: #fff5d2;
+}
+
+.geo-place-study {
+  text-align: center;
+}
+
+.geo-place-study .geo-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}

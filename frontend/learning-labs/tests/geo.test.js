@@ -49,3 +49,28 @@ test('reset scores preserves the current question, answers and learning history,
  assert.deepEqual(reducer(reset,{type:'undo'}).scores,[3,0]);
  assert.deepEqual(reducer(reset,{type:'award',id:'g2',points:2,correct:true}).scores,[0,2]);
 });
+
+test('place trails have stable unique IDs and resume without changing vocabulary settings',async()=>{
+ const {placeQuestions}=await import('../geo/places.js');
+ const data=JSON.parse(fs.readFileSync(new URL('../geo/data.json',import.meta.url)));
+ const ids=[...data.quest,...data.compare,...placeQuestions].map(card=>card.id);
+ assert.equal(new Set(ids).size,ids.length);
+ assert.equal(placeQuestions.length,60);
+ for(const card of placeQuestions){
+  assert.equal(new Set(card.choices).size,3);
+  assert.ok(card.choices.includes(card.answer));
+  assert.equal(card.clues.length,3);
+ }
+ let state=reducer({...initial,mode:'compare',topic:'Land & ice'},{type:'branch',branch:'europe'});
+ state=reducer(state,{type:'filter',key:'place',value:'France'});
+ const france=placeQuestions.filter(card=>card.branch==='europe'&&card.place==='France');
+ state=reducer(state,{type:'start',ids:france.map(card=>card.id)});
+ state=restore(JSON.stringify(reducer(state,{type:'home'})));
+ assert.equal(state.place,'France');
+ assert.deepEqual(state.session.ids,france.map(card=>card.id));
+ state=reducer(state,{type:'branch',branch:'vocabulary'});
+ assert.equal(state.place,'all');
+ assert.equal(state.mode,'compare');
+ assert.equal(state.topic,'Land & ice');
+ assert.equal(state.session,null);
+});
