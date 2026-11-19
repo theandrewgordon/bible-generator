@@ -1,7 +1,7 @@
 import React from 'react';
 import exploreEverythingIcon from './art/explore-everything.webp';
 import {QuickStart} from '../shared/widgets.jsx';
-const worldTitle='Countries & Continents';
+const worldTitle='Around the World';
 const places=[
  {topic:'Water & coasts',art:'art-beach',x:18,y:64,description:'Follow the water from quiet shores to the open sea.'},
  {topic:'Land & ice',art:'art-mountain',x:47,y:30,description:'Head for the heights, icy valleys and wide-open land.'},
