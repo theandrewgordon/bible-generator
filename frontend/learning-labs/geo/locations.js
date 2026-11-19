@@ -91,9 +91,9 @@ function shapeCenter(path){
  if(!path)return null;
  // Evaluate each closed ring and choose a point inside the largest landmass.
  // Bounding-box centers can land in lakes, neighboring states, or the ocean.
- const rings=path.split(/(?=M[\\d.-])/).filter(Boolean);
+ const rings=path.split(/(?=M[\d.-])/).filter(Boolean);
  const shapes=rings.map(ring=>{
-  const vertices=[...ring.matchAll(/[ML](-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)/g)]
+  const vertices=[...ring.matchAll(/[ML](-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)]
    .map(m=>[Number(m[1]),Number(m[2])]);
   if(vertices.length<3)return null;
   let twiceArea=0,cx=0,cy=0;
