@@ -2,6 +2,7 @@ import React,{useEffect,useId,useRef,useState} from 'react';
 import {locationMaps} from './locations.js';
 import {centeredViewport,initialMapViewport,markersViewport,regionViews,scaledViewport,shiftedViewport} from './map-viewport.js';
 import watercolor from './region-maps/location-watercolor.webp';
+import {layoutMarkerCallouts} from './marker-callouts.js';
 import './location-map.css';
 
 export function LocationMap({question,result,onChoose}){
@@ -34,13 +35,18 @@ export function LocationMap({question,result,onChoose}){
  };
  const paint=inDialog=>{
   const key=uid+(inDialog?'-zoom':'');
-  return <svg className="location-map" viewBox={viewport.join(' ')} role="group"
-    aria-label="Geography map with three numbered places. Zoom and pan using the controls below. Small island nations may use approximate locator points.">
+  const {gutter,radius,callouts}=layoutMarkerCallouts(viewport,numbered);
+  const [vx,vy,vw,vh]=viewport;
+  return <svg className="location-map" viewBox={[vx-gutter,vy,vw+2*gutter,vh].join(' ')} role="group"
+    aria-label="Geography map with three numbered arrow callouts placed outside the map. Zoom and pan using the controls below. Small island nations may use approximate locator points.">
    <defs>
     <radialGradient id={key+'-sea'}><stop stopColor="#6ac5cd"/><stop offset=".74" stopColor="#acdbd2"/><stop offset="1" stopColor="#fff1d7"/></radialGradient>
     <clipPath id={key+'-land'}>{Object.entries(paths).map(([id,d])=><path key={id} d={d} clipRule="evenodd"/>)}</clipPath>
+    <clipPath id={key+'-viewport'}><rect x={vx} y={vy} width={vw} height={vh}/></clipPath>
     <filter id={key+'-grain'}><feTurbulence type="fractalNoise" baseFrequency=".42" seed="21" numOctaves="3"/><feColorMatrix type="saturate" values="0"/></filter>
    </defs>
+   <rect x={vx-gutter} y={vy} width={vw+2*gutter} height={vh} fill="#fff4dc"/>
+   <g clipPath={`url(#${key}-viewport)`}>
    <rect {...{x,y,width,height}} fill={`url(#${key}-sea)`}/>
    <image {...{x,y,width,height}} href={watercolor} clipPath={`url(#${key}-land)`} preserveAspectRatio="none"/>
    <g fill="none" stroke="#284d44" strokeOpacity=".78" strokeWidth="1.6" strokeLinejoin="round">
@@ -48,12 +54,21 @@ export function LocationMap({question,result,onChoose}){
    </g>
    <rect {...{x,y,width,height}} filter={`url(#${key}-grain)`} opacity=".1" pointerEvents="none" style={{mixBlendMode:'multiply'}}/>
    {correct&&(paths[correct.id]?<path d={paths[correct.id]} fill="#e8f8a5" fillOpacity=".62" stroke="#205438" strokeWidth="3" fillRule="evenodd"/>:<circle cx={correct.x} cy={correct.y} r="37" fill="none" stroke="#205438" strokeWidth="4" strokeDasharray="5 4" aria-label="Correct small country location"/>)}
-   {numbered.map(pin=><g key={pin.number} transform={`translate(${pin.x},${pin.y})`}
-    className={`location-pin${marked&&pin.number===question.answer?' correct':marked&&pin.number===result.selected?' incorrect':''}`}
-    role={result?undefined:'button'} tabIndex={result?undefined:0} aria-label={`Choose marker ${pin.number}`}
-    onClick={result?undefined:()=>choose(pin.number,inDialog)}
-    onKeyDown={result?undefined:event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();choose(pin.number,inDialog);}}}>
-    <circle r="27"/><text y="1">{pin.number}</text>
+   </g>
+   {callouts.map(pin=><g key={pin.number} className="location-callout">
+    <path d={`M${pin.start.x},${pin.start.y} L${pin.tip.x},${pin.tip.y}`}
+      stroke="#fff8e6" strokeWidth={radius*.2} strokeLinecap="round" fill="none" pointerEvents="none"/>
+    <path d={`M${pin.start.x},${pin.start.y} L${pin.tip.x},${pin.tip.y}`}
+      stroke="#173e58" strokeWidth={radius*.09} strokeLinecap="round" fill="none" pointerEvents="none"/>
+    <polygon points={pin.arrowPoints} fill="#173e58" stroke="#fff8e6" strokeWidth={radius*.04} pointerEvents="none"/>
+    <g transform={`translate(${pin.badge.x},${pin.badge.y})`}
+      className={`location-pin location-callout-badge${marked&&pin.number===question.answer?' correct':marked&&pin.number===result.selected?' incorrect':''}`}
+      role={result?undefined:'button'} tabIndex={result?undefined:0} aria-label={`Choose marker ${pin.number}`}
+      onClick={result?undefined:()=>choose(pin.number,inDialog)}
+      onKeyDown={result?undefined:event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();choose(pin.number,inDialog);}}}>
+      <circle r={pin.radius} strokeWidth={radius*.09}/>
+      <text y={radius*.035} style={{fontSize:radius*1.15}}>{pin.number}</text>
+    </g>
    </g>)}
   </svg>;
  };
