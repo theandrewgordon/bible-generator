@@ -15,6 +15,7 @@ import {ExpeditionMap,TrailMap} from './ExpeditionMap.jsx';
 import './art.css';import './style.css';import './adventure.css';import './board.css';
 import './identity.css';
 import './art-replacements.css';
+const DEFAULT_SESSION_LENGTH=20;
 const all=[...data.quest,...data.compare,...placeQuestions],byId=new Map(all.map(q=>[q.id,q])),termTopics=new Map(data.quest.map(q=>[q.answer.toLowerCase(),q.topic]));
 const placeArtwork=import.meta.glob('./place-art/*.webp',{eager:true,query:'?url',import:'default'});
 const regionalMaps={
@@ -28,7 +29,7 @@ function App(){
  const [s,dispatch]=useReducer(reducer,initial,()=>{try{return restore(localStorage.getItem('faithsparks.geo.v2'))}catch{return initial}});
  const lens=useRef(null),lensTrigger=useRef(null),regionPanel=useRef(null);
  const [inputNotice,setInputNotice]=useState('');
- const [reveal,setReveal]=useState(false),[storage,setStorage]=useState(true),[length,setLength]=useState(5);
+ const [reveal,setReveal]=useState(false),[storage,setStorage]=useState(true),[length,setLength]=useState(DEFAULT_SESSION_LENGTH);
  const [worldOpen,setWorldOpen]=useState(false);
  const branch=placeBranches[s.branch];
  const chooseTopic=value=>{
@@ -49,7 +50,11 @@ function App(){
  const highScore=Math.max(...s.scores), leaders=names.filter((_,i)=>s.scores[i]===highScore);
  const resetScores=<button className="text-button" disabled={!s.scores.some(Boolean)} onClick={()=>dispatch({type:'reset-scores'})}>Reset scores to 0</button>;
  const completeRounds=Math.floor(eligible.length/roster.length);
- const enoughQuestions=s.playMode!=='players'||completeRounds>0;
+ const playerMode=s.playMode==='players';
+ const enoughQuestions=eligible.length>0&&(!playerMode||completeRounds>0);
+ const freshCount=Math.min(DEFAULT_SESSION_LENGTH,playerMode?completeRounds:eligible.length);
+ const freshLabel=freshCount?`Start fresh · ${freshCount} ${playerMode?'per player':freshCount===1?'question':'questions'} →`:'Start fresh →';
+ const startFresh=()=>start(false,s.learner,DEFAULT_SESSION_LENGTH);
  const reviewFor=learner=>reviewIds(s,learner).filter(id=>{
   const card=byId.get(id);
   return !!card&&(branch?card.branch===s.branch&&(place==='all'||card.place===place):!card.branch);
@@ -58,7 +63,7 @@ function App(){
  const start=(review=false,learner=s.learner,count=Number(length))=>{
   if(!review&&!enoughQuestions)return;
   const questionCount=s.playMode==='players'?(count?Math.min(count,completeRounds):completeRounds)*roster.length:count;
-  const ids=review?shuffled(reviewFor(learner)).slice(0,5):selectPracticeIds(eligible,multiplayer?roster.reduce((merged,id)=>{for(const [key,record] of Object.entries(s.progress[id]||{})){const prior=merged[key]||{};merged[key]={right:(prior.right||0)+(record.right||0),assisted:(prior.assisted||0)+(record.assisted||0),wrong:(prior.wrong||0)+(record.wrong||0),skipped:(prior.skipped||0)+(record.skipped||0)}}return merged},{}):s.progress[learner],questionCount);
+  const ids=review?shuffled(reviewFor(learner)).slice(0,DEFAULT_SESSION_LENGTH):selectPracticeIds(eligible,multiplayer?roster.reduce((merged,id)=>{for(const [key,record] of Object.entries(s.progress[id]||{})){const prior=merged[key]||{};merged[key]={right:(prior.right||0)+(record.right||0),assisted:(prior.assisted||0)+(record.assisted||0),wrong:(prior.wrong||0)+(record.wrong||0),skipped:(prior.skipped||0)+(record.skipped||0)}}return merged},{}):s.progress[learner],questionCount);
   if(ids.length)dispatch({type:'start',ids,review,learner});setReveal(false)
  };
  const skipped=Object.values(s.answers).filter(a=>a.outcome==='skipped').length;
@@ -89,7 +94,7 @@ function App(){
   }}>{[1,2,3,4].map(count=><option key={count} value={count}>{count} {count===1?'player':'players'}</option>)}<option value="teams">Two teams</option></select></label>
  </div>
  {s.playMode==='players'&&<ul className="geo-roster" aria-label="Player roster">{names.map((name,i)=><li key={roster[i]}>{name}</li>)}</ul>}
- <ExpeditionMap topic={s.topic||'all'} mode={s.mode} onTopic={chooseTopic} onMode={value=>dispatch({type:'filter',key:'mode',value})} onStart={()=>start(false,s.learner,5)} onResume={()=>dispatch({type:'resume'})} resume={!!s.session&&s.rounds<s.session.ids.length} pending={pending.length} available={enoughQuestions?eligible.length:0} needsMoreQuestions={eligible.length>0&&!enoughQuestions} questionsPerPlayer={s.playMode==='players'?Math.min(5,completeRounds):undefined} onReview={()=>start(true)} worldOpen={worldOpen||!!branch} onWorld={()=>setWorldOpen(true)} regions={Object.entries(placeBranches).map(([id,entry])=><button key={id} aria-pressed={s.branch===id} onClick={()=>{
+ <ExpeditionMap topic={s.topic||'all'} mode={s.mode} onTopic={chooseTopic} onMode={value=>dispatch({type:'filter',key:'mode',value})} onStart={startFresh} onResume={()=>dispatch({type:'resume'})} resume={!!s.session&&s.rounds<s.session.ids.length} pending={pending.length} available={enoughQuestions?eligible.length:0} needsMoreQuestions={eligible.length>0&&!enoughQuestions} startLabel={freshLabel} onReview={()=>start(true)} worldOpen={worldOpen||!!branch} onWorld={()=>setWorldOpen(true)} regions={Object.entries(placeBranches).map(([id,entry])=><button key={id} aria-pressed={s.branch===id} onClick={()=>{
   dispatch({type:'branch',branch:id});
   requestAnimationFrame(()=>regionPanel.current?.focus());
  }}>{entry.name}</button>)}/>
@@ -102,19 +107,19 @@ function App(){
   </select></label>}
   <QuickStart heading={place==='all'?branch.name:place} kicker="PLACE GEOGRAPHY"
    description={`${eligible.length} geography mysteries to explore.`}
-   startLabel={s.playMode==='players'?`Start fresh · ${Math.min(5,completeRounds)} per player →`:'Start fresh · 5 questions →'}
-   disabled={!enoughQuestions} onStart={()=>start(false,s.learner,5)}
+   startLabel={freshLabel}
+   disabled={!enoughQuestions} onStart={startFresh}
    resume={!!s.session&&s.rounds<s.session.ids.length} onResume={()=>dispatch({type:'resume'})}/>
   {!enoughQuestions&&<p role="status">Choose a broader trail so every player gets a turn.</p>}
   {pending.length>0&&<button onClick={()=>start(true)}>Review missed discoveries →</button>}
   </div>
  </section>:null}
- <PracticeOptions><div className="geo-option-grid">{!branch&&<><label>Practice<select value={s.mode} onChange={e=>dispatch({type:'filter',key:'mode',value:e.target.value})}><option value="quest">Vocabulary Quest</option><option value="compare">Compare & Contrast</option></select></label><label>Explore a theme<select value={s.topic||'all'} onChange={e=>dispatch({type:'filter',key:'topic',value:e.target.value})}><option value="all">All landscapes</option>{[...new Set(data.quest.map(q=>q.topic))].map(topic=><option key={topic}>{topic}</option>)}</select></label><label>Trail<select value={s.level} onChange={e=>dispatch({type:'filter',key:'level',value:e.target.value})}><option value="all">All trails</option><option value="easy">Starter trail</option><option value="explorer">Explorer trail</option></select></label></>}<label>Answer with<select value={s.response||'choice'} onChange={e=>dispatch({type:'filter',key:'response',value:e.target.value})}><option value="choice">Multiple choice</option><option value="type">Fill in the blank</option></select></label><label>Session length<select value={length} onChange={e=>setLength(Number(e.target.value))}><option value="5">{s.playMode==='players'?'5 questions per player':'5 questions'}</option><option value="10">{s.playMode==='players'?'10 questions per player':'10 questions'}</option><option value="0">{s.playMode==='players'?'All complete rounds':'Explore the full trail'}</option></select></label></div>
+ <PracticeOptions><div className="geo-option-grid">{!branch&&<><label>Practice<select value={s.mode} onChange={e=>dispatch({type:'filter',key:'mode',value:e.target.value})}><option value="quest">Vocabulary Quest</option><option value="compare">Compare & Contrast</option></select></label><label>Explore a theme<select value={s.topic||'all'} onChange={e=>dispatch({type:'filter',key:'topic',value:e.target.value})}><option value="all">All landscapes</option>{[...new Set(data.quest.map(q=>q.topic))].map(topic=><option key={topic}>{topic}</option>)}</select></label><label>Trail<select value={s.level} onChange={e=>dispatch({type:'filter',key:'level',value:e.target.value})}><option value="all">All trails</option><option value="easy">Starter trail</option><option value="explorer">Explorer trail</option></select></label></>}<label>Answer with<select value={s.response||'choice'} onChange={e=>dispatch({type:'filter',key:'response',value:e.target.value})}><option value="choice">Multiple choice</option><option value="type">Fill in the blank</option></select></label><label>Session length<select value={length} onChange={e=>setLength(Number(e.target.value))}><option value="10">{playerMode?'10 questions per player':'10 questions'}</option><option value={DEFAULT_SESSION_LENGTH}>{DEFAULT_SESSION_LENGTH} questions{playerMode?' per player':''}</option><option value="0">{s.playMode==='players'?'All complete rounds':'Explore the full trail'}</option></select></label></div>
  {s.playMode!=='teams'&&roster.map((id,i)=><label className="geo-field" key={id}>{multiplayer?`Player ${i+1} name`:'Learner’s name'}<input maxLength="24" value={s.learnerNames[id]} onChange={e=>dispatch({type:'learner-name',id,value:e.target.value})}/></label>)}
  {s.playMode==='teams'&&s.names.map((name,i)=><div className="team-edit" key={i}><label>Team {i+1}<input value={name} maxLength="24" onChange={e=>dispatch({type:'name',team:i,value:e.target.value})}/></label>{learnerSelect('geo-team-'+i,s.teamLearners[i],id=>dispatch({type:'team-learner',team:i,id}))}</div>)}
  <button disabled={!eligible.length||!enoughQuestions} onClick={()=>start()}>Start with these options →</button><p className="geo-help">Correct on clue 1 earns 3 points, clue 2 earns 2, clue 3 earns 1. A missed or revealed answer earns 0 and returns for review. Skipping saves a mystery for later without marking it wrong. Comparisons are explained aloud and marked together. Vocabulary questions support multiple choice or fill in the blank. Each learner has their own journal.</p></PracticeOptions>
  {Object.keys(s.progress[s.learner]||{}).length>0?<LearningSummary {...cumulative} title={`${label(s.learner)}’s field notes`} reviewDisabled={!pending.length} onReview={()=>start(true)} notes={[`${Object.keys(s.progress[s.learner]||{}).length} different discoveries visited · ${pending.length} ready for review`,`${Object.values(s.progress[s.learner]||{}).reduce((n,r)=>n+(r.skipped||0),0)} skipped · not counted as mistakes`]}/>:<p className="geo-help">Your field notes will appear here after your first discoveries.</p>}
- </section>:s.screen==='summary'?<section className="case-card geo-home"><section className="expedition-results" aria-label="Expedition scores"><p className="eyebrow">EXPEDITION COMPLETE</p><h2 tabIndex="-1">{multiplayer?(leaders.length>1?'A shared adventure · tied scores!':`${leaders[0]} leads the trail!`):`${s.scores[0]} trail points collected`}</h2><div>{names.map((name,i)=><p key={i}><b>{name}</b><strong>{s.scores[i]} <small>points</small></strong></p>)}</div>{resetScores}<p>{skipped?`${skipped} skipped · no wrong answers recorded for these. Revisit them below.`:'Every mystery on this trail has a field note.'}</p></section><LearningSummary {...counts} notes={Object.entries(s.learnerNames).filter(([id])=>Object.values(s.answers).some(a=>a.learner===id)).map(([id,name])=>`${name}: ${Object.values(s.answers).filter(a=>a.learner===id&&a.outcome==='right').length} on their own`)} onStart={()=>start(false,s.learner,5)} onUndo={s.history.length?()=>dispatch({type:'undo'}):undefined}/>{[...new Set(Object.values(s.answers).map(a=>a.learner))].map(id=><button key={id} disabled={!reviewFor(id).length} onClick={()=>start(true,id)}>Review {label(id)}’s discoveries →</button>)}<button className="text-button" onClick={()=>dispatch({type:'reset'})}>Choose learner / home</button></section>:<>
+ </section>:s.screen==='summary'?<section className="case-card geo-home"><section className="expedition-results" aria-label="Expedition scores"><p className="eyebrow">EXPEDITION COMPLETE</p><h2 tabIndex="-1">{multiplayer?(leaders.length>1?'A shared adventure · tied scores!':`${leaders[0]} leads the trail!`):`${s.scores[0]} trail points collected`}</h2><div>{names.map((name,i)=><p key={i}><b>{name}</b><strong>{s.scores[i]} <small>points</small></strong></p>)}</div>{resetScores}<p>{skipped?`${skipped} skipped · no wrong answers recorded for these. Revisit them below.`:'Every mystery on this trail has a field note.'}</p></section><LearningSummary {...counts} notes={Object.entries(s.learnerNames).filter(([id])=>Object.values(s.answers).some(a=>a.learner===id)).map(([id,name])=>`${name}: ${Object.values(s.answers).filter(a=>a.learner===id&&a.outcome==='right').length} on their own`)} onStart={startFresh} onUndo={s.history.length?()=>dispatch({type:'undo'}):undefined}/>{[...new Set(Object.values(s.answers).map(a=>a.learner))].map(id=><button key={id} disabled={!reviewFor(id).length} onClick={()=>start(true,id)}>Review {label(id)}’s discoveries →</button>)}<button className="text-button" onClick={()=>dispatch({type:'reset'})}>Choose learner / home</button></section>:<>
  <div className="expedition-status"><SessionStatus learner={s.playMode==='teams'?`${names[s.team]} · ${label(person)}`:label(person)} current={s.rounds} total={deck.length}/><button className="text-button" onClick={()=>dispatch({type:'home'})}>Pause practice</button></div>
  {multiplayer?<section className="teams" aria-label={s.playMode==='teams'?'Team scores':'Player scores'}>{names.map((name,i)=><button key={i} aria-pressed={s.team===i} disabled={!!result||reveal} className={'team-banner '+(s.team===i?'active':'')} onClick={()=>dispatch({type:'team',team:i})}><span>{name}<small>{s.team===i?'YOUR TURN':i===(s.team+1)%names.length?'UP NEXT':''}</small></span><strong>{s.scores[i]}<small>points</small></strong></button>)}</section>:<p className="geo-solo-score"><strong>{s.scores[0]}</strong> points</p>}
  <div className="geo-score-actions">{resetScores}</div>

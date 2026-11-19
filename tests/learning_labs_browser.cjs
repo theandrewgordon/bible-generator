@@ -33,6 +33,7 @@ function latinFixture(){
   await page.getByText('Practice options',{exact:true}).click();
   await page.getByLabel('Answer with').selectOption('type');
   await page.getByRole('button',{name:'Start with these options'}).click();
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('faithsparks.geo.v2')).session.ids.length),20);
   await page.getByRole('button',{name:'Read it to me',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('.labs-voice-status')?.textContent.includes('saved'));
   assert.equal(spoken.length,1);assert(spoken[0].text.startsWith('Clue 1.'));assert(!spoken[0].text.includes('Clue 2.'));
