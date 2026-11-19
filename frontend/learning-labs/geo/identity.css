@@ -12,10 +12,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: clamp(180px, 28vw, 350px);
+  min-height: clamp(170px, 22vw, 270px);
   overflow: hidden;
   container-type: inline-size;
-  padding: 18px 0;
+  padding: 10px 0;
   border: 1px solid #aca27f;
   border-radius: 18px;
   background: #f9edca;
@@ -42,7 +42,7 @@
 .atlas-title h1 {
   margin: 0;
   color: #143e48;
-  font: italic 800 clamp(36px, 9.15cqi, 112px)/.94 Alegreya, Georgia, serif;
+  font: italic 800 clamp(34px, 8.2cqi, 88px)/.94 Alegreya, Georgia, serif;
   letter-spacing: -.025em;
   text-shadow: 0 1px #fff9e9;
   white-space: nowrap;
@@ -66,7 +66,7 @@
 }
 
 .on-expedition .atlas-hero {
-  min-height: clamp(164px, 21vw, 248px);
+  min-height: clamp(155px, 18vw, 215px);
 }
 
 .on-expedition .atlas-title h1 {
@@ -76,7 +76,7 @@
 @media (max-width: 680px) {
   .atlas-hero,
   .on-expedition .atlas-hero {
-    min-height: clamp(160px, 28vw, 190px);
+    min-height: clamp(145px, 25vw, 170px);
     justify-content: end;
     padding: 10px 0;
     border-radius: 14px;
@@ -255,9 +255,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) max-content;
   align-items: center;
-  gap: 7px 18px;
-  margin: 0 0 10px;
-  padding: 9px 14px;
+  gap: 4px 12px;
+  margin: 0 0 8px;
+  padding: 7px 12px;
   color: #fff5d9;
   border: 1px solid #aa8a54;
   border-radius: 14px;
@@ -265,16 +265,16 @@
   box-shadow: 0 2px 5px #354b3222;
 }
 .expedition-how-to-title {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: #fff5d9;
-  font: 700 1rem Georgia, serif;
+  display: inline;
+  margin-right: .25em;
+  color: #f4cb80;
+  font: 700 .82rem/1.35 Georgia, serif;
 }
 .expedition-directions {
   grid-column: 1 / -1;
   margin: 0;
   color: #e3eef0;
-  font: 500 .875rem/1.35 system-ui, sans-serif;
+  font: 500 .825rem/1.4 system-ui, sans-serif;
 }
 .expedition-setup .labs-players {
   min-width: 0;
@@ -289,8 +289,8 @@
 }
 .expedition-setup .labs-players legend {
   padding: 0;
-  margin-bottom: 4px;
-  font: 700 1rem Georgia, serif;
+  margin-bottom: 2px;
+  font: 700 .94rem Georgia, serif;
 }
 .expedition-setup .labs-player-choices label {
   border-color: #a7b08b;
@@ -324,8 +324,8 @@
 @media (max-width: 650px) {
   .atlas .expedition-setup {
     grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-    padding: 8px 12px;
+    gap: 5px;
+    padding: 7px 10px;
   }
   .atlas .expedition-setup .geo-field {
     justify-content: flex-start;
