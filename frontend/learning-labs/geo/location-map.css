@@ -60,3 +60,22 @@
  .location-controls button{min-height:40px}
  .location-zoom-status{margin-left:0}
 }
+
+/* Numbered labels stay in parchment gutters; only slim leader arrows cross the map. */
+.location-frame{background:#fff4dc}
+.location-callout{isolation:isolate}
+.location-callout-badge circle{
+ fill:#fff2cd;
+ stroke:#173e58;
+ stroke-width:2.5;
+}
+.location-callout-badge text{fill:#173e58;pointer-events:none}
+.location-callout-badge[role="button"]{cursor:pointer}
+.location-callout-badge[role="button"]:hover circle,
+.location-callout-badge:focus-visible circle{
+ fill:#ffe1a0;
+ stroke:#0f4a75;
+ stroke-width:4;
+}
+.location-callout-badge.correct circle{fill:#c8edab;stroke:#246043}
+.location-callout-badge.incorrect circle{fill:#f6c6a0;stroke:#923e2b}
