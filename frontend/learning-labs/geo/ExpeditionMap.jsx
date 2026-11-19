@@ -2,19 +2,19 @@ import React from 'react';
 import {QuickStart} from '../shared/widgets.jsx';
 const worldTitle='Countries & Continents';
 const places=[
- {topic:'Water & coasts',art:'art-beach',x:18,y:65,description:'Follow the water from quiet shores to the open sea.'},
- {topic:'Land & ice',art:'art-mountain',x:46,y:19,description:'Head for the heights, icy valleys and wide-open land.'},
- {topic:'Living landscapes',art:'art-forest',x:74,y:39,description:'Step into green places and discover what grows there.'},
- {topic:'Man-Made Features',art:'art-canal',x:79,y:76,description:'Explore canals, dams and other features people build.'},
- {topic:'Maps & our planet',art:'art-altitude',iconArt:'art-diagram-compass',x:45,y:78,description:'Find your bearings and see our world in a new way.'},
- {topic:'Changing Earth',art:'art-volcano',x:18,y:22,description:'Look for the forces that shape a changing planet.'}
+ {topic:'Water & coasts',art:'art-beach',x:18,y:67,description:'Follow the water from quiet shores to the open sea.'},
+ {topic:'Land & ice',art:'art-mountain',x:46,y:29,description:'Head for the heights, icy valleys and wide-open land.'},
+ {topic:'Living landscapes',art:'art-forest',x:82,y:42,description:'Step into green places and discover what grows there.'},
+ {topic:'Man-Made Features',art:'art-canal',x:79,y:75,description:'Explore canals, dams and other features people build.'},
+ {topic:'Maps & our planet',art:'art-altitude',iconArt:'art-diagram-compass',x:45,y:79,description:'Find your bearings and see our world in a new way.'},
+ {topic:'Changing Earth',art:'art-volcano',x:18,y:36,description:'Look for the forces that shape a changing planet.'}
 ];
 export function ExpeditionMap({topic,mode,onTopic,onMode,onStart,onResume,resume,pending,onReview,available,needsMoreQuestions,startLabel,worldOpen,onWorld,regions}){
  const place=places.find(p=>p.topic===topic);
  return <section className="expedition-board" aria-label="Choose an expedition">
   <div className="world-map">
    <div className="map-heading"><span>YOUR NEXT ADVENTURE</span><h2>Where shall we explore?</h2><p>Tap a place on the map to choose your trail.</p></div>
-   <svg className="map-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M18 22 C27 7 40 7 46 19 S78 15 74 39 S91 63 79 76 S51 95 45 78 S9 94 18 65 Q45 65 50 50 Q35 38 18 22"/></svg>
+   <svg className="map-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M18 36 C24 28 36 25 46 29 S72 29 82 42 S94 65 79 75 S57 86 45 79 S25 78 18 67 Q24 53 50 50"/></svg>
    {places.map(p=><button key={p.topic} className={'map-stop '+(!worldOpen&&topic===p.topic?'selected':'')} style={{'--x':p.x+'%','--y':p.y+'%'}} aria-pressed={!worldOpen&&topic===p.topic} onClick={()=>onTopic(p.topic)}><span className="map-stop-icon" aria-hidden="true"><span className={p.iconArt||p.art}/></span><span className="map-stop-label">{p.topic.replace(/\band\b/gi,"&")}</span>{!worldOpen&&topic===p.topic&&<span className="map-selected" aria-hidden="true">⚑</span>}</button>)}
    <button className={'map-stop map-stop-world '+(worldOpen?'selected':'')} style={{'--x':'50%','--y':'50%'}} aria-pressed={worldOpen} onClick={onWorld}><span className="map-stop-icon" aria-hidden="true"><span className="art-earth"/></span><span className="map-stop-label">{worldTitle}</span>{worldOpen&&<span className="map-selected" aria-hidden="true">⚑</span>}</button>
    <button className="all-trails" aria-pressed={!worldOpen&&topic==='all'} onClick={()=>onTopic('all')}>✧ Explore everywhere</button>
