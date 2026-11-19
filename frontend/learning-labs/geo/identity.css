@@ -535,3 +535,80 @@
     padding-inline: 3px;
   }
 }
+
+/* Around the World: destination, trail and launch controls in one mission card. */
+.atlas .world-destination-panel {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.atlas .world-destination-panel > p {
+  margin: 0 0 5px;
+  color: #365669;
+  font: 500 13px/1.45 system-ui, sans-serif;
+}
+.atlas .world-destination-panel .geo-branches {
+  gap: 7px;
+  margin: 0 0 7px;
+}
+.atlas .world-trail-controls {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px dashed #bea16b;
+}
+.atlas .world-trail-select {
+  display: grid;
+  gap: 6px;
+  color: #234963;
+  text-align: left;
+  font: 700 14px/1.3 Georgia, serif;
+}
+.atlas .world-trail-select select {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 11px;
+  background: #fff9e9;
+  color: #173e58;
+  border: 2px solid #b29359;
+  border-radius: 10px;
+  font: 600 14px system-ui, sans-serif;
+}
+.atlas .world-trail-count {
+  margin: 0;
+  color: #486047;
+  font: 650 12px system-ui, sans-serif;
+}
+.atlas .world-trail-controls .labs-quick {
+  padding: 2px 0 0 !important;
+  margin: 0;
+}
+.atlas .world-trail-controls .labs-quick h2,
+.atlas .world-trail-controls .labs-quick .labs-kicker,
+.atlas .world-trail-controls .labs-quick > p:not(.labs-kicker) {
+  display: none;
+}
+.atlas .world-trail-controls .labs-primary {
+  width: 100%;
+  min-width: 0 !important;
+  font-size: 16px !important;
+  padding: 10px 12px !important;
+}
+.atlas .world-review-button {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  color: #244b61;
+  background: #fff8e5;
+  border: 2px solid #bb9c60;
+  border-radius: 12px;
+  font: 700 13px/1.3 Georgia, serif;
+}
+.atlas .world-review-button:hover:not(:disabled) {
+  background: #f8e8bd;
+}
+.atlas .world-trail-controls :is(select,button):focus-visible {
+  outline: 3px solid #a26526;
+  outline-offset: 2px;
+}
