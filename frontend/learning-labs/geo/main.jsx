@@ -124,7 +124,7 @@ function App(){
  const chooseMarker=number=>{if(!result&&!reveal)award(number===q.answer?4-s.clue:0,number===q.answer,number)};
  const next=()=>{if(!result)dispatch({type:'skip',id:q.id,points:0,correct:false});dispatch({type:'next',length:deck.length});setReveal(false)};
  const learnerSelect=(id,value,onChange)=><label className="geo-field" htmlFor={id}>Learner<select id={id} value={value} onChange={e=>onChange(e.target.value)}>{profiles().map(player=>[gamePlayerId(player,'geo'),player.name]).map(([id,name])=><option key={id} value={id}>{name||'Learner'}</option>)}</select></label>;
- return <><Family game="geo"/><main className={"atlas "+(s.screen==='play'?'on-expedition':'')}><header className="atlas-hero"><div className="atlas-title"><h1>Geo Detectives!</h1><p>A Geography Adventure</p></div></header>
+ return <><Family game="geo"/><main className={"atlas "+(s.screen==='play'?'on-expedition':'')}><header className="atlas-hero"><div className="atlas-title"><h1><span>Geo</span>{' '}<span>Detectives!</span></h1><p>A Geography Adventure</p></div></header>
  {s.screen==='home'?<section className="geo-home expedition-home">
  <div className="expedition-setup">
   <ExpeditionPlayers state={s} dispatch={dispatch}/>
