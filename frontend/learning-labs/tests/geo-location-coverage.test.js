@@ -44,3 +44,29 @@ test('every state and country can be found on a regional map',()=>{
   }
  }
 });
+
+
+test('map clues use specific directions instead of generic geography filler',()=>{
+ const vague=/look for its location within this part of the world|look for its outline among the other U\.S\. states/i;
+ for(const question of locationQuestions){
+  assert.equal(question.clues.length,3,question.id+' clue count');
+  assert.ok(question.clues.every(clue=>!vague.test(clue)),question.id+' vague clue');
+  const relative=question.clues[1].match(/^Look (northwest|northeast|southwest|southeast|north|south|east|west) of marker ([123]) on this map\.$/);
+  if(!relative)continue; // Hand-written clues are preserved.
+  const second=question.clues[2].match(/^Now look (northwest|northeast|southwest|southeast|north|south|east|west) of marker ([123])\./);
+  assert.ok(second,question.id+' needs a second concrete directional clue');
+  const answerNumber=question.locations.indexOf(question.target)+1;
+  assert.notEqual(Number(relative[2]),answerNumber,question.id+' compares itself');
+  assert.notEqual(Number(second[2]),answerNumber,question.id+' compares itself');
+  assert.notEqual(relative[2],second[2],question.id+' should compare distinct markers');
+  const [ ,tx,ty]=locationMaps[question.branch].points[question.target];
+  for(const [,direction,number] of [relative,second]){
+   const [,x,y]=locationMaps[question.branch].points[question.locations[Number(number)-1]];
+   const dx=tx-x,dy=ty-y;
+   if(direction.includes('north'))assert.ok(dy<0,question.id+' north is wrong');
+   if(direction.includes('south'))assert.ok(dy>0,question.id+' south is wrong');
+   if(direction.includes('east'))assert.ok(dx>0,question.id+' east is wrong');
+   if(direction.includes('west'))assert.ok(dx<0,question.id+' west is wrong');
+  }
+ }
+});
