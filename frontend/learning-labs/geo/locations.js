@@ -155,11 +155,29 @@ export const locationQuestions=Object.entries(completeLocationRows).flatMap(([br
  const places=rows.map(row=>row.name).filter(name=>locationMaps[branch].points[name]);
  return places.map((target,index)=>{
   const correctIndex=(index+1)%3;
-  const locations=[places[(index+7)%places.length],places[(index+19)%places.length]];
-  // Prevent accidental duplicate choices in a future shorter region.
-  if(locations[0]===target)locations[0]=places[(index+1)%places.length];
-  if(locations[1]===target||locations[1]===locations[0])locations[1]=places[(index+2)%places.length];
-  locations.splice(correctIndex,0,target);
+  const point=name=>locationMaps[branch].points[name];
+  const distance=(a,b)=>Math.hypot(point(a)[1]-point(b)[1],point(a)[2]-point(b)[2]);
+  const locations=[target];
+  // Numbered locator circles have a 27-unit radius. Keep their centers apart
+  // so small neighboring countries and states remain independently tappable.
+  const candidates=places.slice(index+7).concat(places.slice(0,index+7))
+   .filter(name=>name!==target);
+  for(const name of candidates){
+   if(locations.every(other=>distance(name,other)>=68))locations.push(name);
+   if(locations.length===3)break;
+  }
+  // In exceptionally crowded map regions, prefer the farthest remaining point.
+  while(locations.length<3){
+   const best=candidates.filter(name=>!locations.includes(name))
+    .sort((a,b)=>Math.min(...locations.map(x=>distance(b,x)))-Math.min(...locations.map(x=>distance(a,x))))[0];
+   if(!best)break;
+   locations.push(best);
+  }
+  locations.splice(0,locations.length,...[
+   ...locations.filter(name=>name!==target).slice(0,correctIndex),
+   target,
+   ...locations.filter(name=>name!==target).slice(correctIndex),
+  ]);
   const answer=String(correctIndex+1);
   const row=rows.find(row=>row.name===target);
   const clues=entries[target]||[
