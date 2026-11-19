@@ -52,7 +52,7 @@ topics" here means: make sure nothing in this page breaks the create page, and
 fix any HTML errors that could cause layout/script issues site-wide. #} {% if
 not is_signed_in %}
 <div class="card-lite sign-in-note">
-  <span>Sign in to download games and save them in My Prints.</span>
+  <span>Sign in to download games and save them in My Library.</span>
   <a
     class="button ghost"
     href="{{ url_for('google.login', next=url_for('games')) }}"

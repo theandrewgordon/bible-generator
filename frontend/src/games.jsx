@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 import './games.css';
+import {StatusPanel} from './ui.jsx';
+import {FileReady,receiveDownload} from './file-ready.jsx';
 const mount = document.getElementById('game-word-controls');
 if (mount) {
   const form = mount.closest('form');
@@ -23,6 +25,9 @@ if (mount) {
     const [reviewed, setReviewed] = useState(false);
     const [pending, setPending] = useState(false);
     const [creating, setCreating] = useState(false);
+    const [ready,setReady] = useState(null);
+    const [downloadError,setDownloadError] = useState('');
+    useEffect(()=>()=>{if(ready)URL.revokeObjectURL(ready.url);},[ready]);
     const generating = useRef(false);
     const [message, setMessage] = useState('Review your word list before creating the game.');
     const [offset, setOffset] = useState(0);
@@ -46,23 +51,27 @@ if (mount) {
           invalidate();
         }
       };
-      let restoreTimer;
       const restore = () => {generating.current = false; setCreating(false); form.removeAttribute('aria-busy');};
-      const submit = event => {
+      const submit = async event => {
         if (isWord() && (!field('references').value.trim() || !words().length || !approval.current || request.current)) {
           event.preventDefault(); setMessage('Add references and words, then explicitly review the list before creating.');
           field('confirmWords')?.focus(); return;
         }
         if (generating.current) {event.preventDefault(); return;}
-        generating.current = true; setCreating(true); form.setAttribute('aria-busy', 'true');
-        // Native file downloads don't navigate. Retain the existing timed recovery.
-        restoreTimer = window.setTimeout(restore, 12000);
+        event.preventDefault();
+        setDownloadError(''); generating.current = true; setCreating(true); form.setAttribute('aria-busy', 'true');
+        try{
+          const payload=new FormData(form);
+          const response=await fetch(form.action,{method:'POST',body:payload,credentials:'same-origin',headers:{Accept:'application/pdf, application/zip'}});
+          setReady(await receiveDownload(response,'bible-game'));setMessage('Your game is ready to print.');
+        }catch(error){setDownloadError(error.message||'Could not create your game. Your choices are preserved; try again.');}
+        finally{restore();}
       };
       window.addEventListener('pageshow', restore);
       const shuffle = () => setOffset(current => current + 1);
       form.addEventListener('input', edit); form.addEventListener('change', edit); form.addEventListener('submit', submit);
       field('shuffleTopics')?.addEventListener('click', shuffle);
-      return () => {window.clearTimeout(restoreTimer); window.removeEventListener('pageshow', restore); form.removeEventListener('input', edit); form.removeEventListener('change', edit); form.removeEventListener('submit', submit); field('shuffleTopics')?.removeEventListener('click', shuffle); request.current?.abort();};
+      return () => {window.removeEventListener('pageshow', restore); form.removeEventListener('input', edit); form.removeEventListener('change', edit); form.removeEventListener('submit', submit); field('shuffleTopics')?.removeEventListener('click', shuffle); request.current?.abort();};
     }, []);
     useEffect(() => {
       field('wordCreateFields').style.display = wordMode ? 'block' : 'none';
@@ -105,6 +114,7 @@ if (mount) {
     const pool = (wordMode ? pools.word : pools.match);
     const picks = Array.from({length:Math.min(6,pool.length)}, (_, index) => pool[(offset + index) % pool.length]);
     return <>
+      {document.getElementById('game-ready')&&createPortal(<>{downloadError&&<StatusPanel error>{downloadError}</StatusPanel>}<FileReady file={ready} library={false} onEdit={()=>{setReady(null);field('references').focus();}} /></>,document.getElementById('game-ready'))}
       {createPortal(<>{picks.map((item,index) => <button key={`${item.label}-${index}`} type="button" className="pill ghost topic-pill" onClick={() => topic(item)}>{item.label}</button>)}</>, field('suggestedTopicList'))}
       <div className="game-word-actions"><button type="button" className="button ghost" disabled={pending} onClick={build}>{pending ? 'Building…' : 'Build word list'}</button><button type="button" className="button ghost" onClick={() => {wordArea.value=''; invalidate('List cleared. Build or enter a new list.');}}>Clear list</button></div>
       <p role="status" aria-live="polite">{message}</p>

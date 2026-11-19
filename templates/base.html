@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <meta name="task-owner" content="{{ task_owner|default('guest') }}">
+    <script src="{{ url_for('static', filename='js/tool-controls.js', v=static_v) }}" defer></script>
     <meta name="csrf-token" content="{{ csrf_token() }}" />
 
     <meta charset="UTF-8" />
@@ -59,6 +61,7 @@
       content="black-translucent"
     />
     <meta name="apple-mobile-web-app-title" content="Faith Sparks" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='product-journeys.css', v=static_v) }}" />
     <link rel="icon" href="{{ favicon_url }}" />
     <link
       rel="icon"
@@ -399,10 +402,14 @@
         const btn = document.getElementById("menuToggle");
         const nav = document.getElementById("mainNav");
         if (!btn || !nav) return;
+        const mobileNav = window.matchMedia("(max-width: 880px)");
         function setOpen(open) {
           document.body.classList.toggle("nav-open", !!open);
           btn.setAttribute("aria-expanded", open ? "true" : "false");
+          nav.inert = mobileNav.matches && !open;
         }
+        setOpen(false);
+        mobileNav.addEventListener("change", () => setOpen(false));
         btn.addEventListener("click", () =>
           setOpen(!document.body.classList.contains("nav-open"))
         );
@@ -410,7 +417,7 @@
           if (e.target.closest("a")) setOpen(false);
         });
         document.addEventListener("keydown", (e) => {
-          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Escape" && document.body.classList.contains("nav-open")) { setOpen(false); btn.focus(); }
         });
       });
 
@@ -443,17 +450,17 @@
       }
       window.refreshUsageChip = refreshUsageChip;
 
-      if (sessionStorage.getItem("genPending") === "1") {
+      try { if (sessionStorage.getItem("genPending") === "1") {
         sessionStorage.removeItem("genPending");
         setTimeout(refreshUsageChip, 1200);
         setTimeout(refreshUsageChip, 3500);
         setTimeout(refreshUsageChip, 7000);
-      }
+      } } catch {}
       addEventListener("focus", () => {
-        if (sessionStorage.getItem("genPendingFocus") === "1") {
+        try { if (sessionStorage.getItem("genPendingFocus") === "1") {
           sessionStorage.removeItem("genPendingFocus");
           refreshUsageChip();
-        }
+        } } catch {}
       });
     })();
   </script>
@@ -461,9 +468,9 @@
   <body class="{% if request.path.startswith('/admin') %}admin{% endif %}">
     <!-- Apply saved theme ASAP to avoid flash -->
     <script>
-      if (localStorage.getItem("theme") === "dark") {
+      try { if (localStorage.getItem("theme") === "dark") {
         document.body.classList.add("dark");
-      }
+      } } catch {}
     </script>
     {% if _meta_pixel_enabled %}
     <noscript>
@@ -616,7 +623,8 @@
         <a href="/churches">Churches &amp; Small Groups</a>
         <a href="/prepare">Prepare</a>
         <a href="/play">Play</a>
-        <a href="/labs">Labs</a>
+        <a href="/labs">Labs · Plus</a>
+        <a href="/settings">Settings</a>
         <a href="/verse-of-the-week">Verse of the Week</a>
         <a href="/scripture-attribution">Scripture Attribution</a>
         <a href="/terms">Terms</a>
@@ -729,11 +737,12 @@
       (function () {
         const selects = Array.from(document.querySelectorAll(".version-pref"));
         if (!selects.length) return;
-        const saved = localStorage.getItem("preferredVersion") || "web";
+        let saved = "web";
+        try { saved = localStorage.getItem("preferredVersion") || "web"; } catch {}
         selects.forEach((sel) => {
-          sel.value = saved;
+          if ([...sel.options].some(option => !option.disabled && option.value === saved)) sel.value = saved;
           sel.addEventListener("change", () => {
-            localStorage.setItem("preferredVersion", sel.value);
+            try { localStorage.setItem("preferredVersion", sel.value); } catch {}
             selects.forEach((other) => {
               if (other !== sel) other.value = sel.value;
             });

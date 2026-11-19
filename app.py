@@ -272,6 +272,9 @@ def _compute_static_version() -> str:
     latest = 0.0
     for rel in (
         "static/theme.css",
+        "static/product-journeys.css",
+        "static/js/tool-controls.js",
+        "static/dist/learning-home/learning-home.js",
         "static/darkmode.js",
         "static/admin.css",
         "static/bible_bee.css",
@@ -446,7 +449,7 @@ def sitemap_xml():
     # Only pages a signed-out visitor (and a crawler) can actually open.
     paths = [
         "/", "/about", "/start-here", "/families", "/churches", "/prepare", "/lesson-pack",
-        "/generate", "/browse", "/play", "/family-game-night", "/same-brain",
+        "/generate", "/browse", "/play", "/family-game-night",
         "/verse-of-the-week", "/plus", "/terms", "/privacy", "/copyright",
     ]
     try:  # public collection pages (the same list /browse shows visitors)
@@ -821,6 +824,8 @@ def require_labs_access():
             return redirect(url_for("start_google_login", next=request.full_path.rstrip("?")))
         return "Sign in to access Faith Sparks Labs.", 401
     if not is_admin_email(email) and not has_active_plus(get_user_doc(email)):
+        if request.method in {"GET", "HEAD"} and not request.path.startswith("/static/"):
+            return render_template("labs_access.html", continue_path=request.full_path.rstrip("?")), 403
         return "Faith Sparks Labs requires an active Plus membership.", 403
     secret = app.secret_key
     if isinstance(secret, str):
@@ -11365,3 +11370,8 @@ def admin_users_reset_usage(uid):
 def admin_users_delete(uid):
     from faithsparks.views.admin.users import admin_users_delete as _impl
     return _impl(uid)
+
+@app.context_processor
+def product_journey_context():
+    identity = (session.get("user_email") or "").strip().casefold()
+    return {"task_owner": hashlib.sha256(identity.encode()).hexdigest() if identity else "guest"}

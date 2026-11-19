@@ -263,12 +263,13 @@ def test_family_game_night_free_setup_has_safe_defaults_and_mobile_controls():
     assert b'name="difficulty" value="whole_family" checked' in page.data
     assert page.data.count(b'name="categories"') == 6
     assert b"up to six players" in page.data
-    assert b"Start recommended game" in page.data
+    assert b"Create game with these devices" in page.data
     assert b'name="quick_start" value="1"' in page.data
     assert b"Customize devices, scoring, length, modes, and difficulty" in page.data
 
 
-def test_family_game_night_quick_start_builds_safe_defaults():
+@pytest.mark.parametrize("control", [None, "couch", "team_auto", "hosted"])
+def test_family_game_night_quick_start_builds_safe_defaults(control):
     from faithsparks.views import act_it_out
 
     host = app.test_client()
@@ -276,13 +277,13 @@ def test_family_game_night_quick_start_builds_safe_defaults():
     created = _post(
         host,
         "/family-game-night/create",
-        data={"csrf_token": CSRF, "quick_start": "1"},
+        data={"csrf_token": CSRF, "quick_start": "1", **({"control_mode":control} if control else {})},
     )
 
     assert created.status_code == 302
     code = created.headers["Location"].rsplit("/", 1)[-1]
     room = act_it_out._get_room(code)
-    assert room["control_mode"] == "team_auto"
+    assert room["control_mode"] == (control or "team_auto")
     assert room["round_count"] == 10
     assert room["game_mode"] == "mixed"
     assert room["difficulty"] == "whole_family"

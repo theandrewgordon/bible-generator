@@ -1,3 +1,4 @@
+from faithsparks.util.navigation import safe_return_path
 from faithsparks.services.users import strongest_plan
 import os
 import hashlib
@@ -318,6 +319,9 @@ def _label_price(info: Optional[dict], interval: str) -> None:
 
 
 def plus_pricing():
+    next_path = safe_return_path(request.args.get("next"))
+    if next_path:
+        session["product_return"] = next_path
     # Capture share link parameters and persist for checkout + analytics.
     incoming_params = {}
     param_map = {
@@ -398,6 +402,7 @@ def plus_pricing():
             member = {}
     return render_template(
         "plus.html",
+        continue_path=safe_return_path(session.get("product_return")),
         has_subscription=_has_paid_subscription(member),
         prices=prices,
         meta=meta,
@@ -597,12 +602,13 @@ def _create_checkout_session(user_email):
     promo_str = (session.get("promo") or request.form.get("promo") or "").strip()
     promo_id = _find_promotion_code_id(promo_str) if promo_str else None
 
+    continue_path = safe_return_path(session.get("product_return"))
     create_kwargs = {
         "mode": "subscription",
         "customer": customer,
         "line_items": [{"price": price_id, "quantity": 1}],
         "success_url": url_for("plus_success", _external=True) + "?session_id={CHECKOUT_SESSION_ID}",
-        "cancel_url": url_for("plus_pricing", _external=True),
+        "cancel_url": url_for("plus_pricing", next=continue_path, _external=True),
         "metadata": session_metadata,
         "subscription_data": subscription_data,
         # Auto-renewal disclosure shown next to the Subscribe button.
@@ -732,7 +738,7 @@ def plus_success():
             }
         except Exception:
             traceback.print_exc()
-    return render_template("plus_success.html", plan=plan_context)
+    return render_template("plus_success.html", plan=plan_context, continue_path=safe_return_path(session.get("product_return")))
 
 
 def billing_portal():

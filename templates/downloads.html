@@ -37,7 +37,7 @@ endblock %} {% block content %}
           name="pack_id"
           value="{{ pack.id or pack['id'] }}"
         />
-        <button type="submit" class="button">Save to My Prints</button>
+        <button type="submit" class="button">Save to My Library</button>
       </form>
       {% else %}
       <p class="muted small" style="margin: 0">
@@ -45,7 +45,7 @@ endblock %} {% block content %}
         <a href="{{ url_for('google.login', next=url_for('downloads')) }}"
           >Sign in</a
         >
-        to save it to My Prints.
+        to save it to My Library.
       </p>
       {% endif %}
     </div>

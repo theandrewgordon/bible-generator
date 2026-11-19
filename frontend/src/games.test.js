@@ -8,7 +8,7 @@ function setup(){
  <textarea id="references">John 3:16</textarea><select id="version"><option value="web">WEB</option><option value="kjv">KJV</option></select><select id="difficulty"><option value="standard">Standard</option><option value="hard">Hard</option></select>
  <input id="title"><input id="theme"><p id="gameTypeHelp"></p><p id="matchItemsSummary"></p><p id="matchItemsLabel"></p><p id="topicHelp"></p><div id="matchCreateFields"></div>
  <div id="suggestedTopicList"></div><button type="button" id="shuffleTopics">Shuffle</button>
- <div id="wordCreateFields"><div id="game-word-controls"></div><textarea id="gameWords" name="gameWords">Faith\nGrace</textarea></div><button type="submit" id="createGameBtn">Create game</button>
+ <div id="game-ready"></div><div id="wordCreateFields"><div id="game-word-controls"></div><textarea id="gameWords" name="gameWords">Faith\nGrace</textarea></div><button type="submit" id="createGameBtn">Create game</button>
  </form><script type="application/json" id="matchTopicsData">[]</script><script type="application/json" id="storyTopicsData">[{"label":"Hope","refs":"Psalm 23","words":["Hope"]}]</script>`,{url:'https://example.test/games/create',runScripts:'outside-only'});
 }
 const load=w=>w.eval(pageBundle('games'));
@@ -45,6 +45,19 @@ test('successful suggestions still require review; direct submit cannot bypass i
   assert.equal(d.getElementById('gameWords').value,'Mercy\nPeace');assert.equal(d.getElementById('confirmWords').checked,false);
   const event=new w.Event('submit',{cancelable:true,bubbles:true});d.querySelector('form').dispatchEvent(event);assert.equal(event.defaultPrevented,true);
   d.getElementById('confirmWords').click();await settle();
-  const accepted=new w.Event('submit',{cancelable:true,bubbles:true});d.querySelector('form').dispatchEvent(accepted);assert.equal(accepted.defaultPrevented,false);
+  const accepted=new w.Event('submit',{cancelable:true,bubbles:true});d.querySelector('form').dispatchEvent(accepted);assert.equal(accepted.defaultPrevented,true);await settle();assert.match(d.getElementById('game-ready').textContent,/No game was returned/);
+ }finally{w.close();}
+});
+test('matching-game download errors stay visible and retry exposes shared ready controls',async()=>{
+ const dom=setup(),w=dom.window,d=w.document;let release,calls=0;
+ d.getElementById('gameType').value='match';w.HTMLAnchorElement.prototype.click=()=>{};
+ w.URL.createObjectURL=()=> 'blob:test-game';w.URL.revokeObjectURL=()=>{};
+ w.fetch=()=>{calls++;return new Promise(resolve=>release=resolve);};
+ try{
+  load(w);await settle();const submit=()=>d.querySelector('form').dispatchEvent(new w.Event('submit',{cancelable:true,bubbles:true}));
+  submit();submit();await settle();assert.equal(calls,1);assert.equal(d.getElementById('createGameBtn').disabled,true);
+  release(new Response('Sign in again',{status:403,headers:{'Content-Type':'text/plain'}}));await settle();assert.match(d.getElementById('game-ready').textContent,/Sign in again/);assert.equal(d.getElementById('createGameBtn').disabled,false);
+  submit();release(new Response('%PDF-test',{headers:{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="game.pdf"'}}));await settle();
+  assert.match(d.getElementById('game-ready').textContent,/Your file is ready/);assert.equal(d.querySelector('a[download]').download,'game.pdf');assert.equal(d.querySelector('a[href="/prints"]'),null);
  }finally{w.close();}
 });

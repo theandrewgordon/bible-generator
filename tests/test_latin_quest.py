@@ -105,11 +105,11 @@ def test_failures_do_not_expose_provider_details(client, monkeypatch):
     r=post(client)
     assert r.status_code==200 and r.headers['X-TTS-Cache']=='UNCACHED'
 
-def test_latin_lab_is_discoverable_and_noindexed():
+def test_latin_lab_is_discoverable_and_noindexed(plus_visitor):
     from app import app
     app.config.update(TESTING=True)
     with app.test_client() as c:
-        assert b'/labs/latin-quest' in c.get('/labs').data
+        assert b'/labs/learningadventure/latin' in c.get('/labs/learningadventure').data
         response=c.get('/labs/latin-quest')
         assert response.status_code==200
         assert b'Latin Quest' in response.data and b'Hands-free' in response.data
@@ -165,7 +165,7 @@ def test_full_approved_decks_follow_student_flow(tmp_path):
     assert result.stdout.count('Full approved-deck playthrough:') == 12
 
 
-def test_page_uses_content_versioned_scripts():
+def test_page_uses_content_versioned_scripts(plus_visitor):
     from app import app
     with app.test_client() as client:
         response = client.get('/labs/latin-quest')

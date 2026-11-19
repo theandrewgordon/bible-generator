@@ -5,8 +5,8 @@
 {% set hero_images = [hero_primary_image] %} {% set hero_og_image =
 hero_images[0] %} {% if hero_og_image and not hero_og_image.startswith('http')
 %} {% set hero_og_image = request.url_root.rstrip('/') ~ hero_og_image %} {%
-endif %} {% set hero_cta_text = site_content.home_cta_text if positioning_v2 and site_content.home_cta_text else 'Start with your family' %} {% set hero_cta_url =
-site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else url_for('public.families') %}
+endif %} {% set hero_cta_text = site_content.home_cta_text if positioning_v2 and site_content.home_cta_text else 'Make today’s worksheet' %} {% set hero_cta_url =
+site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else url_for('generate') %}
 {% set description = "Simple Scripture-centered tools for homeschool mornings, family worship, Bible memory, and meaningful time together." %}
 {% set og_description = "Bring Scripture into your family’s real week with less prep and more meaningful time together." %}
 {% set og_image = hero_og_image %}
@@ -551,7 +551,9 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
       <a class="button primary" href="{{ hero_cta_url }}"
         >{{ hero_cta_text }}</a
       >
-      <a class="button ghost" href="{{ url_for('public.churches') }}">Leading a church or small group?</a>
+      <a class="button ghost" href="{{ url_for('public.lesson_pack', mode='family') }}">Plan a Scripture week</a>
+      <a class="button ghost" href="{{ url_for('act_it_out.family_game_night_setup') }}">Play together</a>
+      <a class="button ghost" href="{{ url_for('worship') }}">Prepare worship</a>
     </div>
     <div class="hero-stat-row">
       <div class="hero-stat">
@@ -577,7 +579,7 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
       </div>
     </div>
     <p class="muted small cta-note">
-      Start with the family path, or jump directly to the task you need.
+      Choose a task above, or explore tools for your family or church.
       <a href="{{ url_for('public.start_here') }}">Start here</a>.
     </p>
     {% if proverb_of_day %}
@@ -616,7 +618,7 @@ site_content.home_cta_url if positioning_v2 and site_content.home_cta_url else u
 </section>
 
 <section class="how-it-works" id="how-it-works">
-  <h2>What would help today?</h2>
+  <h2>What would help today?</h2><div id="continue-last-tool"></div>
   <div class="how-grid">
     <article class="how-step">
       <h3>Prepare</h3>

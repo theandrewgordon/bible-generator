@@ -28,7 +28,7 @@ from faithsparks.services.firestore import db
 from faithsparks.services.account_operations import generation_guard
 from faithsparks.services.storage import signed_url_for_path
 from faithsparks.util.request_utils import get_client_ip
-from faithsparks.products import MATURITY, products_for, products_for_audience, product_is_available
+from faithsparks.products import MATURITY, products_for, products_for_audience, product_is_available, learning_adventures
 
 
 bp = Blueprint('public', __name__)
@@ -247,6 +247,7 @@ def play():
     return render_template('play.html', products=products_for('play'))
 
 
+@bp.get('/labs/learningadventure/math')
 @bp.get('/labs/math-fact-adventure')
 @bp.get('/labs/math-fact-rally')
 def math_fact_rally():
@@ -260,6 +261,7 @@ def math_fact_rally():
     return response
 
 
+@bp.get('/labs/learningadventure/grammar')
 @bp.get('/labs/grammar-grove')
 def grammar_grove():
     """Original browser-based English grammar and diagramming game."""
@@ -272,6 +274,7 @@ def grammar_grove():
     return response
 
 
+@bp.get('/labs/learningadventure/geo')
 @bp.get('/labs/geo-detectives')
 def geo_detectives():
     """Standalone illustrated geography practice in Faith Sparks Labs."""
@@ -288,7 +291,7 @@ def geo_detectives():
 def labs():
     return render_template(
         'labs.html',
-        products=products_for('labs'),
+        products=tuple(product for product in products_for('labs') if product.get('group') != 'learning'),
         maturity_labels=MATURITY,
         noindex=True,
     )
@@ -1412,7 +1415,7 @@ def lesson_pack():
         available_versions = available_lesson_pack_versions()
         version_prefill = (request.args.get('version') or 'web').strip().lower()
         age_prefill = (request.args.get('age') or '6-8').strip()
-        mode_prefill = (request.args.get('mode') or 'house-church').strip().lower()
+        mode_prefill = (request.args.get('mode') or 'family').strip().lower()
         try:
             minutes_prefill = int(request.args.get('minutes') or 40)
         except (TypeError, ValueError):
@@ -1437,6 +1440,7 @@ def lesson_pack():
             lesson_pack_modes=LESSON_PACK_MODES,
             available_versions=available_versions,
             selectable_versions=selectable_lesson_pack_versions(),
+            selection_fields=list(request.args),
             selection_from_url=any(key in request.args for key in ('verse', 'version', 'age', 'cursive', 'mode', 'minutes', 'coloring')),
             lesson_pack_signed_in=_is_signed_in(),
             proverb_of_day=get_proverb_of_day(),
@@ -1568,7 +1572,7 @@ def lesson_pack_download(slug):
     if pdf_path.exists():
         return send_file(
             pdf_path,
-            as_attachment=True,
+            as_attachment=request.args.get("preview") != "1",
             download_name=f'{slug}.pdf',
             mimetype='application/pdf',
         )
@@ -1622,3 +1626,17 @@ def learning_voice_session():
 def learning_voice_tts():
     from faithsparks.services.lab_voice import speak
     return speak()
+
+@bp.get('/labs/learningadventure')
+@bp.get('/labs/learningadventure/')
+def learning_adventure():
+    return render_template('learning_adventure.html', adventures=learning_adventures(), noindex=True)
+
+@bp.get('/settings')
+def settings():
+    return render_template('settings.html')
+
+@bp.get('/labs/learningadventure/latin')
+def learning_adventure_latin():
+    from faithsparks.views.latin_quest import page
+    return page()

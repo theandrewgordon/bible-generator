@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block title %}Labs Access | Faith Sparks{% endblock %}
+{% block content %}<section class="journey-panel journey-narrow">
+<p class="product-kicker">Included with Plus</p><h1>Keep exploring with Faith Sparks Labs</h1>
+<p>Learning Adventure, WeekFlow, and the other Labs tools are included with an active Plus membership. Your current account does not have access yet.</p>
+<p>Your destination will be kept while you review membership. Learning progress stays on this device and is separate for each family account.</p>
+<div class="journey-actions"><a class="button primary" href="{{ url_for('plus_pricing', next=continue_path) }}">See Plus membership</a><a class="button ghost" href="{{ url_for('public.prepare') }}">Use free preparation tools</a></div>
+<p class="small muted">Already a member? Check that you signed in with the Google account used for your membership.</p></section>{% endblock %}

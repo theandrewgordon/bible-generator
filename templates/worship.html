@@ -413,6 +413,8 @@
 
 <!-- ── This Week's Set ── -->
 <div class="ws-set-card" style="margin-top:0">
+  <nav class="journey-service-steps" aria-label="Service preparation"><a href="#set-list">1. Prepare</a><button type="submit" form="build-form">2. Review slides</button><a href="#start-live-btn">3. Connect display &amp; lead</a></nav>
+  <p id="service-next-step" role="status" class="ws-set-help">Next: add an item to prepare your service.</p>
   <p class="ws-kicker">Step 1</p><h2>This service</h2><p class="ws-set-help">Add items from the library, then drag them into order.</p>
 
   <form id="build-form" action="{{ url_for('worship_deck_review') }}" method="post">
@@ -941,6 +943,8 @@
         return [song.title, song.version].filter(Boolean).join(' · ');
       }).join('  •  ');
     }
+    var nextStep=document.getElementById('service-next-step');
+    if(nextStep)nextStep.textContent=hasItems?'Next: review the exact slides. Then choose Go live to connect the audience display and remote.':'Next: add an item to prepare your service.';
     buildBtn.disabled = !hasItems;
     if (startLiveBtn) startLiveBtn.disabled = !hasItems;
     var downloadBtn = document.getElementById('download-btn');

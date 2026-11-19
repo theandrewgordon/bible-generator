@@ -1266,6 +1266,8 @@ body.dark,
   }
   .logo-nav > .logo { justify-self: start; }
   .logo-nav > .menu-toggle { justify-self: end; }
+  .nav-links .mobile-only { display: block; }
+  .nav-links .profile-summary { min-height: 44px; padding: 10px 12px; }
   .nav-links .nav-signin,
   .nav-links .nav-theme-mobile {
     display: block;

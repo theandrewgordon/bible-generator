@@ -7,6 +7,7 @@ site_content.plus_banner_text %}
 </div>
 {% endif %}
 {% set _q = {} %}
+{% if continue_path %}{% set _ = _q.update({'next': continue_path}) %}{% endif %}
 {% if trial_code %}{% set _ = _q.update({'trial': trial_code}) %}{% endif %}
 {% if promo_code %}{% set _ = _q.update({'promo': promo_code}) %}{% endif %}
 {% if selected_plan %}{% set _ = _q.update({'plan': selected_plan}) %}{% endif %}
@@ -36,7 +37,7 @@ site_content.plus_banner_text %}
     </p>
     <ul class="value-props small">
       <li>✨ Higher monthly generate limits</li>
-      <li>Access to subscriber packs</li>
+      <li>Subscriber packs and Learning Adventure in Labs</li>
       <li>Occasional collection giveaways</li>
     </ul>
     <div class="hero-thumbs" aria-hidden="true">
@@ -92,8 +93,12 @@ site_content.plus_banner_text %}
   Family Game Night Complete is a separate $19 one-time purchase; Plus Family and Plus Classroom include it.
 </p>
 
+<section class="journey-panel" aria-labelledby="membership-includes"><h2 id="membership-includes">Choose the access you need</h2>
+<div class="journey-task-grid"><div><h3>Free</h3><p>Try a worksheet, print today’s proverb, or host a free Family Game Night. Players join without accounts.</p></div><div><h3>Plus</h3><p>Higher monthly creation limits, subscriber bundles, Learning Adventure and the other Labs tools, plus Complete Family Game Night while membership is active.</p></div><div><h3>Game Night only</h3><p>The $19 one-time unlock is for Complete Family Game Night. It does not unlock Labs or a Plus subscription.</p></div></div>
+{% if continue_path %}<p>Your destination is saved. You can continue after membership is confirmed.</p>{% endif %}</section>
 <section class="plans">
   <form class="invite-form" method="get" action="{{ url_for('plus_pricing') }}">
+    {% if continue_path %}<input type="hidden" name="next" value="{{ continue_path }}">{% endif %}
     <label class="invite-label" for="trialInput">Invite code</label>
     <div class="invite-row">
       <input
@@ -163,7 +168,7 @@ site_content.plus_banner_text %}
       {% endif %}
 
       <ul class="plan-points">
-        <li>15 generates per month</li>
+        <li>15 worksheet or printable-game creations per month</li>
         <li>Subscriber-only packs included</li>
         <li>Occasional free collection giveaways</li>
       </ul>

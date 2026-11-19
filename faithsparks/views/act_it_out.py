@@ -1196,7 +1196,7 @@ def create_family_game_night_room():
     quick_start = request.form.get("quick_start") == "1"
 
     play_style = "teams" if quick_start else (request.form.get("play_style") or "").strip()
-    control_mode = "team_auto" if quick_start else (request.form.get("control_mode") or "hosted").strip()
+    control_mode = (request.form.get("control_mode") or ("team_auto" if quick_start else "hosted")).strip()
     game_mode = "mixed" if quick_start else (request.form.get("game_mode") or "").strip()
     difficulty = "whole_family" if quick_start else (request.form.get("difficulty") or "").strip()
     pace = "standard" if quick_start else (request.form.get("pace") or "standard").strip()

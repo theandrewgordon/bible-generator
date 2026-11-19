@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
-import { worksheetFile } from './worksheet-download.js';
+import {FileReady,receiveDownload} from './file-ready.jsx';
 import './worksheet.css';
 
 const mount = document.getElementById('worksheet-preview');
@@ -16,7 +16,9 @@ if (mount && form) {
     const [state, setState] = useState(read);
     const [index, setIndex] = useState(0);
     const [status, setStatus] = useState({kind: 'idle', message: ''});
+    const [ready,setReady] = useState(null);
     const busy = useRef(false);
+    useEffect(()=>()=>{if(ready)URL.revokeObjectURL(ready.url);},[ready]);
     const error = useRef(null);
     useEffect(() => {
       const change = () => { setState(read()); setIndex(0); if (!busy.current) setStatus({kind: 'idle', message: ''}); document.getElementById('verseInput')?.removeAttribute('aria-invalid'); };
@@ -44,14 +46,9 @@ if (mount && form) {
           payload.set('verse', current.verses.join(', '));
           const response = await fetch(form.action, {method: 'POST', body: payload, credentials: 'same-origin', headers: {Accept: 'application/pdf, application/zip, application/octet-stream'}});
           const fallback = (current.verses[0] || current.title || 'worksheet').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_') || 'worksheet';
-          const file = await worksheetFile(response, fallback);
-          const url = URL.createObjectURL(file.blob);
-          const link = document.createElement('a');
-          link.href = url; link.download = file.name;
-          document.body.appendChild(link); link.click(); link.remove();
-          // Leave time for the browser to start reading the object URL.
-          setTimeout(() => URL.revokeObjectURL(url), 30000);
-          setStatus({kind: 'success', message: `Download ready: ${file.name}`});
+          const file = await receiveDownload(response,fallback);
+          setReady(file);
+          setStatus({kind:'success',message:''});
           form.dispatchEvent(new CustomEvent('worksheet:created', {detail: {verse: current.verses[0] || ''}}));
           window.refreshUsageChip?.();
         } catch (failure) {
@@ -88,6 +85,7 @@ if (mount && form) {
       </div>
       <p className="muted micro">Layout preview. Exact Scripture text, illustration, and line wrapping appear in the downloaded file.</p>
       {createPortal(<div className={`worksheet-feedback ${status.kind}`}>
+        <FileReady file={ready} onEdit={()=>{setReady(null);document.getElementById('verseInput')?.focus();}} />
         {status.kind === 'error' ? <div role="alert" tabIndex={-1} ref={error}><strong>Let’s fix that</strong><p>{status.message}</p><p className="small">Your choices are preserved. You can edit them and try again.</p></div> : <p role="status" aria-live="polite">{status.message}</p>}
       </div>, document.getElementById('worksheet-feedback'))}
     </>;

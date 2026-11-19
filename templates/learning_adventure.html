@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block title %}Learning Adventure | Faith Sparks Labs{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block content %}
+<nav class="journey-breadcrumb" aria-label="Breadcrumb"><a href="/labs">Labs</a><span aria-hidden="true">›</span> Learning Adventure</nav>
+<header class="product-hero"><p class="product-kicker">Faith Sparks Labs · Included with Plus</p><h1>Learning Adventure</h1><p>Pick a subject for a short practice session.</p></header>
+<aside class="journey-panel"><strong>Keep your place</strong><p>Saved practice stays in this browser for this family account. Use the same device and account when returning.</p><div id="learning-continuity" aria-live="polite"></div></aside>
+<section class="product-grid" aria-label="Learning subjects">{% for product in adventures %}
+{% include '_product_card.html' %}
+{% endfor %}</section><p><a href="/labs">Back to planning tools and experiments</a></p>{% endblock %}
+
+{% block extra_scripts %}<script type="module" src="{{ url_for('static', filename='dist/learning-home/learning-home.js', v=static_v) }}"></script>{% endblock %}

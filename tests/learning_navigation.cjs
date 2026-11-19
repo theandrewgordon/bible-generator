@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs');
-const source=fs.readFileSync('static/js/labs-navigation.js','utf8').replaceAll('export ','');
+const source=fs.readFileSync('static/js/labs-navigation.js','utf8').replace(/^import .*;$/gm,'').replaceAll('export ','');
 const {GAMES,gameUrl,copyGameLink}=new Function(source+';return {GAMES,gameUrl,copyGameLink}')();
 (async()=>{
  assert.equal(GAMES.length,4);assert(GAMES.some(([id])=>id==='grammar'));

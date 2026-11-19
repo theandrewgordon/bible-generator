@@ -10,10 +10,12 @@ if (form && mount) {
   const field = name => form.elements.namedItem(name);
   const keys = {lesson_mode: 'lessonPackMode', session_minutes: 'lessonPackMinutes', version: 'preferredVersion', age_bracket: 'lessonPackAge', use_cursive: 'lessonPackCursive', include_coloring: 'lessonPackColoring'};
   // Storage is optional: private browsing and blocked storage must still work.
-  if (!config.fromUrl) {
+  {
     try {
       Object.entries(keys).forEach(([name, key]) => {
-        const value = localStorage.getItem(key), input = field(name);
+        const queryKey = {lesson_mode:'mode',session_minutes:'minutes',age_bracket:'age',use_cursive:'cursive',include_coloring:'coloring'}[name] || name;
+        if (config.providedFields ? config.providedFields.includes(queryKey) : config.fromUrl) return;
+        const value = name === 'use_cursive' ? (localStorage.getItem('useCursive') === null ? localStorage.getItem(key) : localStorage.getItem('useCursive') === 'true' ? '1' : '0') : localStorage.getItem(key), input = field(name);
         if (value === null) return;
         if (input.type === 'checkbox') input.checked = value === '1';
         else if ([...input.options].some(option => !option.disabled && option.value === value)) input.value = value;
@@ -33,6 +35,7 @@ if (form && mount) {
         if (event.target.name === 'verse') event.target.setCustomValidity('');
         setValues(read());
         const key = keys[event.target.name];
+        if (event.target.name === 'use_cursive') try {localStorage.setItem('useCursive',String(event.target.checked));} catch {}
         if (key) try { localStorage.setItem(key, event.target.type === 'checkbox' ? (event.target.checked ? '1' : '0') : event.target.value); } catch { /* Optional preferences only. */ }
       };
       const invalid = event => {
@@ -56,6 +59,13 @@ if (form && mount) {
       first.current = false;
     }, [step]);
     useEffect(() => {
+      const family = values.lesson_mode === 'family';
+      const copy = (selector,text) => {const node=document.querySelector(selector);if(node)node.textContent=text;};
+      copy('[data-pack-title]',family?'A family Scripture week from one passage':'A ready-to-lead gathering from one passage');
+      copy('[data-pack-lede]',family?'Get a five-day family guide, copywork worksheet, word search, and answer key in one PDF. Scripture is verified before building.':'Get an all-age gathering plan, copywork worksheet, word search, and answer key in one PDF. Scripture is verified before building.');
+      copy('[data-pack-aside-title]',family?'Ready for your family’s week':'Ready for your gathering');
+      copy('[data-pack-guide]',family?'Five-day family guide':'Leader gathering plan');
+      copy('[data-pack-aside-note]',family?'Read, talk, practice, and pray together across five short days.':'Roles for young children, readers, teens, and adults keep everyone together.');
       form.querySelector('[data-session-field]').hidden = values.lesson_mode !== 'house-church';
       form.querySelector('#lesson-pack-mode-note').textContent = config.modes[values.lesson_mode]?.description || '';
       const notes = {'3-5': 'Large writing space; simplest word search.', '6-8': 'More writing practice; forward-or-backward word search.', '9-10': 'Deeper reflection; words in every direction.', '10+': 'Context study; larger challenge grid.'};

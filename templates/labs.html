@@ -1,27 +1,8 @@
-{% extends "base.html" %}
-{% block title %}Labs | Faith Sparks{% endblock %}
-{% block head_extra %}<meta name="robots" content="noindex,nofollow" />{% endblock %}
+{% extends "base.html" %}{% block title %}Labs | Faith Sparks{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex,nofollow">{% endblock %}
 {% block content %}
-<section class="product-hero product-hero--labs">
-  <p class="product-kicker">Faith Sparks Labs</p>
-  <h1>A clear home for useful experiments.</h1>
-  <p>Labs is where we test ideas that may help family and church life. These tools are usable, but their shape and availability can change as we learn.</p>
-</section>
-
-<aside class="lab-notice" aria-label="Labs maturity guide">
-  {% for status, label in maturity_labels.items() %}
-    <span><b>{{ status|title }}</b> — {{ label }}</span>
-  {% endfor %}
-</aside>
-
-<section class="product-grid" aria-label="Experimental tools">
-  {% for product in products %}
-  <article class="product-card product-card--{{ product.accent }}">
-    <span class="status-badge status-badge--{{ product.maturity }}">{{ product.maturity|title }}</span>
-    <h2>{{ product.name }}</h2>
-    <p>{{ product.description }}</p>
-    <a class="button ghost" href="{{ product.path }}">Try {{ product.name }}</a>
-  </article>
-  {% endfor %}
-</section>
+<header class="product-hero"><p class="product-kicker">Included with Plus</p><h1>Explore Faith Sparks Labs</h1><p>Choose learning practice, family planning, or a smaller experiment. Your core Scripture and Worship tools stay in the main navigation.</p></header>
+<section class="journey-panel"><p class="product-kicker">Learning</p><h2>Learning Adventure</h2><p>Grammar, Math, Latin, and Geo in one home. Pick a subject and continue a learner’s practice.</p><a class="button primary" href="/labs/learningadventure">Open Learning Adventure</a></section>
+<h2>Family planning</h2><section class="product-grid" aria-label="Family planning">{% for product in products if product.id == 'weekflow' %}{% include '_product_card.html' %}{% endfor %}</section>
+<h2>Other experiments</h2><p class="muted">Optional tools we’re still refining. Features can change.</p><section class="product-grid" aria-label="Experiments">{% for product in products if product.id not in ['weekflow', 'learning-adventure'] %}{% include '_product_card.html' %}{% endfor %}</section>
 {% endblock %}

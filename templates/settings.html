@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Settings | Faith Sparks{% endblock %}
+{% block content %}<section class="journey-panel journey-narrow"><h1>Settings</h1><p>These tool preferences are remembered in this browser. A choice you make inside a tool can override them.</p>
+<form id="tool-preferences" class="journey-form">
+<label>Default Bible version<select name="preferredVersion" class="version-pref" id="versionPref">{% for version in scripture_versions %}<option value="{{ version.id }}">{{ version.code }}</option>{% endfor %}</select></label>
+<label>Usual setting<select name="lessonPackMode"><option value="family">Family Scripture week</option><option value="house-church">Church or small group</option></select></label>
+<label>Worksheet age focus<select name="lessonPackAge"><option value="3-5">Ages 3–5</option><option value="6-8">Ages 6–8</option><option value="9-10">Ages 9–10</option><option value="10+">Ages 10+</option></select></label>
+<label>Writer level<select name="learnerLevel"><option value="beginner">Beginning writer</option><option value="growing">Growing writer</option><option value="confident">Confident writer</option></select></label>
+<label class="journey-check"><input name="useCursive" type="checkbox"> Use cursive tracing</label>
+<button class="button primary" type="submit">Save preferences</button><p id="preferences-status" role="status" aria-live="polite"></p>
+</form>
+<button class="button ghost theme-toggle" type="button" aria-pressed="false" aria-label="Toggle dark mode"><span aria-hidden="true">🌙</span> <span data-theme-label>Switch to dark theme</span></button>
+{% if is_signed_in %}<hr><h2>Account and membership</h2><p><a href="{{ url_for('billing_portal') }}">Manage membership</a> · <a href="{{ url_for('prints') }}">My Library</a></p><details><summary>Account removal</summary><p>Account deletion is permanent. Review what will be removed before continuing.</p><a class="button ghost" href="{{ url_for('account_delete') }}">Review account deletion</a></details>{% else %}<p><a href="{{ url_for('google.login', next=request.full_path.rstrip('?')) }}">Sign in</a> to access saved resources and membership.</p>{% endif %}
+</section>{% endblock %}

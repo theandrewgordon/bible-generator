@@ -1,127 +1,52 @@
+{% macro account_menu(extra_class) %}
+<details class="profile-drop {{ extra_class }}" aria-label="Account menu">
+  <summary class="profile-summary">Account</summary>
+  <div class="profile-panel">
+    <p class="profile-row muted small">{{ session.user_info.email }}</p>
+    <a class="nav-sublink" href="/settings">Settings &amp; preferences</a>
+    <a class="nav-sublink" href="{{ url_for('plus_pricing') }}">Membership</a>
+    {% if is_admin %}<a class="nav-sublink" href="/admin/collections">Admin</a>{% endif %}
+    <form method="post" action="/logout" class="nav-logout-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="nav-sublink logout">Sign out</button>
+    </form>
+  </div>
+</details>
+{% endmacro %}
 <header class="main-header" role="banner">
   <div class="logo-nav">
     <a href="/" class="logo brand-lockup" aria-label="Faith Sparks home">
-      <span class="brand-mark" aria-hidden="true">✦</span>
-      <span class="brand-name">Faith Sparks</span>
+      <span class="brand-mark" aria-hidden="true">✦</span><span class="brand-name">Faith Sparks</span>
     </a>
-
-    <!-- Mobile menu button -->
-    <button
-      class="menu-toggle" id="menuToggle" type="button"
-      aria-controls="mainNav" aria-expanded="false" aria-label="Toggle menu">
+    <button class="menu-toggle" id="menuToggle" type="button" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle menu">
       <span class="bar"></span><span class="bar"></span><span class="bar"></span>
     </button>
-
-    <!-- Primary nav -->
     <nav id="mainNav" class="nav-links" aria-label="Primary">
-      {% set p = request.path or '' %}
+      {% set p=request.path or '' %}
       {% for item in product_navigation %}
-        {% set active = namespace(value=false) %}
+        {% set active=namespace(value=false) %}
         {% for prefix in item.prefixes %}
-          {% if p == prefix or p.startswith(prefix ~ '/') %}{% set active.value = true %}{% endif %}
+          {% if p==prefix or p.startswith(prefix ~ '/') %}{% set active.value=true %}{% endif %}
         {% endfor %}
-        {% if item.id == 'library' and not session.user_info %}
-          {% set item_href = url_for('google.login', next=url_for('prints')) %}
-        {% else %}
-          {% set item_href = item.path %}
-        {% endif %}
-        <a class="nav-link nav-link--{{ item.id }}" href="{{ item_href }}" {% if active.value %}aria-current="page"{% endif %}>{{ item.label }}</a>
+        <a class="nav-link nav-link--{{ item.id }}" href="{{ url_for('google.login', next=url_for('prints')) if item.id=='library' and not session.user_info else item.path }}" {% if active.value %}aria-current="page"{% endif %}>{{ item.label }}</a>
       {% endfor %}
       {% if session.user_info %}
-        <details class="profile-drop mobile-only" aria-label="Account menu">
-          <summary class="profile-summary" aria-haspopup="menu">
-            👤 {{ session.user_info.email.split('@')[0] }}
-          </summary>
-          <div class="profile-panel" role="menu">
-          <div class="profile-row muted small">Signed in as {{ session.user_info.email }}</div>
-            <label class="version-toggle" for="versionPrefMobile">
-              <span class="version-label">Default version</span>
-              <select id="versionPrefMobile" class="version-pref" aria-label="Default Bible version">
-                {% for bible_version in scripture_versions %}<option value="{{ bible_version.id }}">{{ bible_version.code }}</option>{% endfor %}
-              </select>
-            </label>
-            <button
-              class="theme-toggle profile-theme-toggle"
-              type="button"
-              aria-pressed="false"
-              aria-label="Toggle dark mode"
-            >
-              <span aria-hidden="true">🌙</span>
-              Theme
-            </button>
-            {% if is_admin %}
-              <a class="nav-sublink" href="/admin/collections" role="menuitem">Admin</a>
-            {% endif %}
-            <a class="nav-sublink" href="{{ url_for('account_delete') }}" role="menuitem">Delete account</a>
-            <form method="post" action="/logout" class="nav-logout-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="nav-sublink logout">Logout</button>
-            </form>
-          </div>
-        </details>
+        {{ account_menu('mobile-only') }}
       {% else %}
-        <a class="nav-link nav-signin mobile-only" href="{{ url_for('google.login', next=request.path) }}">Sign in</a>
-        <button class="theme-toggle nav-theme-mobile mobile-only" type="button" aria-pressed="false" aria-label="Toggle dark mode"><span aria-hidden="true">🌙</span> Theme</button>
+        <a class="nav-link nav-signin mobile-only" href="{{ url_for('google.login', next=request.full_path.rstrip('?')) }}" data-preserve-task>Sign in</a>
+        <a class="nav-link mobile-only" href="/settings">Settings</a>
       {% endif %}
     </nav>
-
-    <!-- Right: usage, auth, theme -->
     <div class="auth-theme">
-      {% if is_signed_in and usage_nav and usage_nav.get('pct', 0) >= 70 %}
-        <span
-          class="usage-chip"
-          id="usageChip"
-          title="{{ usage_nav.title }}"
-          role="status"
-          aria-live="polite"
-        >{{ usage_nav.text }}</span>
+      {% if is_signed_in and usage_nav and usage_nav.get('pct',0)>=70 %}
+        <span class="usage-chip" id="usageChip" title="{{ usage_nav.title }}" role="status">{{ usage_nav.text }}</span>
       {% endif %}
-
-      <button
-        class="theme-toggle"
-        type="button"
-        aria-pressed="false"
-        aria-label="Toggle dark mode"
-      >
-        <span aria-hidden="true">🌙</span>
-      </button>
-
       {% if session.user_info %}
-        <details class="profile-drop desktop-only" aria-label="Account menu">
-          <summary class="profile-summary" aria-haspopup="menu">
-            👤 {{ session.user_info.email.split('@')[0] }}
-          </summary>
-          <div class="profile-panel" role="menu">
-          <div class="profile-row muted small">Signed in as {{ session.user_info.email }}</div>
-            <label class="version-toggle" for="versionPref">
-              <span class="version-label">Default version</span>
-              <select id="versionPref" class="version-pref" aria-label="Default Bible version">
-                {% for bible_version in scripture_versions %}<option value="{{ bible_version.id }}">{{ bible_version.code }}</option>{% endfor %}
-              </select>
-            </label>
-            <button
-              class="theme-toggle profile-theme-toggle"
-              type="button"
-              aria-pressed="false"
-              aria-label="Toggle dark mode"
-            >
-              <span aria-hidden="true">🌙</span>
-              Theme
-            </button>
-            {% if is_admin %}
-              <a class="nav-sublink" href="/admin/collections" role="menuitem">Admin</a>
-            {% endif %}
-            <a class="nav-sublink" href="{{ url_for('account_delete') }}" role="menuitem">Delete account</a>
-            <form method="post" action="/logout" class="nav-logout-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="nav-sublink logout">Logout</button>
-            </form>
-          </div>
-        </details>
+        {{ account_menu('desktop-only') }}
       {% else %}
-        <a class="nav-link nav-signin" href="{{ url_for('google.login', next=request.path) }}">Sign in</a>
+        <a class="nav-link nav-signin desktop-only" href="{{ url_for('google.login', next=request.full_path.rstrip('?')) }}" data-preserve-task>Sign in</a>
+        <a class="nav-link desktop-only" href="/settings">Settings</a>
       {% endif %}
     </div>
   </div>
-
 </header>

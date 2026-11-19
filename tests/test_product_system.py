@@ -13,25 +13,25 @@ def test_product_registry_has_task_first_navigation_and_formal_labs():
     ]
     labs = [product for product in PRODUCTS if product["area"] == "labs"]
     assert {product["maturity"] for product in labs} <= {"beta", "experiment", "sandbox"}
-    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio", "games-lab", "same-brain", "reading-quest", "latin-quest", "math-fact-rally", "geo-detectives", "grammar-grove"}
+    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio", "games-lab", "same-brain", "reading-quest", "latin-quest", "math-fact-rally", "geo-detectives", "grammar-grove", "learning-adventure"}
     assert next(product for product in PRODUCTS if product["id"] == "same-brain")["path"] == "/same-brain"
     assert all(product["path"] != "/speeddie" for product in PRODUCTS)
 
 
 
-def test_geo_detectives_is_an_illustrated_guess_first_root_lab():
+def test_geo_detectives_is_an_illustrated_guess_first_root_lab(plus_visitor):
     from faithsparks.products import products_for
 
     item = next(product for product in products_for("labs") if product["id"] == "geo-detectives")
-    assert item["path"] == "/labs/geo-detectives"
+    assert item["path"] == "/labs/learningadventure/geo"
 
     app.config.update(TESTING=True)
     with app.test_client() as client:
-        labs = client.get("/labs")
+        labs = client.get("/labs/learningadventure")
         game = client.get("/labs/geo-detectives")
     assert labs.status_code == 200
     assert b"Geo Detectives!" in labs.data
-    assert b'href="/labs/geo-detectives"' in labs.data
+    assert b'href="/labs/learningadventure/geo"' in labs.data
     assert game.status_code == 200
     assert game.mimetype == "text/html"
     assert game.headers["Cache-Control"] == "private, no-store"
@@ -44,19 +44,19 @@ def test_geo_detectives_is_an_illustrated_guess_first_root_lab():
     assert all(q['answer'] in q['choices'] for q in data['quest'])
     assert all(q['arts'][0] != q['arts'][1] for q in data['compare'])
 
-def test_math_fact_rally_is_a_standalone_root_lab():
+def test_math_fact_rally_is_a_standalone_root_lab(plus_visitor):
     from faithsparks.products import products_for
 
     item = next(product for product in products_for("labs") if product["id"] == "math-fact-rally")
-    assert item["path"] == "/labs/math-fact-adventure"
+    assert item["path"] == "/labs/learningadventure/math"
 
     app.config.update(TESTING=True)
     with app.test_client() as client:
-        labs = client.get("/labs")
+        labs = client.get("/labs/learningadventure")
         game = client.get("/labs/math-fact-adventure")
     assert labs.status_code == 200
     assert b"Math Fact Adventure" in labs.data
-    assert b'href="/labs/math-fact-adventure"' in labs.data
+    assert b'href="/labs/learningadventure/math"' in labs.data
     assert game.status_code == 200
     assert b"Math Fact Adventure" in game.data
     assert game.mimetype == "text/html"
@@ -78,7 +78,7 @@ def test_math_adventure_preserves_simple_journal_play_and_saved_progress():
     assert 'id="exportProgress"' in html
 
 
-def test_reading_quest_is_paused_and_unreachable(monkeypatch):
+def test_reading_quest_is_paused_and_unreachable(monkeypatch, plus_visitor):
     from faithsparks.products import products_for
     from faithsparks.services import ai_budget
     from unittest.mock import Mock
@@ -105,13 +105,13 @@ def test_reading_quest_is_paused_and_unreachable(monkeypatch):
     provider.assert_not_called()
 
 
-def test_task_landing_pages_and_parent_brand_render():
+def test_task_landing_pages_and_parent_brand_render(plus_visitor):
     app.config.update(TESTING=True)
     with app.test_client() as client:
         for path, expected in (
             ("/prepare", b"Gathering Builder"),
             ("/play", b"Family Game Night"),
-            ("/labs", b"maturity guide"),
+            ("/labs", b"Learning Adventure"),
             ("/families", b"Families &amp; Homeschool"),
             ("/churches", b"Churches &amp; Small Groups"),
         ):
@@ -124,7 +124,7 @@ def test_task_landing_pages_and_parent_brand_render():
         assert b"Prepare the gathering. Lead it from the room" in client.get("/churches").data
 
 
-def test_labs_are_noindex_and_sitemap_only_lists_public_core_routes():
+def test_labs_are_noindex_and_sitemap_only_lists_public_core_routes(plus_visitor):
     app.config.update(TESTING=True)
     with app.test_client() as client:
         labs = client.get("/labs")
@@ -159,8 +159,8 @@ def test_homepage_uses_single_optimized_hero_and_task_language():
         response = client.get("/")
     assert response.status_code == 200
     assert b"Bring Scripture into your homeschool day" in response.data
-    assert b"Start with your family" in response.data
-    assert b"Leading a church or small group?" in response.data
+    assert "Make today’s worksheet".encode() in response.data
+    assert b"Prepare worship" in response.data
     assert b"faith-sparks-home-hero.jpg" in response.data
     assert b"CopyworkStock/Copywork" not in response.data
     assert b"data-hero-images" not in response.data

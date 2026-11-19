@@ -1,9 +1,9 @@
-{% extends "base.html" %} {% block title %}My Prints | Faith Sparks{%
+{% extends "base.html" %} {% block title %}My Library | Faith Sparks{%
 endblock %} {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', filename='dist/history/history.css', v=static_v) }}" />
 {% endblock %} {% block content %}
-<p class="muted small" style="margin-bottom:0.25rem;"><a href="/" class="muted">Home</a> → My Prints</p>
-<h1 class="page-title">My Prints</h1>
+<p class="muted small" style="margin-bottom:0.25rem;"><a href="/" class="muted">Home</a> → My Library</p>
+<h1 class="page-title">My Library</h1><p class="muted">Your saved worksheets, gathering packs, and purchased bundles. <a href="{{ url_for('browse') }}">Browse new resources</a>.</p><div id="continue-last-tool"></div>
 <p class="muted small page-sub">Signed in as: <strong>{{ email }}</strong></p>
 
 {% if history %}

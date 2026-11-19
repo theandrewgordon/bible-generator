@@ -6,12 +6,13 @@
 const CACHE_VERSION = '__STATIC_VERSION__';
 const CACHE_NAME = `faithsparks-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
-const MAX_ENTRIES = 60;
+const MAX_ENTRIES = 96;
 const PRECACHE_URLS = [
   OFFLINE_URL,
   `/static/theme.css?v=${CACHE_VERSION}`,
   `/static/darkmode.js?v=${CACHE_VERSION}`,
-  '/static/faith_sparks_logo_192.png'
+  '/static/faith_sparks_logo_192.png',
+  '/static/product-journeys.css?v=' + CACHE_VERSION
 ];
 const CACHEABLE_EXT = /\.(css|js|png|jpg|jpeg|webp|svg|ico|woff2)$/i;
 const SKIP_PREFIXES = ['/static/tutorials/', '/static/CopyworkStock/', '/static/worship/', '/static/uploads/'];
@@ -37,8 +38,9 @@ async function trim(cache) {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  if (request.method !== 'GET' || !request.url.startsWith(self.location.origin)) return;
+  if (request.method !== 'GET') return;
   const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
 
   if (url.pathname.startsWith('/static/labs/')) return;
 
@@ -56,13 +58,16 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cached = await cache.match(request);
-      const network = fetch(request).then((response) => {
-        if (response && response.status === 200 && !/\bno-store\b/i.test(response.headers.get('Cache-Control') || '')) {
-          cache.put(request, response.clone()).then(() => trim(cache));
+      const immutable = /\/static\/dist\/shared\/[^/]+-[A-Za-z0-9_-]{8}\.js$/.test(url.pathname) || url.searchParams.get('v') === CACHE_VERSION;
+      if (cached && immutable) return cached;
+      const network = fetch(request).then(async (response) => {
+        if (response && response.status === 200 && !/\b(?:no-store|private)\b/i.test(response.headers.get('Cache-Control') || '')) {
+          try { await cache.put(request, response.clone()); await trim(cache); } catch { /* A full cache must not block the response. */ }
         }
         return response;
       }).catch(() => cached);
-      return cached || network;
+      if (cached) { event.waitUntil(network.then(() => {})); return cached; }
+      return network;
     })
   );
 });

@@ -32,7 +32,7 @@ PRODUCTS = (
         "description": "Make a clean, age-aware Scripture worksheet in seconds.",
     },
     {
-        "id": "bundles", "name": "Printable Library", "area": "prepare",
+        "id": "bundles", "name": "Browse Resources", "area": "prepare",
         "maturity": "core", "path": "/browse", "accent": "gold",
         "description": "Browse ready-to-print Bible activities and reusable bundles.",
     },
@@ -67,6 +67,11 @@ PRODUCTS = (
         "description": "Print-and-play Bible games for the table, co-op, or church room.",
     },
     {
+        "id": "learning-adventure", "name": "Learning Adventure", "area": "labs",
+        "maturity": "beta", "path": "/labs/learningadventure", "accent": "blue",
+        "description": "Grammar, Math, Latin, and Geography practice in one place.",
+    },
+    {
         "id": "weekflow", "name": "WeekFlow", "area": "labs",
         "maturity": "beta", "path": "/labs/weekflow", "accent": "forest",
         "description": "Explore a calmer shared rhythm for family schedules and weekly logistics.",
@@ -78,23 +83,23 @@ PRODUCTS = (
         "description": "Practice phonics, spelling, and decoding in a gentle word adventure.",
     },
     {
-        "id": "latin-quest", "name": "Latin Quest", "area": "labs",
-        "maturity": "sandbox", "path": "/labs/latin-quest", "accent": "forest",
+        "id": "latin-quest", "group": "learning", "name": "Latin Quest", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/learningadventure/latin", "accent": "forest",
         "description": "The Word Notebook: translate, listen, or flip flashcards across 191 original Latin practice cards, with individual progress and gentle review.",
     },
     {
-        "id": "math-fact-rally", "name": "Math Fact Adventure", "area": "labs",
-        "maturity": "sandbox", "path": "/labs/math-fact-adventure", "accent": "blue",
+        "id": "math-fact-rally", "group": "learning", "name": "Math Fact Adventure", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/learningadventure/math", "accent": "blue",
         "description": "The Discovery Journal: solve number sentences, missing-number puzzles, or story problems across five stages, with verbal, typed, and choice answers.",
     },
     {
-        "id": "grammar-grove", "name": "Grammar Grove: The Sentence Workshop", "area": "labs",
-        "maturity": "sandbox", "path": "/labs/grammar-grove", "accent": "forest",
+        "id": "grammar-grove", "group": "learning", "name": "Grammar Grove: The Sentence Workshop", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/learningadventure/grammar", "accent": "forest",
         "description": "Explore English grammar in a watercolor-inspired garden: identify parts of speech, build traditional sentence diagrams, and create sentences with solo or two-player play.",
     },
     {
-        "id": "geo-detectives", "name": "Geo Detectives!", "area": "labs",
-        "maturity": "sandbox", "path": "/labs/geo-detectives", "accent": "gold",
+        "id": "geo-detectives", "group": "learning", "name": "Geo Detectives!", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/learningadventure/geo", "accent": "gold",
         "description": "The Field Atlas: solve 125 landscape mysteries and explore 55 comparisons, with automatic two-team scoring and watercolor scenes.",
     },
     {
@@ -174,4 +179,19 @@ def products_for_audience(audience: str) -> tuple[dict, ...]:
         }
         for product_id in AUDIENCE_PRODUCT_IDS.get(audience, ())
         if product_id in product_by_id
+    )
+
+LEARNING_DETAILS = {
+    "grammar-grove": {"subject": "Grammar", "level": "Words through sentence diagrams", "description": "Practice parts of speech, sentence building, and sentence diagrams."},
+    "math-fact-rally": {"subject": "Math", "level": "Five skill stages; choose by readiness", "description": "Practice number sentences, missing numbers, or story problems at your learner’s level."},
+    "latin-quest": {"subject": "Latin", "level": "Beginning vocabulary and translation", "description": "Build vocabulary, translate, listen, or review flashcards."},
+    "geo-detectives": {"subject": "Geography", "level": "Maps, capitals, and landscape clues", "description": "Explore places and landscape mysteries at your learner’s pace."},
+}
+
+
+def learning_adventures():
+    products = {product["id"]: product for product in PRODUCTS}
+    return tuple(
+        {**products[product_id], **details, "primary_cta": "Open " + details["subject"]}
+        for product_id, details in LEARNING_DETAILS.items()
     )

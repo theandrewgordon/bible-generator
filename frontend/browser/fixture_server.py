@@ -29,6 +29,22 @@ def render(destination):
     live=dict(name='Fixture service',current_index=0,blank=False,clear_words=False,revision=1,deck_revision=1)
     page('remote','worship_live_remote.html',session_id='fixture',slides=remote_slides,live=live,follow_url='/follow.html')
     page('setup','worship_live_setup.html',session_id='fixture',live=live,links={'view':'/follow.html','control':'/remote.html','stage':'/follow.html'},follow_url='/follow.html')
+    # Public journeys use the real application shell and shared navigation.
+    # Rendering only: no authenticated requests or production mutations are made.
+    import sys, os
+    os.chdir(ROOT)
+    sys.path.insert(0, str(ROOT))
+    import app as website
+    from flask import render_template, session
+    with website.app.test_request_context('/settings'):
+        (destination / 'settings.html').write_text(render_template('settings.html'), encoding='utf-8')
+    with website.app.test_request_context('/settings'):
+        session['user_info'] = {'email':'fixture@example.test'}
+        (destination / 'account.html').write_text(render_template('settings.html', is_signed_in=True), encoding='utf-8')
+    (destination / 'gathering.html').write_text(website.app.test_client().get('/lesson-pack?verse=Psalm+23&mode=family').get_data(as_text=True), encoding='utf-8')
+    with website.app.test_request_context('/labs/learningadventure'):
+        from faithsparks.products import learning_adventures
+        (destination / 'learning.html').write_text(render_template('learning_adventure.html', adventures=learning_adventures()), encoding='utf-8')
     (destination / 'static').symlink_to(ROOT / 'static', target_is_directory=True)
 
 class Handler(SimpleHTTPRequestHandler):

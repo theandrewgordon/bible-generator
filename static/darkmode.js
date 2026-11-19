@@ -1,12 +1,13 @@
 // static/darkmode.js
 (function () {
+  let memoryTheme = null;
   const KEY = "theme"; // 'dark' | 'light' | 'system' (null => system)
 
   const prefersDark = () =>
     window.matchMedia &&
     window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  const getStored = () => localStorage.getItem(KEY);
+  const getStored = () => {try {return localStorage.getItem(KEY) || memoryTheme;} catch {return memoryTheme;}};
 
   const effective = () => {
     const s = getStored();
@@ -55,6 +56,8 @@
         btn.textContent = isDark ? "☀️" : "🌙";
       }
 
+      const label = btn.querySelector("[data-theme-label]");
+      if (label) label.textContent = isDark ? "Switch to light theme" : "Switch to dark theme";
       btn.setAttribute("aria-pressed", String(isDark));
       btn.title = isDark ? "Toggle light mode" : "Toggle dark mode";
       btn.setAttribute("aria-label", btn.title);
@@ -67,7 +70,8 @@
 
   function onClick() {
     const next = effective() === "dark" ? "light" : "dark";
-    localStorage.setItem(KEY, next);
+    memoryTheme = next;
+    try {localStorage.setItem(KEY, next);} catch {}
     apply(next);
   }
 

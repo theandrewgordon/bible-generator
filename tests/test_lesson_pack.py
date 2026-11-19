@@ -431,14 +431,14 @@ def test_result_page_reports_actual_pack_state(
     assert '<meta name="robots" content="noindex,follow"' in page
 
 
-def test_default_builder_is_house_church_first_and_quick():
+def test_default_builder_is_family_first_and_quick():
     client = flask_app.test_client()
     with mock.patch.object(public, "_is_signed_in", return_value=False):
         response = client.get("/lesson-pack?verse=Acts+2%3A42")
 
     page = response.get_data(as_text=True)
     assert response.status_code == 200
-    assert 'value="house-church" selected' in page
+    assert 'value="family" selected' in page
     assert 'value="40" selected' in page
     assert 'name="include_coloring" data-coloring-check  />' in page
     assert "Build quick gathering pack" not in page

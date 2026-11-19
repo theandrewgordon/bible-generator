@@ -1,7 +1,8 @@
 <article class="product-card product-card--{{ product.accent }}">
-  <span class="status-badge status-badge--{{ product.maturity }}">{{ product.maturity|title }}</span>
+  {% if product.subject %}<p class="product-kicker">{{ product.subject }}</p>{% else %}<span class="status-badge status-badge--{{ product.maturity }}">{{ 'Ready to use' if product.maturity == 'core' else 'Beta' if product.maturity == 'beta' else 'Experimental' }}</span>{% endif %}
   <h2>{{ product.name }}</h2>
   <p>{{ product.description }}</p>
+  {% if product.level %}<p class="small muted">{{ product.level }}</p>{% endif %}
   {% if product.offer_line %}
   <p class="product-offer"><strong>{{ product.offer_line }}</strong></p>
   {% endif %}
