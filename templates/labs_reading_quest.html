@@ -33,6 +33,7 @@
 {% endblock %}
 {% block content %}
 <main class="rq-wrap" id="rq-app">
+  <div id="rq-players"></div>
   <div class="rq-nav"><a href="/labs">← Back to Labs</a><span class="rq-pill">🌿 Faith Sparks Reading Quest — Prototype</span></div>
   <p class="rq-copy">Three short adventures · Practice together · No timer</p>
   <nav class="rq-worlds" aria-label="Choose an adventure">
@@ -54,7 +55,9 @@
     <p class="rq-note">Parent note: This prototype reinforces taught phonics; it is not a diagnostic assessment or a replacement for structured literacy instruction. Audio uses an AI-generated voice, with device speech as a fallback. The AI voice models whole words; a grown-up should model individual sounds. Dedicated sound clips are awaiting review. Audio is kept only in this page’s memory until you leave; no recordings are saved by Faith Sparks. No login or child profile is needed.</p>
   </div>
 </main>
-<script>
+<link rel="stylesheet" href="/static/js/labs-players.css">
+<script type="module">
+import {mountPlayers, selectedPlayers} from '/static/js/labs-players.js';
 (function(){
 "use strict";
 const tasks={{ reading_tasks|tojson }};
@@ -63,7 +66,12 @@ const csrfToken={{ reading_csrf|tojson }};
 let index=-1,points=0,mistakes=0,letters="",done=false;
 let world=0,queue=[],position=-1,teaching=false,reviewing=false,finished=false;
 let selectedTiles=[],missed=new Set();
-const completedWorlds=new Set();
+const worldsByPlayer=new Map();
+let learner=selectedPlayers('reading',1)[0];
+function completedWorlds(){
+ if(!worldsByPlayer.has(learner.id))worldsByPlayer.set(learner.id,new Set());
+ return worldsByPlayer.get(learner.id);
+}
 const $=id=>document.getElementById(id);
 // Audio exists only in this page's memory. Never use persistent browser storage.
 const audioCache=new Map(), pendingAudio=new Map();
@@ -143,11 +151,11 @@ function selectWorld(value){
  introduction();
 }
 function finish(){
- finished=true;completedWorlds.add(world);$("rq-bar").style.width="100%";
+ finished=true;completedWorlds().add(world);$("rq-bar").style.width="100%";
  $("rq-title").textContent=current().worldName+" complete!";
  $("rq-instruction").textContent="You practiced reading, sounds, and spelling. Take a break or choose another adventure.";
  $("rq-model").textContent="⭐ ⭐ ⭐";$("rq-options").replaceChildren();$("rq-tools").hidden=true;
- $("rq-feedback").textContent=completedWorlds.size+" of 3 adventures explored this visit. Your practice stays on this page.";
+ $("rq-feedback").textContent=learner.name+": "+completedWorlds().size+" of 3 adventures explored this visit. Your practice stays on this page.";
  $("rq-next").hidden=false;$("rq-next").textContent=world<2?"Next adventure ▶":"Play Word Garden again ▶";
 }
 function next(){
@@ -167,6 +175,11 @@ $("rq-next").addEventListener("click",next);
 $("rq-undo").addEventListener("click",()=>{if(!done&&!teaching&&current()?.mode==="build"){selectedTiles.pop();updateBuild()}});
 $("rq-clear").addEventListener("click",()=>{if(!done&&!teaching&&current()?.mode==="build"){selectedTiles=[];updateBuild()}});
 for(let i=0;i<3;i++)$("rq-world-"+i).addEventListener("click",()=>selectWorld(i));
+mountPlayers($("rq-players"),{game:"reading",onChange:([player])=>{
+ const switched=player.id!==learner.id;
+ learner=player;
+ if(switched&&queue.length)selectWorld(world);
+}});
 })();
 </script>
 {% endblock %}

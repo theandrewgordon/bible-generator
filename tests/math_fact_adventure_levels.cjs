@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const html=fs.readFileSync('static/labs/math-fact-rally.html','utf8');
 const code=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
-new Function(code);
+require('node:child_process').execFileSync(process.execPath,['--check','frontend/learning-labs/math/engine.js']);
 const before=code.slice(code.indexOf('const OPERATIONS='),code.indexOf('const KEY='));
 const generators=code.slice(code.indexOf('function calculate('),code.indexOf('function focusedQuestion('));
 const focus=code.slice(code.indexOf('function focusedQuestion('),code.indexOf('function buildSequence('));

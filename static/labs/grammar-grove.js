@@ -1,3 +1,4 @@
+import {mountPlayers, selectedPlayers} from "../js/labs-players.js";
 (()=>{
 "use strict";
 const $=(id)=>document.getElementById(id);
@@ -26,12 +27,14 @@ const wordbank=[
 {sentence:"The moon and stars shone.",word:"and",options:["Conjunction","Article","Pronoun","Verb"],answer:"Conjunction",why:"And joins moon and stars."},
 {sentence:"An owl hooted.",word:"An",options:["Article","Noun","Adverb","Verb"],answer:"Article",why:"An is an indefinite article modifying owl."}
 ];
-let mode="home",index=0,selected=null,placements={},checked=false,players=1,turn=0,scores=[0,0];
+let mode="home",index=0,selected=null,placements={},checked=false,turn=0,scores=[0];
+let selectedPlayersForRound=selectedPlayers("grammar",4),players=selectedPlayersForRound;
 const total=()=>mode==="diagram"?qbank.length:mode==="words"?wordbank.length:1;
 function activeQuestion(){return mode==="diagram"?qbank[index]:wordbank[index]}
-function score(){ $("score").textContent=players===2?"Player 1: "+scores[0]+" · Player 2: "+scores[1]:"Score: "+scores[0];$("turn").textContent=players===2?"Player "+(turn+1)+" playing":"Solo adventure";}
+function scoreText(){return players.map((player,i)=>player.name+": "+(scores[i]||0)).join(" · ");}
+function score(){ $("score").textContent=scoreText();$("turn").textContent=mode==="home"?"":players[turn].name+" playing";}
 function goHome(){mode="home";$("menu").hidden=false;$("play").hidden=true;$("location").textContent="Welcome to the Grove";score();}
-function start(next){mode=next;index=0;turn=0;setup();}
+function start(next){players=selectedPlayersForRound;mode=next;index=0;turn=0;scores=players.map(()=>0);setup();}
 function showFeedback(good,message){$("feedback").className="feedback "+(good?"correct":"incorrect");$("feedback").textContent=message;}
 function clearFeedback(){$("feedback").className="feedback";$("feedback").textContent="";}
 function setup(){
@@ -154,10 +157,10 @@ $("hint").onclick=()=>{
  else if(mode==="words")showFeedback(true,"Ask whether the word names, acts, describes, replaces a noun, joins words, or begins a phrase.");
  else showFeedback(true,"The subject acts, the verb names the action, and the object receives the action.");
 };
-$("next").onclick=()=>{index++;if(players===2)turn=(turn+1)%2;if(index>=total()){goHome();return;}setup();};
+$("next").onclick=()=>{index++;turn=(turn+1)%players.length;if(index>=total()){goHome();return;}setup();};
 document.querySelectorAll("[data-mode]").forEach(btn=>btn.addEventListener("click",()=>start(btn.dataset.mode)));
-$("home").onclick=goHome;$("reset").onclick=()=>{scores=[0,0];turn=0;score();};
-$("players").onchange=()=>{players=Number($("players").value);scores=[0,0];turn=0;score();};
+$("home").onclick=goHome;$("reset").onclick=()=>{scores=players.map(()=>0);turn=0;score();};
+mountPlayers($("grammar-players"),{game:"grammar",limit:4,onChange:selected=>{selectedPlayersForRound=selected;}});
 $("read").onclick=()=>{const text=$("sentence").textContent;if("speechSynthesis" in window){window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.84;window.speechSynthesis.speak(u);}else showFeedback(false,"Read-aloud is not supported by this browser.");};
 
 // The illustrated menu buttons remain genuine accessible controls.
@@ -175,10 +178,13 @@ function showMenuPanel(title,body){
   panel.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 const close=$("close-panel");if(close)close.onclick=()=>{$("menu-panel").hidden=true};
-const progress=$("progress");if(progress)progress.onclick=()=>showMenuPanel("Your Grove Progress",
-  players===2?"Player 1: "+scores[0]+" points · Player 2: "+scores[1]+" points":"You have "+scores[0]+" points in this session. Each correct answer earns 10 points.");
-const twoplayer=$("twoplayer");if(twoplayer)twoplayer.onclick=()=>{ $("players").value="2";$("players").dispatchEvent(new Event("change"));showMenuPanel("Two-Player Mode","Two players are enabled. Choose a lesson above to alternate turns and score separately.");};
-const settings=$("settings");if(settings)settings.onclick=()=>showMenuPanel("Workshop Settings","Use the Players selector below the illustrated menu to choose solo or two-player practice. Scores reset when you change the player mode.");
+const progress=$("progress");if(progress)progress.onclick=()=>showMenuPanel("Your Grove Progress",scoreText()+". Each correct answer earns 10 points.");
+const twoplayer=$("twoplayer");if(twoplayer)twoplayer.onclick=()=>{
+ const picker=$("grammar-players");
+ picker.scrollIntoView({block:"center"});
+ picker.querySelector("input")?.focus();
+};
+const settings=$("settings");if(settings)settings.onclick=()=>showMenuPanel("Workshop Settings","Choose who’s playing above, then pick a lesson. Players take turns and score separately.");
 const help=$("help");if(help)help.onclick=()=>showMenuPanel("How to Play","Select Begin Learning to identify parts of speech, Build a Diagram to place words on correct Reed–Kellogg lines, or Write & Create to construct original sentences. On a diagram, tap a word then its labeled position. The six wooden signboards open different grammar chapters.");
 goHome();
 })();

@@ -18,7 +18,7 @@
 .lq .lq-option:disabled:not([data-result]){opacity:.6}
 .lq select:disabled{opacity:.75}
 </style>
-<!-- learning-labs-style --><link rel="stylesheet" href="/static/labs/learning/latin/style-CI_q5R0W.css"><!-- /learning-labs-style -->
+<!-- learning-labs-style --><link rel="stylesheet" href="/static/labs/learning/latin/style-Br4vsyhG.css"><!-- /learning-labs-style -->
 <!-- latin-quest-theme --><link rel="stylesheet" href="/static/labs/latin-quest-theme.css?v=3"><!-- /latin-quest-theme -->
 <!-- latin-quest-roman-game --><link rel="stylesheet" href="/static/labs/latin-quest-roman-game.css?v=1"><!-- /latin-quest-roman-game -->
 {% endblock %}
@@ -42,7 +42,8 @@
  <div id="lq-reset-confirm" class="lq-panel lq-note" role="region" aria-label="Confirm progress reset" hidden><p id="lq-reset-message"></p><div class="lq-row"><button id="lq-reset-accept" type="button">Yes, reset progress</button><button id="lq-reset-cancel" type="button">Keep my progress</button></div></div>
  <button id="lq-undo-reset" type="button" hidden>Undo progress reset</button>
  <p id="lq-notice" class="lq-status" role="status"></p>
- <section class="lq-panel" aria-label="Choose player"><label for="lq-player">Who’s playing?</label><select id="lq-player"></select><p class="lq-small">Each player has separate progress and a weekly deck on this browser. Pause before switching players. Voice clips are shared.</p><details><summary>Add or rename a player</summary><label for="lq-player-name">Name or nickname</label><input type="text" id="lq-player-name" maxlength="24" autocomplete="off"><div class="lq-row"><button id="lq-player-add" type="button">Add player</button><button id="lq-player-rename" type="button">Rename selected player</button></div></details></section>
+ <div id="lq-shared-players"></div>
+ <select id="lq-player" aria-label="Active learner" hidden></select>
  <section id="lq-setup" class="lq-panel" aria-label="Set up practice">
 <div class="lq-roman-welcome">
  <div class="lq-roman-welcome-copy"><p class="lq-roman-eyebrow">THE ADVENTURE BEGINS</p>
@@ -139,6 +140,6 @@
 <script id="lq-config" type="application/json">{{ {'cardCount':latin_card_count,'memory':latin_memory,'modes':latin_modes,'questions':latin_questions,'study':latin_study,'csrf':latin_csrf,'audioVersion':latin_audio_version,'ttsUrl':url_for('latin_quest.tts')}|tojson }}</script>
 
 
-<!-- learning-labs-entry --><script type="module" src="/static/labs/learning/latin/main-GrammarNav2026.js"></script><!-- /learning-labs-entry -->
 <script defer src="/static/labs/latin-quest-roman-ui.js?v=1"></script>
+<!-- learning-labs-entry --><script type="module" src="/static/labs/learning/latin/main-CqezV7Id.js"></script><!-- /learning-labs-entry -->
 {% endblock %}

@@ -2,8 +2,11 @@ import {mountFamily} from '../shared/Family.jsx';
 import core from '../../../static/js/latin-quest-core.js';
 import '../shared/legacy.jsx';
 import './style.css';
+import '../../../static/js/labs-players.css';
+import {gamePlayerId, mountPlayers, profiles, selectedPlayers} from '../../../static/js/labs-players.js';
 async function boot(){
  window.LatinQuestCore=core;
+ window.LatinQuestPlayers={gamePlayerId,mountPlayers,profiles,selectedPlayers};
  await import('../../../static/js/latin-quest.js');
  mountFamily();
  const setup=document.getElementById('lq-setup');if(!setup)return;

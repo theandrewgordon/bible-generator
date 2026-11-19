@@ -15,6 +15,8 @@ import {LocationMap} from './LocationMap.jsx';
 import {CapitalMap} from './CapitalMap.jsx';
 import {ExpeditionMap,TrailMap} from './ExpeditionMap.jsx';
 import './art.css';import './style.css';import './adventure.css';import './board.css';
+import {gamePlayerId, mountPlayers, profiles, selectedPlayers} from '../../../static/js/labs-players.js';
+import '../../../static/js/labs-players.css';
 import './identity.css';
 import './art-replacements.css';
 const DEFAULT_SESSION_LENGTH=20;
@@ -28,8 +30,38 @@ function Picture({art,src,label,capitalMap}){
  if(capitalMap)return <CapitalMap map={capitalMap}/>;
  return <div className={art?'landscape '+art:'landscape place-landscape'} style={src?{backgroundImage:`url(${src})`}:undefined} role="img" aria-label={'Illustrated setting for '+label}/>;
 }
+function playerSettings(state, selected, roster) {
+ const ids=selected.map(player=>gamePlayerId(player,'geo'));
+ const names=Object.fromEntries(roster.map(player=>[gamePlayerId(player,'geo'),player.name]));
+ return {type:'player-selection',ids,names,teams:state.playMode==='teams'};
+}
+function currentPlayerSettings(state){
+ const roster=profiles();
+ const preferred=(state.roundPlayers||playingLearners(state)).flatMap(id=>roster.find(player=>gamePlayerId(player,'geo')===id)?.id||[]);
+ return playerSettings(state,selectedPlayers('geo',4,preferred),roster);
+}
+function restoreGame(){
+ let saved=initial;
+ try{saved=restore(localStorage.getItem('faithsparks.geo.v2'))}catch{}
+ const action=currentPlayerSettings(saved);
+ // A paused expedition retains its own players until it is resumed or replaced.
+ return saved.session ? {...saved,learnerNames:{...saved.learnerNames,...action.names}} : reducer(saved,action);
+}
+function ExpeditionPlayers({state,dispatch}){
+ const root=useRef(null);
+ const current=useRef(state);
+ current.current=state;
+ useEffect(()=>{
+  const roster=profiles();
+  const preferred=(current.current.roundPlayers||playingLearners(current.current)).flatMap(id=>roster.find(player=>gamePlayerId(player,'geo')===id)?.id||[]);
+  return mountPlayers(root.current,{game:'geo',limit:4,preferred,onChange:(selected,players)=>{
+   dispatch(playerSettings(current.current,selected,players));
+  }});
+ },[dispatch]);
+ return <div ref={root}/>;
+}
 function App(){
- const [s,dispatch]=useReducer(reducer,initial,()=>{try{return restore(localStorage.getItem('faithsparks.geo.v2'))}catch{return initial}});
+ const [s,dispatch]=useReducer(reducer,initial,restoreGame);
  const lens=useRef(null),lensTrigger=useRef(null),regionPanel=useRef(null);
  const [inputNotice,setInputNotice]=useState('');
  const [reveal,setReveal]=useState(false),[storage,setStorage]=useState(true),[length,setLength]=useState(DEFAULT_SESSION_LENGTH);
@@ -54,8 +86,9 @@ function App(){
  const roster=playingLearners(s), names=s.playMode==='teams'?s.names:roster.map(label);
  const highScore=Math.max(...s.scores), leaders=names.filter((_,i)=>s.scores[i]===highScore);
  const resetScores=<button className="text-button" disabled={!s.scores.some(Boolean)} onClick={()=>dispatch({type:'reset-scores'})}>Reset scores to 0</button>;
- const completeRounds=Math.floor(eligible.length/roster.length);
- const playerMode=s.playMode==='players';
+ const nextSelection=currentPlayerSettings(s);
+ const playerMode=!nextSelection.teams&&nextSelection.ids.length>1;
+ const completeRounds=Math.floor(eligible.length/nextSelection.ids.length);
  const enoughQuestions=eligible.length>0&&(!playerMode||completeRounds>0);
  const freshCount=Math.min(DEFAULT_SESSION_LENGTH,playerMode?completeRounds:eligible.length);
  const freshLabel=freshCount?`Start fresh · ${freshCount} ${playerMode?'per player':freshCount===1?'question':'questions'} →`:'Start fresh →';
@@ -67,9 +100,13 @@ function App(){
  const pending=reviewFor(s.learner);
  const start=(review=false,learner=s.learner,count=Number(length))=>{
   if(!review&&!enoughQuestions)return;
-  const questionCount=s.playMode==='players'?(count?Math.min(count,completeRounds):completeRounds)*roster.length:count;
-  const ids=review?shuffled(reviewFor(learner)).slice(0,DEFAULT_SESSION_LENGTH):selectPracticeIds(eligible,multiplayer?roster.reduce((merged,id)=>{for(const [key,record] of Object.entries(s.progress[id]||{})){const prior=merged[key]||{};merged[key]={right:(prior.right||0)+(record.right||0),assisted:(prior.assisted||0)+(record.assisted||0),wrong:(prior.wrong||0)+(record.wrong||0),skipped:(prior.skipped||0)+(record.skipped||0)}}return merged},{}):s.progress[learner],questionCount);
-  if(ids.length)dispatch({type:'start',ids,review,learner});setReveal(false)
+  const nextPlayers=review?[learner]:nextSelection.teams?roster:nextSelection.ids;
+  const questionCount=!review&&playerMode?(count?Math.min(count,completeRounds):completeRounds)*nextPlayers.length:count;
+  const ids=review?shuffled(reviewFor(learner)).slice(0,DEFAULT_SESSION_LENGTH):selectPracticeIds(eligible,nextPlayers.length>1?nextPlayers.reduce((merged,id)=>{for(const [key,record] of Object.entries(s.progress[id]||{})){const prior=merged[key]||{};merged[key]={right:(prior.right||0)+(record.right||0),assisted:(prior.assisted||0)+(record.assisted||0),wrong:(prior.wrong||0)+(record.wrong||0),skipped:(prior.skipped||0)+(record.skipped||0)}}return merged},{}):s.progress[nextPlayers[0]],questionCount);
+  if(ids.length){
+   if(!review)dispatch(nextSelection);
+   dispatch({type:'start',ids,review,learner:review?learner:nextSelection.ids[0]});
+  }setReveal(false)
  };
  const skipped=Object.values(s.answers).filter(a=>a.outcome==='skipped').length;
  const counts=outcomeCounts(Object.values(s.answers).map(a=>a.outcome|| (a.correct?'right':'wrong')));
@@ -84,22 +121,17 @@ function App(){
  const award=(points,correct,selected=null)=>{dispatch({type:'award',id:q.id,points,correct,selected});setReveal(true)};
  const chooseMarker=number=>{if(!result&&!reveal)award(number===q.answer?4-s.clue:0,number===q.answer,number)};
  const next=()=>{if(!result)dispatch({type:'skip',id:q.id,points:0,correct:false});dispatch({type:'next',length:deck.length});setReveal(false)};
- const learnerSelect=(id,value,onChange)=><label className="geo-field" htmlFor={id}>Learner<select id={id} value={value} onChange={e=>onChange(e.target.value)}>{Object.entries(s.learnerNames).map(([id,name])=><option key={id} value={id}>{name||'Learner'}</option>)}</select></label>;
+ const learnerSelect=(id,value,onChange)=><label className="geo-field" htmlFor={id}>Learner<select id={id} value={value} onChange={e=>onChange(e.target.value)}>{profiles().map(player=>[gamePlayerId(player,'geo'),player.name]).map(([id,name])=><option key={id} value={id}>{name||'Learner'}</option>)}</select></label>;
  return <><Family game="geo"/><main className={"atlas "+(s.screen==='play'?'on-expedition':'')}><header className="atlas-hero"><div className="atlas-title"><h1>Geo Detectives!</h1><p>A Geography Adventure</p></div></header>
  {s.screen==='home'?<section className="geo-home expedition-home">
  <div className="expedition-setup">
-  <label className="geo-field">Who’s practicing?<select value={multiplayer?'all':s.learner} onChange={e=>{
-   const selection=e.target.value;
-   if(selection==='all')dispatch({type:'filter',key:'playMode',value:'players'});
-   else {dispatch({type:'filter',key:'playMode',value:'solo'});dispatch({type:'filter',key:'learner',value:selection});}
-  }}><option value="all">Everyone together</option>{Object.keys(s.learnerNames).map(id=><option key={id} value={id}>{label(id)}</option>)}</select></label>
-  <label className="geo-field">Players<select value={s.playMode==='teams'?'teams':multiplayer?s.playerCount:1} onChange={e=>{
-   const count=e.target.value;
-   if(count==='teams'||count==='1')dispatch({type:'filter',key:'playMode',value:count==='teams'?'teams':'solo'});
-   else {dispatch({type:'filter',key:'playerCount',value:Number(count)});dispatch({type:'filter',key:'playMode',value:'players'});}
-  }}>{[1,2,3,4].map(count=><option key={count} value={count}>{count} {count===1?'player':'players'}</option>)}<option value="teams">Two teams</option></select></label>
+  <ExpeditionPlayers state={s} dispatch={dispatch}/>
+  <label className="geo-field">Scoring<select value={s.playMode==='teams'?'teams':'players'} onChange={e=>{
+   const players=profiles();
+   const preferred=(s.roundPlayers||[s.learner]).flatMap(id=>players.find(player=>gamePlayerId(player,'geo')===id)?.id||[]);
+   dispatch(playerSettings({playMode:e.target.value},selectedPlayers('geo',4,preferred),players));
+  }}><option value="players">Individual players</option><option value="teams">Two teams</option></select></label>
  </div>
- {s.playMode==='players'&&<ul className="geo-roster" aria-label="Player roster">{names.map((name,i)=><li key={roster[i]}>{name}</li>)}</ul>}
  <ExpeditionMap topic={s.topic||'all'} mode={s.mode} onTopic={chooseTopic} onMode={value=>dispatch({type:'filter',key:'mode',value})} onStart={startFresh} onResume={()=>dispatch({type:'resume'})} resume={!!s.session&&s.rounds<s.session.ids.length} pending={pending.length} available={enoughQuestions?eligible.length:0} needsMoreQuestions={eligible.length>0&&!enoughQuestions} startLabel={freshLabel} onReview={()=>start(true)} worldOpen={worldOpen||!!branch} onWorld={()=>setWorldOpen(true)} regions={Object.entries(placeBranches).map(([id,entry])=><button key={id} aria-pressed={s.branch===id} onClick={()=>{
   dispatch({type:'branch',branch:id});
   requestAnimationFrame(()=>regionPanel.current?.focus());
@@ -121,7 +153,7 @@ function App(){
   </div>
  </section>:null}
  <PracticeOptions><div className="geo-option-grid">{!branch&&<><label>Practice<select value={s.mode} onChange={e=>dispatch({type:'filter',key:'mode',value:e.target.value})}><option value="quest">Vocabulary Quest</option><option value="compare">Compare & Contrast</option></select></label><label>Explore a theme<select value={s.topic||'all'} onChange={e=>dispatch({type:'filter',key:'topic',value:e.target.value})}><option value="all">All landscapes</option>{[...new Set(data.quest.map(q=>q.topic))].map(topic=><option key={topic}>{topic}</option>)}</select></label><label>Trail<select value={s.level} onChange={e=>dispatch({type:'filter',key:'level',value:e.target.value})}><option value="all">All trails</option><option value="easy">Starter trail</option><option value="explorer">Explorer trail</option></select></label></>}<label>Answer with<select value={s.response||'choice'} onChange={e=>dispatch({type:'filter',key:'response',value:e.target.value})}><option value="choice">Multiple choice</option><option value="type">Fill in the blank</option></select></label><label>Session length<select value={length} onChange={e=>setLength(Number(e.target.value))}><option value="10">{playerMode?'10 questions per player':'10 questions'}</option><option value={DEFAULT_SESSION_LENGTH}>{DEFAULT_SESSION_LENGTH} questions{playerMode?' per player':''}</option><option value="0">{s.playMode==='players'?'All complete rounds':'Explore the full trail'}</option></select></label></div>
- {s.playMode!=='teams'&&roster.map((id,i)=><label className="geo-field" key={id}>{multiplayer?`Player ${i+1} name`:'Learner’s name'}<input maxLength="24" value={s.learnerNames[id]} onChange={e=>dispatch({type:'learner-name',id,value:e.target.value})}/></label>)}
+
  {s.playMode==='teams'&&s.names.map((name,i)=><div className="team-edit" key={i}><label>Team {i+1}<input value={name} maxLength="24" onChange={e=>dispatch({type:'name',team:i,value:e.target.value})}/></label>{learnerSelect('geo-team-'+i,s.teamLearners[i],id=>dispatch({type:'team-learner',team:i,id}))}</div>)}
  <button disabled={!eligible.length||!enoughQuestions} onClick={()=>start()}>Start with these options →</button><p className="geo-help">Correct on clue 1 earns 3 points, clue 2 earns 2, clue 3 earns 1. A missed or revealed answer earns 0 and returns for review. Skipping saves a mystery for later without marking it wrong. Comparisons are explained aloud and marked together. Vocabulary questions support multiple choice or fill in the blank. Each learner has their own journal.</p></PracticeOptions>
  {Object.keys(s.progress[s.learner]||{}).length>0?<LearningSummary {...cumulative} title={`${label(s.learner)}’s field notes`} reviewDisabled={!pending.length} onReview={()=>start(true)} notes={[`${Object.keys(s.progress[s.learner]||{}).length} different discoveries visited · ${pending.length} ready for review`,`${Object.values(s.progress[s.learner]||{}).reduce((n,r)=>n+(r.skipped||0),0)} skipped · not counted as mistakes`]}/>:<p className="geo-help">Your field notes will appear here after your first discoveries.</p>}

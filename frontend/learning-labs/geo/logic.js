@@ -1,6 +1,6 @@
 export const initial={mode:'quest',branch:'vocabulary',place:'all',topic:'all',level:'all',index:0,order:null,team:0,scores:[0,0],names:['Explorers','Pathfinders'],answers:{},answerDrafts:{},clue:1,history:[],rounds:0,screen:'home',session:null,clueHistory:{},progress:{},learner:'player-1',learnerNames:{'player-1':'Player 1','player-2':'Player 2','player-3':'Player 3','player-4':'Player 4'},playMode:'solo',playerCount:2,teamLearners:['player-1','player-2']};
 export function playingLearners(s){
- if(s.playMode==='players')return Object.keys(initial.learnerNames).slice(0,s.playerCount);
+ if(s.playMode==='players')return s.roundPlayers||Object.keys(initial.learnerNames).slice(0,s.playerCount);
  return s.playMode==='teams'?s.teamLearners:[s.learner];
 }
 export function activeLearner(s){return playingLearners(s)[s.team]??s.learner}
@@ -39,6 +39,14 @@ export function reducer(s,a){
   if(s.branch===a.branch)return s;
   return reducer({...s,place:'all'},{type:'filter',key:'branch',value:a.branch});
  }
+ if(a.type==='player-selection'){
+  const playMode=a.teams?'teams':a.ids.length>1?'players':'solo';
+  const available=Object.keys(a.names);
+  const teamLearners=s.teamLearners.map((id,i)=>available.includes(id)?id:a.ids[i]??available[i]??a.ids[0]);
+  const next={...s,playMode,learner:a.ids[0],roundPlayers:a.ids,playerCount:a.ids.length,teamLearners,learnerNames:{...s.learnerNames,...a.names}};
+  const same=playMode===s.playMode&&playingLearners(s).join()===playingLearners(next).join();
+  return same?next:reducer({...next,session:null},{type:'reset'});
+ }
  if(a.type==='filter'&&s[a.key]===a.value)return s;
  if(a.type==='filter'){
   const settings={...s,[a.key]:a.value};
@@ -53,5 +61,5 @@ export function reducer(s,a){
  if(a.type==='reset')return {...s,screen:'home',session:null,team:0,scores:emptyScores(s),answers:{},answerDrafts:{},history:[],rounds:0,index:0,clue:1};
  return s;
 }
-export function restore(raw){try{const s=JSON.parse(raw);if(!s||!['quest','compare'].includes(s.mode)||!Array.isArray(s.scores)||s.scores.length!==(s.playMode==='players'?s.playerCount:2)||!s.scores.every(n=>Number.isFinite(n)&&n>=0)||!Array.isArray(s.names)||s.names.length!==2||!s.names.every(n=>typeof n==='string')||(s.playMode==='players'&&![2,3,4].includes(s.playerCount))||!Number.isInteger(s.team)||s.team<0||s.team>=s.scores.length||!Number.isInteger(s.index)||s.index<0)return initial;const validSession=s.session&&Array.isArray(s.session.ids)&&s.session.ids.length&&s.session.ids.every(id=>/^[gc]\d+$/.test(id));return {...initial,...s,topic:s.topic==='People & structures'?'Human-Made Features':s.topic??initial.topic,screen:['home','play','summary'].includes(s.screen)&&validSession?s.screen:'home',session:validSession?s.session:null,history:Array.isArray(s.history)?s.history.slice(-5).flatMap(h=>{const restored=restore(JSON.stringify({...h,history:[]}));return restored===initial?[]:[restored]}):[],clue:[1,2,3].includes(s.clue)?s.clue:1,answers:s.answers&&typeof s.answers==='object'?s.answers:{},progress:s.progress&&typeof s.progress==='object'?s.progress:{},learnerNames:{...initial.learnerNames,...s.learnerNames}}}catch{return initial}}
+export function restore(raw){try{const s=JSON.parse(raw);if(!s||!['quest','compare'].includes(s.mode)||!Array.isArray(s.scores)||s.scores.length!==(s.playMode==='players'?s.playerCount:2)||!s.scores.every(n=>Number.isFinite(n)&&n>=0)||!Array.isArray(s.names)||s.names.length!==2||!s.names.every(n=>typeof n==='string')||(s.playMode==='players'&&![2,3,4].includes(s.playerCount))||!Number.isInteger(s.team)||s.team<0||s.team>=s.scores.length||!Number.isInteger(s.index)||s.index<0)return initial;const validSession=s.session&&Array.isArray(s.session.ids)&&s.session.ids.length&&s.session.ids.every(id=>typeof id==='string'&&/^(?:[gc]\d+|(?:country|state|antarctica|location)-[a-z0-9-]+)$/.test(id));return {...initial,...s,topic:s.topic==='People & structures'?'Human-Made Features':s.topic??initial.topic,screen:['home','play','summary'].includes(s.screen)&&validSession?s.screen:'home',session:validSession?s.session:null,history:Array.isArray(s.history)?s.history.slice(-5).flatMap(h=>{const restored=restore(JSON.stringify({...h,history:[]}));return restored===initial?[]:[restored]}):[],clue:[1,2,3].includes(s.clue)?s.clue:1,answers:s.answers&&typeof s.answers==='object'?s.answers:{},progress:s.progress&&typeof s.progress==='object'?s.progress:{},learnerNames:{...initial.learnerNames,...s.learnerNames}}}catch{return initial}}
 export function shuffled(ids,random=Math.random){const out=[...ids];for(let i=out.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out}

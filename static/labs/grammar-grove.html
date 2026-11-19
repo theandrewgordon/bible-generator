@@ -71,11 +71,12 @@ test.src=artwork;
 })();
 </script>
 <link rel="stylesheet" href="/static/labs/learning-nav.css">
-</head><body><div id="labs-family" data-game="grammar"></div><script type="module">import {mountNavigation} from "/static/js/labs-navigation.js";mountNavigation(document.getElementById("labs-family"),"grammar");</script><main class="wrap">
+<link rel="stylesheet" href="/static/js/labs-players.css"></head><body><div id="labs-family" data-game="grammar"></div><script type="module">import {mountNavigation} from "/static/js/labs-navigation.js";mountNavigation(document.getElementById("labs-family"),"grammar");</script><main class="wrap">
 <header class="landscape"><div class="hero-title"><span class="ribbon">FaithSparks Labs</span><h1>Grammar Grove</h1><p>The Sentence Workshop</p></div><span class="hillside">✦ A watercolor woodland adventure in language ✦</span></header>
 <nav class="paper row between" aria-label="Game navigation"><div class="row"><button type="button" class="wood" id="home">⌂ Grove Home</button><span id="location" class="eyebrow">Welcome to the Grove</span></div><div class="row"><span id="turn">Solo adventure</span><strong id="score">Score: 0</strong></div></nav>
 
 <section id="menu" class="mockup-menu" aria-label="Grammar Grove watercolor game menu">
+  <div class="menu-note"><div id="grammar-players"></div><button type="button" class="wood" id="reset">Reset scores</button></div>
   <div class="mockup-canvas">
     <div class="mockup-picture" role="img" aria-label="Original watercolor woodland workshop with an oak tree, stone bridge, flowing stream, cottage, parchment signboards, and colorful wildflowers."></div>
     <button type="button" class="art-target begin" data-mode="words" aria-label="Begin Learning: Word Garden" title="Begin Learning"></button>
@@ -88,7 +89,7 @@ test.src=artwork;
     <button type="button" class="art-target chapter chapter-5" data-chapter="8" aria-label="The Canopy lesson"></button>
     <button type="button" class="art-target chapter chapter-6" data-chapter="10" aria-label="Master Diagrammer lesson"></button>
     <button type="button" class="art-target foot progress-target" id="progress" aria-label="View current scores"></button>
-    <button type="button" class="art-target foot team-target" id="twoplayer" aria-label="Enable two-player mode"></button>
+    <button type="button" class="art-target foot team-target" id="twoplayer" aria-label="Choose players"></button>
     <button type="button" class="art-target foot settings-target" id="settings" aria-label="Open settings"></button>
     <button type="button" class="art-target foot help-target" id="help" aria-label="Open help"></button>
   </div>
@@ -102,10 +103,10 @@ test.src=artwork;
     <h2 id="panel-title">Grove settings</h2>
     <div id="panel-content"></div>
   </div>
-  <div class="menu-note"><label for="players"><strong>Players:</strong></label> <select id="players"><option value="1">Solo practice</option><option value="2">Two players · alternating turns</option></select> <button type="button" class="wood" id="reset">Reset scores</button></div>
+
 </section>
 <section id="play" class="paper" hidden aria-live="polite"><div class="row between"><div><span class="eyebrow" id="chapter"></span><h2 id="challenge-title"></h2></div><span class="muted" id="number"></span></div><p id="instruction"></p><div class="row between"><span></span><button class="wood" id="read" type="button" aria-label="Read the sentence aloud">🔊 Read it to me</button></div><div class="sentence" id="sentence"></div><div id="play-area"></div><div id="feedback" class="feedback" role="status"></div>
 <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="wood" id="hint" type="button">A little hint</button><button class="wood primary" id="check" type="button">Check answer</button><button class="wood primary" id="next" type="button" hidden>Next challenge →</button></div></section>
 <section id="preview" class="paper"><div class="eyebrow">A little peek inside the workshop</div><h2>Birds sing.</h2><div class="diagram"><svg viewBox="0 0 900 160" role="img" aria-label="Diagram of Birds sing, with Birds as subject and sing as verb"><line x1="30" x2="860" y1="85" y2="85"/><line x1="440" x2="440" y1="25" y2="140"/><text x="230" y="72" text-anchor="middle" font-size="35">Birds</text><text x="650" y="72" text-anchor="middle" font-size="35">sing</text></svg></div><p><strong>Birds</strong> tells who performs the action; <strong>sing</strong> tells what the birds do. The upright line divides the subject from the predicate verb. More complex sentences grow additional branches.</p></section>
 <footer class="footer">Grammar Grove · FaithSparks Labs · Original learning content and artwork</footer>
-</main><script defer src="/static/labs/grammar-grove.js"></script></body></html>
+</main><script type="module" src="/static/labs/grammar-grove.js"></script></body></html>
