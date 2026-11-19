@@ -34,14 +34,14 @@
 .art-meadow{background-image:url("./art/art-097424b09031.webp");}
 .art-mesa{background-image:url("./art/art-67d03176b7a1.webp");}
 .art-mountain{background-image:url("./art/art-9606c7bb2d31.webp");}
-.art-oasis{background-image:url("./art/art-29d018f0915e.webp");}
+.art-oasis{background-image:url("./art/oasis.webp");}
 .art-peninsula{background-image:url("./art/art-4479146c2acb.webp");}
 .art-pier{background-image:url("./art/art-8967f644d0ee.webp");}
 .art-plain{background-image:url("./art/art-380b453ba3ba.webp");}
 .art-plateau{background-image:url("./art/art-86bf5a45bb19.webp");}
 .art-pond{background-image:url("./art/art-ee2445058797.webp");}
 .art-rapids{background-image:url("./art/art-134f7d34ca05.webp");}
-.art-reservoir{background-image:url("./art/art-79db9b8df65a.webp");}
+.art-reservoir{background-image:url("./art/reservoir.webp");}
 .art-ridge{background-image:url("./art/art-1465d4ef5237.webp");}
 .art-river{background-image:url("./art/art-009953d10373.webp");}
 .art-sandbar{background-image:url("./art/art-bb00b0daa1ff.webp");}
@@ -62,7 +62,7 @@
 .art-diagram-dam{background-image:url("./art/diagram-dam.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-ocean{background-image:url("./art/diagram-ocean.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-river-source{background-image:url("./art/diagram-river-source.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
-.art-diagram-river-mouth{background-image:url("./art/diagram-river-mouth.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
+.art-diagram-river-mouth{background-image:url("./art/river-mouth.webp");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-woods{background-image:url("./art/diagram-woods.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-peak{background-image:url("./art/diagram-peak.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
 .art-diagram-current{background-image:url("./art/diagram-current.svg");background-size:contain;background-repeat:no-repeat;background-color:#eeefdf}
