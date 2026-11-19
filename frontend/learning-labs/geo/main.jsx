@@ -127,7 +127,7 @@ function App(){
  return <><Family game="geo"/><main className={"atlas "+(s.screen==='play'?'on-expedition':'')}><header className="atlas-hero"><div className="atlas-title"><h1><span>Geo</span>{' '}<span>Detectives!</span></h1><p>Explore and discover the world we live in</p></div></header>
  {s.screen==='home'?<section className="geo-home expedition-home">
  <div className="expedition-setup">
-  <p className="expedition-directions">Check today's explorer boxes &amp; choose a trail on the Expedition Map below to begin today's journey to discovery! Scroll past the map to have more say in how you play.</p>
+  <p className="expedition-directions">Prepare for your journey by declaring today's explorer(s) and then choosing a trail on the Expedition Map below. Click &quot;Start fresh&quot; to begin exploring the world we live in. (Scroll down past the map to have more say in how you play.)</p>
   <ExpeditionPlayers state={s} dispatch={dispatch}/>
   <label className="geo-field">Scoring<select value={s.playMode==='teams'?'teams':'players'} onChange={e=>{
    const players=profiles();
