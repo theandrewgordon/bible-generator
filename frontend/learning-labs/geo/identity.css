@@ -32,7 +32,7 @@
 
 .atlas-title {
   position: absolute;
-  top: 49%;
+  top: 42%;
   left: 50%;
   width: 63%;
   transform: translate(-50%, -50%);
@@ -93,7 +93,7 @@
     left: auto;
     width: 64%;
     padding-inline: 6px 10px;
-    transform: none;
+    transform: translateY(-10px);
   }
 
   .atlas-title h1,
