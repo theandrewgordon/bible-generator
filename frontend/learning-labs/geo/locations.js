@@ -88,16 +88,47 @@ australia|Tuvalu|690.8|219.4`.split('\n').map(line=>{
 /* Most map outlines contain a dominant mainland ring. Its central area provides
    an initial pin for places without a curated map coordinate. */
 function shapeCenter(path){
- if(!path) return null;
- const rings=path.split(/(?=M[\d.-])/).filter(Boolean);
- const bounds=rings.map(ring=>{
-  const pairs=[...ring.matchAll(/[ML](-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/g)].map(m=>[Number(m[1]),Number(m[2])]);
-  if(!pairs.length) return null;
-  const xs=pairs.map(p=>p[0]),ys=pairs.map(p=>p[1]);
-  const left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);
-  return {x:(left+right)/2,y:(top+bottom)/2,area:(right-left)*(bottom-top)};
+ if(!path)return null;
+ // Evaluate each closed ring and choose a point inside the largest landmass.
+ // Bounding-box centers can land in lakes, neighboring states, or the ocean.
+ const rings=path.split(/(?=M[\\d.-])/).filter(Boolean);
+ const shapes=rings.map(ring=>{
+  const vertices=[...ring.matchAll(/[ML](-?\\d+(?:\\.\\d+)?),(-?\\d+(?:\\.\\d+)?)/g)]
+   .map(m=>[Number(m[1]),Number(m[2])]);
+  if(vertices.length<3)return null;
+  let twiceArea=0,cx=0,cy=0;
+  for(let i=0;i<vertices.length;i++){
+   const [ax,ay]=vertices[i],[bx,by]=vertices[(i+1)%vertices.length];
+   const cross=ax*by-bx*ay;
+   twiceArea+=cross;
+   cx+=(ax+bx)*cross;
+   cy+=(ay+by)*cross;
+  }
+  if(Math.abs(twiceArea)<0.001)return null;
+  return {vertices,area:Math.abs(twiceArea)/2,center:[cx/(3*twiceArea),cy/(3*twiceArea)]};
  }).filter(Boolean).sort((a,b)=>b.area-a.area);
- return bounds.length?[bounds[0].x,bounds[0].y]:null;
+ if(!shapes.length)return null;
+ const {vertices,center}=shapes[0];
+ function inside(x,y){
+  let found=false;
+  for(let i=0,j=vertices.length-1;i<vertices.length;j=i++){
+   const a=vertices[i],b=vertices[j];
+   if((a[1]>y)!==(b[1]>y) && x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])found=!found;
+  }
+  return found;
+ }
+ if(inside(...center))return center.map(value=>Math.round(value*10)/10);
+ const xs=vertices.map(v=>v[0]),ys=vertices.map(v=>v[1]);
+ const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+ // For a concave border, search toward the center at several scales.
+ let best=null,score=Infinity;
+ for(let iy=1;iy<20;iy++)for(let ix=1;ix<20;ix++){
+  const x=minX+(maxX-minX)*ix/20,y=minY+(maxY-minY)*iy/20;
+  if(!inside(x,y))continue;
+  const distance=(x-center[0])**2+(y-center[1])**2;
+  if(distance<score){best=[x,y];score=distance;}
+ }
+ return (best||vertices[0]).map(value=>Math.round(value*10)/10);
 }
 
 export const completeLocationRows=Object.fromEntries(Object.entries(capitalMapData)
