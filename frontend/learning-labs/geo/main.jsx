@@ -5,6 +5,8 @@ import {QuickStart,SessionStatus,LearningSummary,PracticeOptions} from '../share
 import {outcomeCounts} from '../shared/practice.js';
 import data from './data.json';
 import {placeBranches,placeQuestions} from './places.js';
+import europeMap from './region-maps/europe.webp';
+import unitedStatesMap from './region-maps/united-states.webp';
 import {ReadAloud} from '../shared/ReadAloud.jsx';
 import {stopVoice} from '../shared/voice.js';
 import {matchesTerm} from './answers.js';
@@ -15,6 +17,10 @@ import './identity.css';
 import './art-replacements.css';
 const all=[...data.quest,...data.compare,...placeQuestions],byId=new Map(all.map(q=>[q.id,q])),termTopics=new Map(data.quest.map(q=>[q.answer.toLowerCase(),q.topic]));
 const placeArtwork=import.meta.glob('./place-art/*.webp',{eager:true,query:'?url',import:'default'});
+const regionalMaps={
+ europe:{src:europeMap,alt:'Watercolor map of Europe showing its coastlines, islands, and mountain ranges.'},
+ usa:{src:unitedStatesMap,alt:'Watercolor map of the United States with terrain and insets for Alaska and Hawaii.'},
+};
 function Picture({art,src,label}){
  return <div className={art?'landscape '+art:'landscape place-landscape'} style={src?{backgroundImage:`url(${src})`}:undefined} role="img" aria-label={'Illustrated setting for '+label}/>;
 }
@@ -82,6 +88,8 @@ function App(){
   {Object.entries(placeBranches).map(([id,entry])=><button key={id} aria-pressed={s.branch===id} onClick={()=>dispatch({type:'branch',branch:id})}>{entry.name}</button>)}
  </nav>
  {branch?<section className="case-card geo-place-study" aria-label={branch.name+' study'}>
+  <img className="geo-region-map" {...regionalMaps[s.branch]} width="1200" height="800"/>
+  <div className="geo-place-controls">
   <label className="geo-field">{branch.focusLabel}<select value={place} onChange={e=>dispatch({type:'filter',key:'place',value:e.target.value})}>
    <option value="all">All {s.branch==='europe'?'starter countries':'regions'}</option>
    {branch.trails.map(([name])=><option key={name}>{name}</option>)}
@@ -93,6 +101,7 @@ function App(){
    resume={!!s.session&&s.rounds<s.session.ids.length} onResume={()=>dispatch({type:'resume'})}/>
   {!enoughQuestions&&<p role="status">Choose a broader trail so every player gets a turn.</p>}
   {pending.length>0&&<button onClick={()=>start(true)}>Review missed discoveries →</button>}
+  </div>
  </section>:<ExpeditionMap topic={s.topic||'all'} mode={s.mode} onTopic={value=>dispatch({type:'filter',key:'topic',value})} onMode={value=>dispatch({type:'filter',key:'mode',value})} onStart={()=>start(false,s.learner,5)} onResume={()=>dispatch({type:'resume'})} resume={!!s.session&&s.rounds<s.session.ids.length} pending={pending.length} available={enoughQuestions?eligible.length:0} needsMoreQuestions={eligible.length>0&&!enoughQuestions} questionsPerPlayer={s.playMode==='players'?Math.min(5,completeRounds):undefined} onReview={()=>start(true)}/>}
  <PracticeOptions><div className="geo-option-grid">{!branch&&<><label>Practice<select value={s.mode} onChange={e=>dispatch({type:'filter',key:'mode',value:e.target.value})}><option value="quest">Vocabulary Quest</option><option value="compare">Compare & Contrast</option></select></label><label>Explore a theme<select value={s.topic||'all'} onChange={e=>dispatch({type:'filter',key:'topic',value:e.target.value})}><option value="all">All landscapes</option>{[...new Set(data.quest.map(q=>q.topic))].map(topic=><option key={topic}>{topic}</option>)}</select></label><label>Trail<select value={s.level} onChange={e=>dispatch({type:'filter',key:'level',value:e.target.value})}><option value="all">All trails</option><option value="easy">Starter trail</option><option value="explorer">Explorer trail</option></select></label></>}<label>Answer with<select value={s.response||'choice'} onChange={e=>dispatch({type:'filter',key:'response',value:e.target.value})}><option value="choice">Multiple choice</option><option value="type">Fill in the blank</option></select></label><label>Session length<select value={length} onChange={e=>setLength(Number(e.target.value))}><option value="5">{s.playMode==='players'?'5 questions per player':'5 questions'}</option><option value="10">{s.playMode==='players'?'10 questions per player':'10 questions'}</option><option value="0">{s.playMode==='players'?'All complete rounds':'Explore the full trail'}</option></select></label></div>
  {s.playMode!=='teams'&&roster.map((id,i)=><label className="geo-field" key={id}>{multiplayer?`Player ${i+1} name`:'Learner’s name'}<input maxLength="24" value={s.learnerNames[id]} onChange={e=>dispatch({type:'learner-name',id,value:e.target.value})}/></label>)}
