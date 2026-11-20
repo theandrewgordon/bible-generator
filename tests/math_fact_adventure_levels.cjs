@@ -12,6 +12,11 @@ assert(mathStyles.includes('.expedition-layout'),'Source CSS must style expediti
 assert(mathStyles.includes('.adventure-field-guide'),'Source CSS must style the landing Field Guide');
 assert(mathStyles.includes("art/ambient-math-watercolor.svg"),'The Vite source must load the painted maths background');
 assert(mathStyles.includes("art/practice-valley-watercolor.svg"),'The practice panel must load original watercolor landscape');
+assert(mathSource.includes('src="./art/field-guide-journal-watercolor.svg"'),'Landing field guide must load its real illustrated asset');
+assert(mathSource.includes('class="landing-title"'),'Landing page has the approved Ready for a Math Adventure headline');
+assert(mathSource.includes('id="homePlay"') && mathSource.includes('id="homeEdit"') && mathSource.includes('id="homeReport"'),'Landing primary controls remain wired to their original IDs');
+assert(mathSource.indexOf('id="homePlay"')<mathSource.indexOf('id="homeOptions"'),'Primary landing buttons must remain visible outside optional settings');
+
 assert(mathSource.includes('<header class="journal-banner"><img src="./art/journal-1.webp"'),'Original masthead art must remain unchanged');
 assert(mathSource.includes('id="mathChoices"')&&mathSource.includes('id="typedPractice"')&&mathSource.includes('id="gradeActions"'),'Play controls must be preserved');
 assert((mathSource.match(/class="creation-note creation-game"/g)||[]).length===1,'One creation field note appears on each practice page');
