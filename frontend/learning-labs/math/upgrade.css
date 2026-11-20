@@ -216,3 +216,50 @@ header.journal-banner{position:relative;z-index:2} /* no size, asset or art chan
 #setup.journal-page,#report.journal-page{background:linear-gradient(170deg,#fff9ebee,#f1ead8ed)!important;border:2px solid #bca179!important}
 @media(max-width:680px){body{background-size:950px auto!important;background-position:center top!important}#game .expedition-main{min-height:290px}#game .expedition-layout .creation-note.creation-game{min-height:unset}.adventure-field-guide{padding:13px!important}}
 @media(prefers-reduced-motion:reduce){#home button,#game button,#setup button,#report button{transition:none!important}}
+
+
+/* Landing-page watercolor illustration release — 2026-11-19.
+   Narrow home/guide styles: no game engine or masthead changes. */
+#home.journal-page{position:relative;max-width:1000px!important;padding:clamp(20px,3.3vw,38px)!important;border:3px solid #af905b!important;border-radius:26px!important;background:
+radial-gradient(ellipse at 50% 0%,#fff8eacb 0,#fffaf2 68%),repeating-linear-gradient(4deg,#c9b28c13 0 2px,transparent 2px 8px)!important;box-shadow:0 6px 0 #c7ab78,0 15px 30px #314e4130!important}
+#home.journal-page::before{content:"";position:absolute;inset:9px;border:2px solid #e4c590;border-radius:19px;opacity:.7;pointer-events:none}
+#home.journal-page::after{content:"";position:absolute;inset:16px;border:1px dashed #bda174;border-radius:15px;opacity:.65;pointer-events:none}
+#home .landing-title{position:relative;z-index:1;display:grid;justify-items:center;gap:8px;text-align:center;margin:0 auto 25px;padding:0 14px 23px;border-bottom:1px solid #ba98655f}
+#home .landing-title-mountain{display:grid;place-items:center;width:94px;height:38px;border-radius:40% 40% 10% 10%;font-size:28px;color:#3e7564;text-shadow:0 2px #fff9ea;background:radial-gradient(ellipse,#d5e0ce80,transparent);margin-top:-8px}
+#home .landing-title h2{font:italic 700 clamp(1.7rem,4.2vw,3rem)/1.15 Georgia,serif!important;color:#174c48!important;letter-spacing:-.025em;margin:0!important;text-shadow:0 2px #f9ebce}
+#home .landing-title h2:before,#home .landing-title h2:after{content:"❧";color:#708e68;font:normal 27px Georgia,serif;display:inline-block;vertical-align:middle;margin:0 .35em}
+#home .landing-title h2:after{transform:scaleX(-1)}
+#home .landing-title p{font:italic clamp(.91rem,1.8vw,1.18rem)/1.5 Georgia,serif;color:#4b6155;margin:3px 0 0}
+#home #math-players,#home #homePlayers,#home #math-quick,#home .home-secondary,#home #resumeInfo,#home #homeOptions{position:relative;z-index:1}
+#home #math-players{margin:7px auto 18px;max-width:820px}
+#home #homePlayers.home-players{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px!important;margin:13px auto 16px!important;max-width:775px}
+#home #homePlayers>div{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:5px!important;min-height:125px;padding:47px 13px 13px!important;text-align:center;position:relative;border:2px solid #a88e61!important;border-radius:14px!important;box-shadow:0 4px 0 #c8a76b,0 8px 15px #7d6a4530!important;background:linear-gradient(160deg,#ebf0df,#f6eac6 65%,#d7e3d3)!important}
+#home #homePlayers>div:before{content:"";position:absolute;top:10px;left:50%;transform:translateX(-50%);width:63px;height:45px;border-radius:50% 50% 37% 37%;border:2px solid #b98f4c;background:
+linear-gradient(138deg,transparent 40%,#ecf0d7 40% 53%,transparent 54%) center 14px/58px 23px no-repeat,
+linear-gradient(35deg,transparent 36%,#6d998f 37% 63%,transparent 64%) center 14px/58px 24px no-repeat,
+linear-gradient(160deg,#91c3d0,#d7e2ba 66%,#62916d);box-shadow:0 1px 0 3px #e7cf98,0 4px 8px #5f68482a}
+#home #homePlayers strong{font:700 clamp(1.05rem,2.3vw,1.4rem)/1.2 Georgia,serif!important;color:#2e4e44}
+#home #homePlayers small{font-size:.8rem;color:#4d6656;max-width:220px;line-height:1.35;text-align:center}
+#home #math-quick{margin:16px auto!important;max-width:820px}
+#home #math-quick .labs-quick{background:transparent!important;box-shadow:none!important;border:0!important;padding:8px!important}
+#home #math-quick .labs-quick h2{font:700 1.08rem Georgia,serif!important;color:#386455!important}
+#home .home-secondary{display:flex;justify-content:center!important;gap:12px!important;flex-wrap:wrap;margin:13px auto 17px!important;max-width:840px}
+#home .home-secondary button{min-height:57px;padding:13px 23px!important;flex:1 1 155px;max-width:270px;font:700 clamp(.9rem,1.55vw,1.05rem) Georgia,serif!important;border:2px solid #547c6f!important;border-bottom:5px solid #346251!important;border-radius:15px!important}
+#home #homePlay{flex:2 1 210px;max-width:360px;background:linear-gradient(155deg,#45836c,#2b614b)!important;border-color:#356d54!important;border-bottom-color:#234b39!important;color:#fffbf0!important;font-size:clamp(1.05rem,2vw,1.3rem)!important}
+#home #homeEdit{background:linear-gradient(155deg,#edd7a0,#d7b067)!important;border-color:#bb945a!important;border-bottom-color:#936c3c!important;color:#3c3f2e!important}
+#home #homeReport{background:linear-gradient(155deg,#66899a,#386b80)!important;border-color:#497285!important;border-bottom-color:#2b5369!important;color:#fff6e8!important}
+#home #resumeInfo{font-size:.83rem;max-width:720px;margin:10px auto 12px;color:#5b6c5e}
+#home #homeOptions{margin:13px auto 0;max-width:780px;padding:5px 10px;border-top:1px solid #c9b48e}
+#home #homeOptions summary{color:#2d6359!important;font:700 .95rem Georgia,serif;padding:10px!important}
+#home #homeOptions[open]{padding-bottom:12px;background:#fffdf489}
+.adventure-field-guide{max-width:1000px!important;min-height:260px;grid-template-columns:minmax(180px,38%) minmax(0,1fr)!important;align-items:center!important;gap:24px!important;padding:22px 30px!important;border:3px solid #bd975d!important;border-left:12px double #a57842!important;border-radius:24px!important;background:
+radial-gradient(ellipse at 44% 0%,#fff7e7,#f7e5c5 85%)!important;box-shadow:0 7px 0 #d6b989,0 18px 27px #4d63472a!important}
+.adventure-field-guide .guide-art{min-width:0;align-self:stretch;display:grid;place-items:center}
+.adventure-field-guide .guide-art img{display:block;max-width:100%;width:100%;height:auto;max-height:258px;object-fit:contain;filter:drop-shadow(0 6px 7px #75603f3d)}
+.adventure-field-guide .guide-steps h2{font:italic 700 clamp(1.4rem,3vw,2.05rem)/1.2 Georgia,serif!important;color:#23483d!important;border-bottom:2px solid #b5935c!important;margin-bottom:17px}
+.adventure-field-guide .guide-steps ol{display:grid;gap:11px;counter-reset:guide;list-style:none}
+.adventure-field-guide .guide-steps li{font:italic clamp(.9rem,1.7vw,1.12rem)/1.4 Georgia,serif!important;margin:0!important;color:#324d44}
+.adventure-field-guide .guide-steps li::before{background:linear-gradient(#cf9b66,#a86838)!important;border:2px solid #915930!important;color:#fff8e5!important;box-shadow:0 2px 0 #e6c99e}
+#home.hidden+.adventure-field-guide{display:none!important}
+@media(max-width:720px){#home .landing-title h2:before,#home .landing-title h2:after{display:none}.adventure-field-guide{grid-template-columns:1fr!important;gap:8px!important;padding:17px 20px!important}.adventure-field-guide .guide-art img{max-height:180px}.adventure-field-guide .guide-steps h2{text-align:center}#home #homePlayers.home-players{grid-template-columns:repeat(2,minmax(0,1fr))}#home .home-secondary button{max-width:none}}
+@media(max-width:400px){#home #homePlayers.home-players{grid-template-columns:1fr 1fr;gap:8px!important}#home #homePlayers>div{padding:44px 6px 10px!important;min-height:115px}#home .landing-title{padding-inline:0}#home .landing-title h2{font-size:1.65rem!important}}
