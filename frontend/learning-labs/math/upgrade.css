@@ -86,3 +86,29 @@ main button:disabled{opacity:.55!important;filter:saturate(.55);cursor:default}
 #game:has(#next.hidden) #mathAnswerVoice{display:none}
 #mathVoice{font-size:15px;border-radius:24px;margin-bottom:10px}
 .labs-voice-status{display:block;font:12px/1.4 system-ui;color:#52684b;min-height:1em}
+
+
+/* Biblical Math in Creation — source-of-truth for each Vite/Docker build.
+   The existing masthead and gameplay styles are deliberately untouched. */
+.creation-note{display:grid;grid-template-columns:minmax(125px,34%) minmax(0,1fr);align-items:center;gap:clamp(10px,2.4vw,22px);position:relative;margin:clamp(18px,3vw,26px) auto;padding:clamp(12px,2.4vw,20px);max-width:760px;background:radial-gradient(ellipse at 7% 0%,#dbe9d2,transparent 60%),linear-gradient(155deg,#f9f2dc,#fffaf0 70%,#e9efde);border:1px solid #c7bb99;border-radius:17px;box-shadow:0 3px 0 #ded4b6,0 10px 24px #50705017;pointer-events:none}
+.creation-note:before{content:"";position:absolute;inset:7px;border:1px dashed #d0c4a0;border-radius:11px;opacity:.72}
+.creation-illustration,.creation-copy{position:relative;min-width:0}
+.creation-illustration svg{width:100%;max-height:135px;display:block;filter:drop-shadow(0 4px 5px #496e5220)}
+.creation-copy{text-align:left}
+.creation-kicker{display:block;font-size:.65rem;letter-spacing:.14em;font-weight:850;color:#907c58;margin-bottom:6px}
+.creation-copy strong{display:block;font:600 clamp(1rem,2.5vw,1.35rem)/1.2 Georgia,serif;color:#326454}
+.creation-copy p{font-size:clamp(.78rem,1.4vw,.92rem);color:#526f63;line-height:1.5;margin:7px 0}
+.creation-copy small{font-size:.75rem;color:#856f4d;font-style:italic;font-weight:650}
+.creation-setup,.creation-report{grid-template-columns:minmax(92px,23%) minmax(0,1fr);padding-block:10px}
+.creation-game{grid-template-columns:minmax(88px,22%) minmax(0,1fr);margin:14px auto 18px;padding:10px 16px;max-width:690px}
+.creation-game .creation-illustration svg{max-height:92px}
+.creation-game .creation-copy p{font-size:.79rem;margin:4px 0}
+.creation-game .creation-copy strong{font-size:1.04rem}
+.creation-game .creation-kicker{font-size:.59rem;margin-bottom:4px}
+#game .question{position:relative;isolation:isolate}
+#game .question:after{content:"❧";position:absolute;bottom:9px;left:14px;color:#799b82;font-size:24px;opacity:.22;pointer-events:none}
+#setup .person,#report .report-item{position:relative}
+#setup .person:before{content:"✽";position:absolute;right:11px;top:9px;color:#89aa86;font-size:20px;opacity:.4;pointer-events:none}
+#report .report-item:before{content:"✧";position:absolute;right:12px;top:9px;color:#b99d6a;font-size:21px;opacity:.5;pointer-events:none}
+@media(max-width:560px){.creation-note{grid-template-columns:minmax(84px,29%) minmax(0,1fr);gap:11px;padding:11px}.creation-illustration svg{max-height:96px}.creation-copy strong{font-size:1rem}.creation-copy p{font-size:.75rem;margin:5px 0}.creation-copy small{font-size:.67rem}.creation-kicker{font-size:.58rem;letter-spacing:.1em}}
+@media(max-width:345px){.creation-note{grid-template-columns:1fr}.creation-illustration svg{max-height:85px}.creation-copy{text-align:center}}
