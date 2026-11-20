@@ -112,3 +112,67 @@ main button:disabled{opacity:.55!important;filter:saturate(.55);cursor:default}
 #report .report-item:before{content:"✧";position:absolute;right:12px;top:9px;color:#b99d6a;font-size:21px;opacity:.5;pointer-events:none}
 @media(max-width:560px){.creation-note{grid-template-columns:minmax(84px,29%) minmax(0,1fr);gap:11px;padding:11px}.creation-illustration svg{max-height:96px}.creation-copy strong{font-size:1rem}.creation-copy p{font-size:.75rem;margin:5px 0}.creation-copy small{font-size:.67rem}.creation-kicker{font-size:.58rem;letter-spacing:.1em}}
 @media(max-width:345px){.creation-note{grid-template-columns:1fr}.creation-illustration svg{max-height:85px}.creation-copy{text-align:center}}
+
+/* Discovery Journal visual release. Original masthead is untouched. */
+:root{--expedition-ink:#214e4a;--expedition-green:#3d7264;--expedition-copper:#ac7450;--expedition-gold:#dcaf5f;--expedition-blue:#456f80}
+html{background:#ecebdc}
+body{color:var(--expedition-ink);background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221240%22%20height%3D%221000%22%20viewBox%3D%220%200%201240%201000%22%3E%0A%3Cg%20fill%3D%22none%22%20stroke%3D%22%23668a77%22%20opacity%3D%22.28%22%20stroke-width%3D%222%22%3E%0A%3Cpath%20d%3D%22M55%2078L150%2065l-2%2015-95%2013z%22%2F%3E%3Cpath%20d%3D%22M66%2075v12M83%2071v9M100%2071v12M118%2069v9M136%2067v12%22%2F%3E%0A%3Cpath%20d%3D%22M970%20143a75%2075%200%200%201%20150%200z%22%2F%3E%3Cpath%20d%3D%22M991%20137l22-28M1039%20143v-75M1090%20143l-20-30%22%2F%3E%3Cpath%20d%3D%22M995%20143h110%22%2F%3E%0A%3Cpath%20d%3D%22M87%20310L144%20207l55%20103zM144%20207v103M104%20310l41-75%22%2F%3E%0A%3Cpath%20d%3D%22M1023%20309h96v65h-96zM1030%20321h82M1030%20335h82M1030%20349h82M1030%20363h82%22%2F%3E%0A%3Cpath%20d%3D%22M85%20778q52-85%20123-32M85%20778q60-18%2095%2045M85%20778q-4-54-35-72%22%2F%3E%0A%3Cpath%20d%3D%22M1180%20765a49%2049%200%201%201-98%200a49%2049%200%201%201%2098%200zM1180%20765h-98M1131%20716v98%22%2F%3E%0A%3Cpath%20d%3D%22M1045%20566v58M1015%20595h60%22%2F%3E%0A%3C%2Fg%3E%0A%3Cg%20fill%3D%22%2363867c%22%20opacity%3D%22.32%22%20font-family%3D%22Georgia%2Cserif%22%20font-size%3D%2244%22%3E%0A%3Ctext%20x%3D%2237%22%20y%3D%22190%22%3E%2B%20%E2%88%92%20%C3%97%20%C3%B7%3C%2Ftext%3E%3Ctext%20x%3D%221000%22%20y%3D%22515%22%3E7%20%C3%97%206%20%3D%2042%3C%2Ftext%3E%3Ctext%20x%3D%2248%22%20y%3D%22575%22%3Ea%C2%B2%20%2B%20b%C2%B2%20%3D%20c%C2%B2%3C%2Ftext%3E%3Ctext%20x%3D%221012%22%20y%3D%22900%22%3EA%20%3D%20l%20%C3%97%20w%3C%2Ftext%3E%0A%3C%2Fg%3E%0A%3Cg%20stroke%3D%22%2377999b%22%20stroke-width%3D%221%22%20opacity%3D%22.15%22%3E%0A%3Cpath%20d%3D%22M12%20410h190M12%20430h190M12%20450h190M12%20470h190M36%20394v94M57%20394v94M78%20394v94M99%20394v94M120%20394v94M141%20394v94M162%20394v94%22%2F%3E%0A%3Cpath%20d%3D%22M990%2020h220M990%2040h220M990%2060h220M990%2080h220M1020%205v92M1045%205v92M1070%205v92M1095%205v92M1120%205v92M1145%205v92M1170%205v92%22%2F%3E%0A%3C%2Fg%3E%3Cg%20stroke%3D%22%23bd9763%22%20fill%3D%22none%22%20opacity%3D%22.28%22%3E%3Cpath%20d%3D%22M90%20894q32-54%200-100q-27-21-32-4q-3%2018%2031%2028q-40-13-50%2010q9%2021%2053%2020q-43%202-43%2026q16%2017%2042%202%22%2F%3E%3Cpath%20d%3D%22M1121%20644q-31-51%200-100q25-17%2030%200q2%2018-29%2028q39-7%2047%2012q-5%2019-45%2022%22%2F%3E%3C%2Fg%3E%0A%3C%2Fsvg%3E"),radial-gradient(ellipse at 8% 18%,#e2eadf 0,transparent 40%),radial-gradient(ellipse at 95% 68%,#dfe9df 0,transparent 38%),linear-gradient(180deg,#f5f1e4,#f5eddc 66%,#e4eddd);background-size:min(100%,1240px) auto,auto,auto,auto;background-position:center 200px,center,center,center;background-repeat:repeat-y,no-repeat,no-repeat,no-repeat}
+main{max-width:1130px}
+header.journal-banner{max-width:1050px;margin:0 auto 25px;border-color:#9db89e;box-shadow:0 5px #c1c5ad,0 14px 27px #48625220}
+.journal-page{background:radial-gradient(circle at 50% 10%,#fffdf6 0%,#fbf4e5 100%)!important;border:2px solid #bca57c!important;border-radius:23px!important;box-shadow:0 4px 0 #d8c2a1,0 12px 24px #4c674e2a!important}
+#home{max-width:900px;margin:0 auto 21px;padding:clamp(18px,3vw,30px)}
+#home:before{content:"";display:block;position:absolute;inset:6px;border:1px solid #e7d1a4;border-radius:17px;pointer-events:none}
+#home .labs-quick h2{color:#24534b!important;font:700 clamp(1.5rem,3.8vw,2.15rem)/1.15 Georgia,serif!important}
+#home .labs-quick h2:before,#home .labs-quick h2:after{content:"✦";font-size:.65em;color:#c3a05f;margin:0 .33em}
+#home .labs-quick{border-radius:18px}
+#home .home-players>div{background:linear-gradient(105deg,#eaf0e5,#fff9e8)!important;border:1px solid #95b49a!important;border-left:5px solid #658f74!important;box-shadow:0 2px 0 #d0d7c6!important}
+#home .home-players strong{font-family:Georgia,serif;font-size:1.07rem}
+#homeOptions{border-radius:12px}
+#home .labs-quick button,#home button,.adventure-field-guide button,#gradeActions button,#game button,#setup button,#report button{border-radius:11px!important;border:1px solid #6a7b69!important;border-bottom:4px solid #4e6855!important;font-weight:800!important;box-shadow:inset 0 1px #ffffff60,0 3px 0 #715f4d1d!important}
+#home .labs-quick button,.green,#correct,#next,#start{background:linear-gradient(155deg,#4e8871,#2e6855)!important;border-color:#316e57!important;border-bottom-color:#1d503e!important;color:#fffaf1!important}
+#home button.gray,#game button.gray,#setup button.gray,#report button.gray{background:linear-gradient(160deg,#668b91,#406876)!important;border-color:#416873!important;border-bottom-color:#32545c!important;color:#fffaf4!important}
+#home button.yellow,#game button.yellow,#setup button.yellow{background:linear-gradient(145deg,#f4d991,#dbae55)!important;border-color:#b78b4e!important;border-bottom-color:#956f3c!important;color:#4c3a27!important}
+#home button.orange,#game button.orange,#setup button.orange{background:linear-gradient(145deg,#bb8465,#a65c46)!important;border-color:#995b43!important;border-bottom-color:#774534!important;color:#fff8ed!important}
+#home button:hover:not(:disabled),#game button:hover:not(:disabled),#setup button:hover:not(:disabled),#report button:hover:not(:disabled){filter:brightness(1.065)}
+#home button:focus-visible,#game button:focus-visible,#setup button:focus-visible,#report button:focus-visible{outline:3px solid #aa743a!important;outline-offset:3px}
+#home.hidden+.adventure-field-guide{display:none!important}
+.adventure-field-guide{max-width:900px;margin:0 auto 27px;padding:18px 25px;display:grid;grid-template-columns:36% 1fr;gap:clamp(14px,3vw,30px);align-items:center;position:relative;background:linear-gradient(165deg,#fcf4df,#fff9ef 52%,#f2e8ce);border:2px solid #bca27a;border-left:9px double #a3774d;border-radius:16px;box-shadow:0 5px 0 #d3bc94,0 13px 24px #4d5c3e20}
+.adventure-field-guide:before{content:"";position:absolute;inset:7px;border:1px dashed #d7be8d;border-radius:9px;pointer-events:none}
+.guide-art{position:relative;z-index:1;display:grid;place-items:center}
+.guide-art svg{width:min(100%,280px);height:auto;filter:drop-shadow(0 4px 4px #76634821)}
+.guide-steps{position:relative;z-index:1}
+.guide-steps h2{font:700 clamp(1.25rem,3vw,1.85rem)/1.15 Georgia,serif!important;color:#254f45!important;border-bottom:2px solid #af9b6d;padding:0 0 12px;margin:0 0 15px}
+.guide-steps ol{padding:0;margin:0;list-style:none;counter-reset:guide}
+.guide-steps li{counter-increment:guide;display:grid;grid-template-columns:30px 1fr;gap:11px;align-items:start;margin:11px 0;font-size:clamp(.82rem,1.5vw,.99rem);line-height:1.45;color:#3c5047}
+.guide-steps li:before{content:counter(guide);display:grid;place-items:center;background:#b9ba79;color:#fffdf2;font-family:Georgia,serif;font-weight:bold;border-radius:50%;width:28px;height:28px;border:1px solid #9a9b62}
+.guide-steps li:nth-child(2n):before{background:#d5aa5d;border-color:#ba9552}
+#game{max-width:1060px;margin:0 auto 22px;min-height:370px}
+#game>.journal-eyebrow{display:inline-block;border:0;color:#315f54;background:linear-gradient(170deg,#e8dbb6,#faf0d5);font:700 clamp(1.3rem,3.4vw,2.05rem)/1.2 Georgia,serif!important;letter-spacing:.02em!important;padding:9px 30px;border-radius:8px 8px 18px 18px;box-shadow:0 3px 0 #d8c09e;margin-bottom:18px}
+#game>.journal-eyebrow:before{content:"⛰  ";color:#538275}
+.expedition-layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(230px,1fr);align-items:stretch;gap:16px;margin:14px 0}
+.expedition-main{position:relative;min-width:0;padding:15px 13px 13px;border:2px solid #9bb69b;border-radius:20px;background:linear-gradient(180deg,#acd6df,#e5ece0 31%,#c8d9c0 78%,#86a99a);box-shadow:0 4px 0 #adc0a4;overflow:hidden}
+.expedition-main:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 35% 9%,#ffffff99,transparent 45%),linear-gradient(155deg,transparent 60%,#537f7042 61% 64%,transparent 65%),linear-gradient(22deg,#467d7140 11%,transparent 12%);opacity:.75}
+.expedition-ribbon{position:relative;z-index:1;text-align:center;color:#fffdf0;background:linear-gradient(150deg,#618d74,#386e5b);border:1px solid #326b56;border-radius:12px 12px 25px 25px;box-shadow:0 3px 0 #325d4d;padding:9px 14px;font:700 clamp(1.1rem,2.2vw,1.6rem)/1.2 Georgia,serif;max-width:85%;margin:-8px auto 13px}
+#game .expedition-main .question{position:relative;z-index:1;max-width:none;margin:0;min-height:245px;padding:17px 14px;background:radial-gradient(ellipse at center,#fffbef,#f5e8cb)!important;border:2px solid #bda076!important;border-radius:15px!important;box-shadow:0 4px 0 #ceb48c!important}
+#game .expedition-main .question:before{display:none}
+#game .expedition-main .math{font:700 clamp(2.6rem,7vw,5.3rem)/1.2 Georgia,serif!important;letter-spacing:-.035em!important;color:#174c50!important;margin:13px auto}
+#game .expedition-main .math.story-question{font-size:clamp(1.25rem,2.6vw,1.8rem)!important;line-height:1.4!important;letter-spacing:0!important}
+.expedition-layout .creation-game{display:grid;grid-template-columns:1fr;align-content:center;justify-items:center;gap:2px;max-width:none;margin:0;padding:16px 14px;border-radius:15px;background:linear-gradient(175deg,#fff8e7,#efe7cd);border:2px solid #c3aa7f;box-shadow:0 4px 0 #d4bd95;pointer-events:none}
+.expedition-layout .creation-game .creation-illustration{order:2}
+.expedition-layout .creation-game .creation-illustration svg{max-height:100px}
+.expedition-layout .creation-game .creation-copy{text-align:center}
+.expedition-layout .creation-game .creation-copy strong{font:700 clamp(1.03rem,2vw,1.35rem)/1.25 Georgia,serif}
+.expedition-layout .creation-game .creation-copy small{font-size:.72rem}
+.expedition-layout .creation-game .creation-kicker{font-size:.72rem;color:#8c6d46;letter-spacing:.08em}
+#gradeActions{margin:20px auto!important;max-width:840px!important}
+#gradeActions button{flex:1 1 150px;min-height:56px;font-size:clamp(.88rem,1.4vw,1.05rem)!important}
+#game .scoreboard{margin-bottom:15px}
+#game .score{border-radius:11px!important}
+#game #mathChoices button{background:linear-gradient(145deg,#fbf4df,#e1e8d4)!important;color:#26574d!important;border:1px solid #a9b59a!important}
+#game #typedAnswer{border:2px solid #aab99c;background:#fffdf4}
+#report .report-item,#setup .person{border:1px solid #b1c3a8!important;border-top:4px solid #9aaa86!important;border-radius:13px;box-shadow:0 3px #dfdfc7}
+#setup .creation-setup,#report .creation-report{max-width:720px}
+@media(max-width:820px){.expedition-layout{grid-template-columns:minmax(0,1.5fr) minmax(205px,1fr)}.adventure-field-guide{grid-template-columns:29% 1fr}}
+@media(max-width:650px){body{background-size:930px auto,auto,auto,auto;background-position:center 180px,center,center,center}.adventure-field-guide{grid-template-columns:1fr;padding:17px}.guide-art svg{max-height:115px}.expedition-layout{grid-template-columns:1fr}.expedition-layout .creation-game{grid-template-columns:minmax(85px,25%) 1fr;padding:10px}.expedition-layout .creation-game .creation-copy{text-align:left}.expedition-layout .creation-game .creation-illustration{order:0}.expedition-layout .creation-game .creation-illustration svg{max-height:88px}#game .expedition-main .math{font-size:clamp(2.6rem,10vw,4.6rem)!important}}
+@media(max-width:390px){#game>.journal-eyebrow{padding:8px 14px}.guide-steps li{font-size:.85rem}.adventure-field-guide{padding:14px}.expedition-layout .creation-game{grid-template-columns:1fr;text-align:center}.expedition-layout .creation-game .creation-copy{text-align:center}}
+@media(prefers-reduced-motion:reduce){#home button,#game button,#setup button,#report button{transition:none!important}}
