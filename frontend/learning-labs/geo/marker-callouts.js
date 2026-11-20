@@ -1,8 +1,8 @@
 // Keep numbered answer badges outside the geographic artwork; arrows alone
 // enter the map. Work in viewBox coordinates so zoom/pan and dialogs remain aligned.
-export function layoutMarkerCallouts(viewport,markers){
+export function layoutMarkerCallouts(viewport,markers,radiusFraction=.03){
  const [left,top,width,height]=viewport;
- const radius=width*.03;
+ const radius=width*radiusFraction;
  const gutter=radius*3.3;
  const padding=radius*1.35;
  const mid=left+width/2;

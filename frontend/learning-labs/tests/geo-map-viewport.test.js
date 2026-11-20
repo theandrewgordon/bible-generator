@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {locationQuestions,locationMaps} from '../geo/locations.js';
+import {locationQuestions,locationMaps,questionGeography} from '../geo/locations.js';
 import {regionViews,centeredViewport,scaledViewport,shiftedViewport,markersViewport,initialMapViewport} from '../geo/map-viewport.js';
 
 function inside(view,point){
@@ -23,11 +23,8 @@ test('regional shortcuts remain within geographic map boundaries',()=>{
 });
 test('focus on markers keeps all three answer choices visible for every geography question',()=>{
  for(const question of locationQuestions){
-  const map=locationMaps[question.branch];
-  const pins=question.locations.map(name=>{
-   const point=map.points[name];
-   return {x:point[1],y:point[2]};
-  });
+  const map=questionGeography(question);
+  const pins=map.panels.flatMap(panel=>panel.numbered);
   const focused=markersViewport(map.view,pins);
   for(const pin of pins) assert.ok(inside(focused,pin),question.id+' missing a marker in focused view');
  }
@@ -42,13 +39,10 @@ test('map zoom and pan clamp to full map bounds',()=>{
 
 test('every geography question opens zoomed with all three markers visible',()=>{
  for(const question of locationQuestions){
-  const map=locationMaps[question.branch];
-  const pins=question.locations.map(name=>{
-   const point=map.points[name];
-   return {x:point[1],y:point[2]};
-  });
-  const initial=initialMapViewport(map.view,pins,question.branch);
-  assert.ok(initial[2]<map.view[2],question.id+' should start closer than full map');
+  const map=questionGeography(question);
+  const pins=map.panels.flatMap(panel=>panel.numbered);
+  const initial=map.hasInset?map.view:initialMapViewport(map.view,pins,question.branch);
+  assert.ok(map.hasInset||initial[2]<map.view[2],question.id+' should start closer than full map');
   for(const pin of pins)assert.ok(inside(initial,pin),question.id+' missing a starting marker');
  }
 });
@@ -59,9 +53,9 @@ test('Caribbean country questions start with a closer map automatically',()=>{
  for(const name of caribbean){
   const question=locationQuestions.find(q=>q.branch==='north-america'&&q.target===name);
   assert.ok(question,'Missing Caribbean country: '+name);
-  const map=locationMaps[question.branch];
-  const pins=question.locations.map(n=>({x:map.points[n][1],y:map.points[n][2]}));
-  const initial=initialMapViewport(map.view,pins,question.branch);
-  assert.ok(map.view[2]/initial[2]>=2,question.id+' should open at least 2× zoom');
+  const map=questionGeography(question);
+  assert.ok(map.hasInset,question.id+' should open on enlarged outlines');
+  assert.equal(map.panels.length,1,question.id+' compares neighboring islands together');
+  assert.equal(map.panels[0].numbered.length,3);
  }
 });

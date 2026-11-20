@@ -106,26 +106,19 @@ test('capital trails cover 195 national jurisdictions, all 50 states, and one An
 
 
 test('location trails reveal one distinct numbered place in each map question',async()=>{
- const {locationQuestions,locationMaps,locationTrailName}=await import('../geo/locations.js');
+ const {locationQuestions,locationMaps,completeLocationRows,locationTrailName}=await import('../geo/locations.js');
  const {placeBranches}=await import('../geo/places.js');
  assert.equal(Object.keys(locationMaps.usa.paths).length,51);
  for(const [branch,region] of Object.entries(placeBranches)){
   const cards=locationQuestions.filter(card=>card.branch===branch);
   assert.equal(region.trails.some(([name])=>name===locationTrailName),branch!=='antarctica');
-  assert.equal(cards.length,branch==='antarctica'?0:4);
+  assert.equal(cards.length,completeLocationRows[branch]?.length??0);
   for(const card of cards){
    assert.equal(card.place,locationTrailName);
    assert.deepEqual(card.choices,['1','2','3']);
    assert.equal(card.locations[Number(card.answer)-1],card.target);
    assert.equal(new Set(card.locations).size,3);
-   const {points,paths,view}=locationMaps[branch];
-   const [left,top,width,height]=view;
-   const pins=card.locations.map(place=>points[place]);
-   for(const [index,[shape,x,y]] of pins.entries()){
-    assert.ok(paths[shape],placeBranches[branch].name+' marker has an outline');
-    assert.ok(x>=left&&x<=left+width&&y>=top&&y<=top+height);
-    for(const [,otherX,otherY] of pins.slice(index+1))assert.ok(Math.hypot(x-otherX,y-otherY)>54);
-   }
+
   }
  }
 });

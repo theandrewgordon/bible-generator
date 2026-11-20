@@ -1,44 +1,48 @@
-import React,{useEffect,useId,useRef,useState} from 'react';
-import {locationMaps} from './locations.js';
+import React,{useId,useRef,useState} from 'react';
+import {questionGeography} from './locations.js';
 import {centeredViewport,initialMapViewport,markersViewport,regionViews,scaledViewport,shiftedViewport} from './map-viewport.js';
 import watercolor from './region-maps/location-watercolor.webp';
 import {layoutMarkerCallouts} from './marker-callouts.js';
 import './location-map.css';
 
-export function LocationMap({question,result,onChoose}){
+export function LocationMap({question,result,onChoose,children}){
  const uid=useId(),dialog=useRef(null),opener=useRef(null);
  const [enlarged,setEnlarged]=useState(false);
- const {view,paths,points}=locationMaps[question.branch];
- const [x,y,width,height]=view;
- const numbered=question.locations.map((place,index)=>{
-  const [id,px,py]=points[place];
-  return {id,x:px,y:py,number:question.choices[index]};
- });
- const [viewport,setViewport]=useState(()=>initialMapViewport(view,numbered,question.branch));
+ const [continent,setContinent]=useState(false),[extent,setExtent]=useState(false);
+ const {view,panels,hasInset,label,hasExtent}=questionGeography(question,{continent,extent});
+ const numbered=panels.flatMap(panel=>panel.numbered);
+ const split=panels.length>1;
+ const startView=()=>hasInset?view:initialMapViewport(view,numbered,question.branch);
+ const [viewport,setViewport]=useState(startView);
  const marked=result&&result.outcome!=='skipped';
- const correct=marked&&numbered.find(pin=>pin.number===question.answer);
- const presets=regionViews[question.branch]||[];
+ const presets=(!hasInset||continent)?regionViews[question.branch]||[]:[];
  const zoomLevel=Math.round(view[2]/viewport[2]*10)/10;
  const isFull=zoomLevel<=1.01;
- useEffect(()=>{
-  setViewport(initialMapViewport(view,numbered,question.branch));
-  setEnlarged(false);
-  dialog.current?.close();
- },[question.id,question.branch]);
+ const changeView=(nextContinent,nextExtent=false)=>{
+  const next=questionGeography(question,{continent:nextContinent,extent:nextExtent});
+  setContinent(nextContinent);
+  setExtent(nextExtent);
+  setViewport(next.view);
+ };
  const reset=()=>setViewport(view);
  const zoom=multiplier=>setViewport(current=>scaledViewport(view,current,multiplier));
  const pan=(dx,dy)=>setViewport(current=>shiftedViewport(view,current,dx,dy));
- const focusChoices=()=>setViewport(markersViewport(view,numbered));
+ const focusChoices=()=>{
+  if(continent){changeView(false);return;}
+  setViewport(hasInset?view:markersViewport(view,numbered));
+ };
  const selectRegion=name=>{
   const selected=presets.find(region=>region.name===name);
   if(selected)setViewport(centeredViewport(view,selected.center,selected.scale));
  };
- const paint=inDialog=>{
-  const key=uid+(inDialog?'-zoom':'');
-  const {gutter,radius,callouts}=layoutMarkerCallouts(viewport,numbered);
+ const paint=(inDialog,{paths,numbered,widthKm,center},index)=>{
+  const key=uid+(inDialog?'-zoom':'')+'-'+index;
+  const [x,y,width,height]=view;
+  const correct=marked&&numbered.find(pin=>pin.number===question.answer);
+  const {gutter,radius,callouts}=layoutMarkerCallouts(viewport,numbered,split ? .06 : .03);
   const [vx,vy,vw,vh]=viewport;
-  return <svg className="location-map" viewBox={[vx-gutter,vy,vw+2*gutter,vh].join(' ')} role="group"
-    aria-label="Geography map with three numbered arrow callouts placed outside the map. Zoom and pan using the controls below. Small island nations may use approximate locator points.">
+  return <div className="location-sheet" key={index}><svg className="location-map" viewBox={[vx-gutter,vy,vw+2*gutter,vh].join(' ')} role="group"
+    aria-label={numbered.length?`Geography map with numbered arrows ${numbered.map(pin=>pin.number).join(', ')}.`:'Continental overview'}>
    <defs>
     <radialGradient id={key+'-sea'}><stop stopColor="#6ac5cd"/><stop offset=".74" stopColor="#acdbd2"/><stop offset="1" stopColor="#fff1d7"/></radialGradient>
     <clipPath id={key+'-land'}>{Object.entries(paths).map(([id,d])=><path key={id} d={d} clipRule="evenodd"/>)}</clipPath>
@@ -49,11 +53,12 @@ export function LocationMap({question,result,onChoose}){
    <g clipPath={`url(#${key}-viewport)`}>
    <rect {...{x,y,width,height}} fill={`url(#${key}-sea)`}/>
    <image {...{x,y,width,height}} href={watercolor} clipPath={`url(#${key}-land)`} preserveAspectRatio="none"/>
-   <g fill="none" stroke="#284d44" strokeOpacity=".78" strokeWidth="1.6" strokeLinejoin="round">
+   {label&&<rect {...{x,y,width,height}} fill="#829767" clipPath={`url(#${key}-land)`} style={{mixBlendMode:'color'}}/>}
+   <g fill="none" stroke={label?'#284955':'#284d44'} strokeOpacity=".78" strokeWidth={hasInset&&!continent?Math.min(1.45,1.45*vw/view[2]):1.6} strokeLinejoin="round">
     {Object.entries(paths).map(([id,d])=><path key={id} d={d}/>)}
    </g>
    <rect {...{x,y,width,height}} filter={`url(#${key}-grain)`} opacity=".1" pointerEvents="none" style={{mixBlendMode:'multiply'}}/>
-   {correct&&(paths[correct.id]?<path d={paths[correct.id]} fill="#e8f8a5" fillOpacity=".62" stroke="#205438" strokeWidth="3" fillRule="evenodd"/>:<circle cx={correct.x} cy={correct.y} r="37" fill="none" stroke="#205438" strokeWidth="4" strokeDasharray="5 4" aria-label="Correct small country location"/>)}
+   {correct&&<path d={paths[correct.id]} fill="#e8f8a5" fillOpacity=".62" stroke="#205438" strokeWidth={3*vw/view[2]} fillRule="evenodd"/>}
    </g>
    {callouts.map(pin=><g key={pin.number} className="location-callout">
     <path d={`M${pin.start.x},${pin.start.y} L${pin.tip.x},${pin.tip.y}`}
@@ -70,8 +75,15 @@ export function LocationMap({question,result,onChoose}){
       <text y={radius*.035} style={{fontSize:radius*1.15}}>{pin.number}</text>
     </g>
    </g>)}
-  </svg>;
+  </svg>
+  {widthKm&&<p className="location-scale">{center&&<span>{coordinate(center[1],'N','S')} · {coordinate(center[0],'E','W')}</span>}
+   <span>Map width ≈ {formatScale(widthKm*vw/view[2])}</span></p>}
+  </div>;
  };
+ const renderMaps=inDialog=><div className={`location-frame${split?' location-panel-grid':''}`}>
+  {label&&<p className="location-inset-label">{label} — {split?'enlarged views':'enlarged view'}</p>}
+  {panels.map((panel,index)=>paint(inDialog,panel,index))}
+ </div>;
  function choose(number,inDialog){
   if(inDialog)dialog.current?.close();
   onChoose(number);
@@ -81,7 +93,9 @@ export function LocationMap({question,result,onChoose}){
    <button type="button" onClick={()=>zoom(1.6)} disabled={zoomLevel>=4.95} aria-label="Zoom map in">+ Zoom in</button>
    <button type="button" onClick={()=>zoom(1/1.6)} disabled={isFull} aria-label="Zoom map out">− Zoom out</button>
    <button type="button" onClick={focusChoices}>Focus on markers</button>
-   <button type="button" onClick={reset} disabled={isFull}>Full map</button>
+   <button type="button" onClick={reset} disabled={isFull}>{label?(split?'Full close-ups':'Full inset'):'Full map'}</button>
+   {hasInset&&<button type="button" onClick={()=>changeView(!continent)}>{continent?'Return to enlarged view':'Continental map'}</button>}
+   {hasExtent&&<button type="button" aria-pressed={extent} onClick={()=>changeView(false,!extent)}>{extent?'Show island details':'Show wider island groups'}</button>}
    <span className="location-zoom-status" role="status">{zoomLevel.toFixed(1)}×</span>
   </div>
   {presets.length>0&&<div className="location-regions" aria-label="Zoom to a region">
@@ -96,12 +110,22 @@ export function LocationMap({question,result,onChoose}){
    <button type="button" onClick={()=>pan(0,.3)} disabled={isFull} aria-label="Move map south">↓</button>
   </div>
  </div>;
- return <><div className="location-frame">{paint(false)}</div>
+ return <>{renderMaps(false)}
+  {continent&&<p className="location-scale">Continental overview. Return to the enlarged view to see the numbered arrows.</p>}
+  {children}
   {controls}
   <button ref={opener} type="button" className="subtle location-zoom" onClick={()=>{setEnlarged(true);dialog.current?.showModal();}}>⌕ Enlarge map</button>
   <dialog className="landscape-lens location-dialog" ref={dialog} aria-label="Enlarged geography map" onClose={()=>{setEnlarged(false);opener.current?.focus();}}>
    <button type="button" className="close-lens" autoFocus onClick={()=>dialog.current?.close()}>Close map ×</button>
-   {enlarged&&<>{paint(true)}{controls}</>}
+   {enlarged&&<>{renderMaps(true)}{controls}</>}
   </dialog>
  </>;
+}
+
+
+function coordinate(value,positive,negative){
+ return Math.abs(value).toFixed(1)+'° '+(value>=0?positive:negative);
+}
+function formatScale(widthKm){
+ return widthKm<1?Math.round(widthKm*1000)+' m':Math.round(widthKm)+' km';
 }
