@@ -6,7 +6,10 @@ const html=fs.readFileSync('static/labs/math-fact-rally.html','utf8');
 const mathSource=fs.readFileSync('frontend/learning-labs/math/index.html','utf8');
 const mathStyles=fs.readFileSync('frontend/learning-labs/math/upgrade.css','utf8');
 // Deployment rebuilds static HTML from these Vite source files, not the checked-in generated page.
-assert(mathSource.includes('class="creation-note creation-home"'),'Home nature note must live in source');
+assert(mathSource.includes('class="adventure-field-guide"'),'Illustrated Field Guide must be on landing screen');
+assert(mathSource.includes('class="expedition-layout"'),'Practice Expedition must be in the playable screen');
+assert(mathStyles.includes('.expedition-layout'),'Source CSS must style expedition panels');
+assert(mathStyles.includes('.adventure-field-guide'),'Source CSS must style the landing Field Guide');
 assert(mathSource.includes('class="creation-note creation-setup"'),'Setup nature note must live in source');
 assert(mathSource.includes('class="creation-note creation-game"'),'Practice nature note must live in source');
 assert(mathSource.includes('class="creation-note creation-report"'),'Journal nature note must live in source');
