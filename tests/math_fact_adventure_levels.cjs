@@ -3,6 +3,17 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const html=fs.readFileSync('static/labs/math-fact-rally.html','utf8');
+const mathSource=fs.readFileSync('frontend/learning-labs/math/index.html','utf8');
+const mathStyles=fs.readFileSync('frontend/learning-labs/math/upgrade.css','utf8');
+// Deployment rebuilds static HTML from these Vite source files, not the checked-in generated page.
+assert(mathSource.includes('class="creation-note creation-home"'),'Home nature note must live in source');
+assert(mathSource.includes('class="creation-note creation-setup"'),'Setup nature note must live in source');
+assert(mathSource.includes('class="creation-note creation-game"'),'Practice nature note must live in source');
+assert(mathSource.includes('class="creation-note creation-report"'),'Journal nature note must live in source');
+assert(!mathSource.includes('class="nature-gallery"'),'Remove old faux-button nature cards from source');
+assert(mathStyles.includes('.creation-note'),'Source CSS must include creation-note artwork styling');
+assert(mathSource.includes('journal-1.webp'),'Original watercolor masthead asset must remain');
+
 const code=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
 require('node:child_process').execFileSync(process.execPath,['--check','frontend/learning-labs/math/engine.js']);
 const before=code.slice(code.indexOf('const OPERATIONS='),code.indexOf('const KEY='));
