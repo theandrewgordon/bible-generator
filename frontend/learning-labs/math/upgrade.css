@@ -175,3 +175,44 @@ main{max-width:1130px}
 @media(max-width:650px){body{background-size:930px auto,auto,auto,auto;background-position:center 180px,center,center,center}.adventure-field-guide{grid-template-columns:1fr;padding:17px}.guide-art svg{max-height:115px}.expedition-layout{grid-template-columns:1fr}.expedition-layout .creation-game{grid-template-columns:minmax(85px,25%) 1fr;padding:10px}.expedition-layout .creation-game .creation-copy{text-align:left}.expedition-layout .creation-game .creation-illustration{order:0}.expedition-layout .creation-game .creation-illustration svg{max-height:88px}#game .expedition-main .math{font-size:clamp(2.6rem,10vw,4.6rem)!important}}
 @media(max-width:390px){#game>.journal-eyebrow{padding:8px 14px}.guide-steps li{font-size:.85rem}.adventure-field-guide{padding:14px}.expedition-layout .creation-game{grid-template-columns:1fr;text-align:center}.expedition-layout .creation-game .creation-copy{text-align:center}}
 @media(prefers-reduced-motion:reduce){#home button,#game button,#setup button,#report button{transition:none!important}}
+
+
+/* Discovery Journal final visual integration: original illustrated assets.
+   Applies ONLY to styling. Existing masthead art, JS, controls, events unchanged. */
+body{background:#ebeee2 url('./art/ambient-math-watercolor.svg') center top / min(100%,1260px) auto repeat-y!important}
+main{isolation:isolate}
+header.journal-banner{position:relative;z-index:2} /* no size, asset or art changes */
+#home.journal-page{position:relative;z-index:1;background:linear-gradient(145deg,#fffaf0e8,#fbf0dbee)!important;border:3px double #be9865!important;border-radius:22px!important;box-shadow:0 8px 0 #ddcfaa,0 20px 35px #455c4522!important}
+#home.journal-page::after{content:"";position:absolute;inset:9px;border:1px dashed #cbaa7a;opacity:.42;border-radius:13px;pointer-events:none}
+#home .labs-quick{position:relative;z-index:1}
+#home .labs-quick h2{font:italic 700 clamp(1.65rem,4vw,2.45rem)/1.2 Georgia,serif!important;color:#184d4c!important;margin-bottom:15px}
+#home .home-players>div{position:relative;z-index:1;background:linear-gradient(160deg,#f5f5e9,#e6ecd6)!important;border:2px solid #9ab19a!important;border-radius:12px!important;padding:15px 20px!important}
+#home .home-players strong{font-family:Georgia,serif!important;font-size:1.1rem}
+#home #math-quick,#home .home-secondary,#home #resumeInfo,#home #homeOptions{position:relative;z-index:1}
+#home button,#gradeActions button,#game button,#setup button,#report button{font-family:Georgia,ui-serif,serif!important;font-size:clamp(.91rem,1.5vw,1.08rem)!important;font-weight:750!important;border-radius:13px!important;border:2px solid #8d987c!important;border-bottom:5px solid #5c785d!important;box-shadow:inset 0 2px #ffffff78,0 3px 0 #66704e18!important;text-shadow:none;transition:filter .15s,transform .15s}
+#home button:focus-visible,#game button:focus-visible,#setup button:focus-visible,#report button:focus-visible{outline:3px solid #b47a35!important;outline-offset:3px}
+#home button.green,#home #quickFive,.green,#correct,#start,#next{background:linear-gradient(155deg,#4e8c76,#2e745e)!important;color:#fff8ee!important;border-color:#3b795f!important;border-bottom-color:#20513f!important}
+#home button.yellow,#game button.yellow,#reveal{background:linear-gradient(160deg,#f9e6a4,#e8b95b)!important;color:#4c391b!important;border-color:#c39745!important;border-bottom-color:#98712e!important}
+#home button.gray,#game button.gray,#setup button.gray,#report button.gray,#assisted{background:linear-gradient(155deg,#628ca0,#416e81)!important;color:#fef9ed!important;border-color:#4c788d!important;border-bottom-color:#2b5668!important}
+#home button.orange,#game button.orange,#setup button.orange,#incorrect{background:linear-gradient(155deg,#c38863,#a65c43)!important;color:#fffaf2!important;border-color:#a66648!important;border-bottom-color:#81472e!important}
+#gradeActions button{min-height:62px!important}
+#home .home-secondary button,#gradeActions button{min-width:0}
+.adventure-field-guide{position:relative;background:radial-gradient(ellipse at top left,#fffaf0,#faecd2 80%)!important;border:3px solid #bf9d72!important;border-left:10px double #ae8651!important;border-radius:19px!important;box-shadow:0 7px 0 #d7c09b,0 16px 28px #5063482c!important}
+.adventure-field-guide::after{content:"";position:absolute;bottom:-14px;left:0;right:0;height:23px;pointer-events:none;background:repeating-linear-gradient(90deg,#739b791b 0 14px,#bbd3b21b 14px 23px);border-radius:0 0 20px 20px}
+.guide-steps h2{color:#234f48!important;font:italic 700 clamp(1.4rem,3vw,1.9rem)/1.2 Georgia,serif!important}
+.guide-art svg{filter:drop-shadow(0 6px 7px #6b65472b)}
+#game.journal-page{position:relative;background:linear-gradient(#fffaeced,#f6ead7ee)!important;border:3px solid #bfa078!important;border-radius:24px!important;box-shadow:0 7px 0 #d6c09a,0 18px 32px #47625024!important}
+#game .expedition-main{background:linear-gradient(180deg,#93cadd7d,#bad9cb20) , url('./art/practice-valley-watercolor.svg') center / cover no-repeat!important;border:3px solid #9dad97!important;border-radius:23px!important;box-shadow:0 5px 0 #c7cfaf,0 8px 19px #3f645226!important;min-height:335px;padding:18px 16px}
+#game .expedition-main::before{display:none}
+#game .expedition-ribbon{font:italic 700 clamp(1.18rem,2.6vw,1.7rem)/1.2 Georgia,serif!important;padding:10px 15px!important;background:linear-gradient(155deg,#5b9277,#316952)!important;box-shadow:0 4px 0 #265b46!important;border:2px solid #3b7258!important;border-radius:10px 10px 18px 18px!important}
+#game .expedition-main .question{background:radial-gradient(ellipse at center,#fffaf0f8,#f9edccf6)!important;border:3px solid #c4a17b!important;box-shadow:0 5px 0 #d7bd92, inset 0 0 0 7px #fffcf178!important;min-height:230px}
+#game .expedition-main .math{color:#174b4d!important;text-shadow:0 2px 0 #fff9e5}
+#game .expedition-layout .creation-note.creation-game{background:linear-gradient(160deg,#fff7e7ee,#f3e5c6ef)!important;border:3px solid #c4a27d!important;border-radius:17px!important;box-shadow:0 6px 0 #d9be96,0 9px 24px #586c5522!important;min-height:280px}
+#game .expedition-layout .creation-game .creation-copy strong{color:#214b43}
+#game .expedition-layout .creation-game .creation-copy p{font-family:Georgia,serif;font-style:italic;font-size:clamp(.85rem,1.4vw,1rem);line-height:1.5}
+#game .expedition-layout .creation-game .creation-illustration svg{max-height:130px}
+#game .expedition-layout .creation-game::before{border-color:#d6ba89}
+#game #mathChoices button{font-family:Georgia,serif!important;background:linear-gradient(#fff9e8,#e9efd8)!important;border:2px solid #91ae92!important;border-bottom:4px solid #719776!important;color:#244e48!important;font-size:clamp(1.2rem,3vw,1.65rem)!important}
+#setup.journal-page,#report.journal-page{background:linear-gradient(170deg,#fff9ebee,#f1ead8ed)!important;border:2px solid #bca179!important}
+@media(max-width:680px){body{background-size:950px auto!important;background-position:center top!important}#game .expedition-main{min-height:290px}#game .expedition-layout .creation-note.creation-game{min-height:unset}.adventure-field-guide{padding:13px!important}}
+@media(prefers-reduced-motion:reduce){#home button,#game button,#setup button,#report button{transition:none!important}}
