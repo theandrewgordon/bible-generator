@@ -544,7 +544,7 @@ body:has(.approved-math-landing:not(:has(#home.hidden))){
 /* The existing painted title and mountain belong to the reference illustration;
    mask ONLY that header area with matching parchment so the live heading replaces it. */
 .approved-math-landing::before{
-  content:"";position:absolute;z-index:0;top:2%;left:16.5%;width:67%;height:19%;
+  content:"";position:absolute;z-index:0;top:1.5%;left:16.5%;width:67%;height:22%;
   background:radial-gradient(ellipse at 50% 48%,#fdf0d7 0%,#f9e9cd 70%,#f5ddb5 100%);
   border-radius:32px;
   box-shadow:0 0 18px 17px #f9e6c8cc;
