@@ -282,7 +282,7 @@ radial-gradient(ellipse at 44% 0%,#fff7e7,#f7e5c5 85%)!important;box-shadow:0 7p
 }
 main:has(#home.hidden)>.approved-math-landing{display:none!important}
 .approved-math-landing #home.journal-page{
-  position:absolute!important;top:24.5%;left:15.3%;width:69.4%;height:32.3%;
+  position:absolute!important;top:24.5%;left:15.3%;width:69.4%;height:23.3%;
   margin:0!important;padding:0!important;min-height:0!important;overflow:visible!important;
   background:transparent!important;border:0!important;border-radius:0!important;
   box-shadow:none!important;text-align:center;
