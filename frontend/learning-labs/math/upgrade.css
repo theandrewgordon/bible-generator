@@ -525,3 +525,154 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
   .approved-math-landing .adventure-field-guide .guide-art img{max-height:155px;max-width:240px;margin:auto}
   .approved-math-landing .adventure-field-guide .guide-steps h2{text-align:center}
 }
+
+
+/* 2026-11-21: landing polish based on live screenshot.
+   Full-width painting, clean small title, full-bleed explorer art, nonoverlapping utilities.
+   These overrides affect presentation only and leave the masthead/game engine intact. */
+body:has(.approved-math-landing:not(:has(#home.hidden))){
+  background:#dbe9db url('./art/ambient-math-watercolor.svg') center top / cover fixed!important;
+}
+.approved-math-landing{
+  width:100vw!important;max-width:none!important;
+  left:50%;transform:translateX(-50%);margin:0 auto 25px!important;
+  aspect-ratio:1122/1042;
+  background-size:100% 100%!important;
+  background-position:center top!important;
+  overflow:visible;
+}
+/* The existing painted title and mountain belong to the reference illustration;
+   mask ONLY that header area with matching parchment so the live heading replaces it. */
+.approved-math-landing::before{
+  content:"";position:absolute;z-index:0;top:2%;left:16.5%;width:67%;height:19%;
+  background:radial-gradient(ellipse at 50% 48%,#fdf0d7 0%,#f9e9cd 70%,#f5ddb5 100%);
+  border-radius:32px;
+  box-shadow:0 0 18px 17px #f9e6c8cc;
+  pointer-events:none;
+}
+.approved-math-landing #home .landing-title{
+  position:absolute!important;top:-82%!important;left:-7%!important;right:-7%!important;
+  width:114%!important;height:auto!important;max-width:none!important;
+  z-index:3;display:block!important;
+  margin:0!important;padding:0!important;overflow:visible!important;clip:auto!important;
+  border:0!important;white-space:normal!important;background:transparent!important;
+  text-align:center;
+}
+.approved-math-landing #home .landing-title h2{
+  font:italic 700 clamp(1.35rem,2.55vw,2.15rem)/1.2 Georgia,serif!important;
+  letter-spacing:-.022em;color:#174d43!important;margin:0!important;
+  text-shadow:0 2px 1px #fffbeb!important;
+}
+.approved-math-landing #home .landing-title h2::before,
+.approved-math-landing #home .landing-title h2::after,
+.approved-math-landing #home .landing-title .landing-title-mountain,
+.approved-math-landing #home .landing-title p{display:none!important}
+.approved-math-landing #home .labs-player-choices{gap:clamp(8px,1vw,16px)!important}
+.approved-math-landing #home .labs-player-choices label{
+  width:clamp(108px,12.8vw,162px)!important;
+  height:clamp(119px,13.5vw,159px)!important;
+  padding:0 6px 5px!important;
+  background:#f8e6bf!important;
+}
+.approved-math-landing #home .labs-player-choices label::before{
+  inset:2px 2px 26px!important;
+  background-size:300% 106%!important;
+  background-position:0 50%;
+  border-radius:9px 9px 4px 4px;
+}
+.approved-math-landing #home .labs-player-choices label:nth-child(3n + 2)::before{background-position:50% 50%}
+.approved-math-landing #home .labs-player-choices label:nth-child(3n + 3)::before{background-position:100% 50%}
+.approved-math-landing #home .labs-player-choices label span{
+  z-index:2;width:calc(100% - 7px);max-width:none!important;min-width:0!important;
+  font-size:clamp(.83rem,1.4vw,1.08rem)!important;
+}
+.approved-math-landing #home #math-players details summary{
+  height:clamp(119px,13.5vw,159px)!important;
+}
+.approved-math-landing #home .home-secondary{
+  margin:clamp(12px,1.6vw,22px) auto 0!important;
+  gap:clamp(12px,2vw,28px)!important;
+}
+.approved-math-landing #home .landing-utilities{
+  position:absolute!important;top:calc(100% + 22px)!important;left:0;right:0;
+  z-index:5;display:flex!important;align-items:center;justify-content:center;
+  gap:clamp(9px,1.8vw,22px);width:100%;max-width:100%;
+  flex-wrap:nowrap;min-height:33px;margin:0!important;
+}
+.approved-math-landing #home .landing-utilities >*{
+  position:relative!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;
+  width:auto!important;max-width:none!important;min-width:0!important;
+  margin:0!important;padding:0!important;flex:0 1 auto;
+}
+.approved-math-landing #home .landing-utilities #math-quick{display:flex!important;align-items:center;justify-content:center}
+.approved-math-landing #home .landing-utilities #math-quick .labs-quick{
+  display:flex!important;flex-flow:row wrap!important;gap:6px;align-items:center;
+  width:auto!important;margin:0!important;padding:0!important;
+}
+.approved-math-landing #home .landing-utilities #math-quick .labs-quick button,
+.approved-math-landing #home .landing-utilities #homeReport,
+.approved-math-landing #home .landing-utilities #homeOptions summary,
+.approved-math-landing #home .landing-utilities .home-help-link{
+  display:inline-block!important;width:auto!important;max-width:none!important;
+  min-width:0!important;min-height:30px!important;margin:0!important;
+  padding:6px 7px!important;
+  font:700 clamp(.72rem,1.05vw,.9rem)/1.1 Georgia,serif!important;
+  color:#375c4d!important;background:#fff6e3d6!important;
+  border:1px solid #b9ac84!important;border-radius:8px!important;
+  box-shadow:none!important;text-decoration:none!important;white-space:nowrap;
+}
+.approved-math-landing #home .landing-utilities #math-quick .labs-quick button:hover,
+.approved-math-landing #home .landing-utilities #homeReport:hover,
+.approved-math-landing #home .landing-utilities .home-help-link:hover{
+  background:#e8efdb!important;
+}
+.approved-math-landing #home .landing-utilities #homeOptions[open]{
+  position:absolute!important;top:calc(100% + 8px)!important;left:24%!important;
+  width:min(430px,70vw)!important;min-width:265px!important;max-width:95vw!important;
+  background:#fffaed!important;border:2px solid #bd9968!important;
+  border-radius:13px!important;padding:14px!important;
+  box-shadow:0 11px 30px #45614b38!important;
+}
+.approved-math-landing #home .landing-utilities #homeOptions[open] summary{
+  margin-bottom:10px!important;
+}
+.approved-math-landing #home #resumeInfo{
+  position:absolute!important;top:calc(100% + 65px)!important;left:4%!important;right:4%!important;
+  width:92%!important;margin:0!important;padding:0!important;
+  text-align:center!important;font-size:clamp(.66rem,.93vw,.83rem)!important;
+  color:#4c6658!important;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+@media(max-width:935px){
+  .approved-math-landing{width:100vw!important;aspect-ratio:auto!important;left:50%;transform:translateX(-50%);background-size:cover!important}
+  .approved-math-landing::before{display:none!important}
+  .approved-math-landing #home .landing-title{
+    position:relative!important;top:auto!important;left:auto!important;right:auto!important;
+    width:100%!important;height:auto!important;max-width:100%!important;margin:0 auto 15px!important;
+    padding:0!important;text-align:center;
+  }
+  .approved-math-landing #home .landing-title h2{font-size:clamp(1.4rem,3.6vw,2rem)!important}
+  .approved-math-landing #home .landing-utilities{
+    position:relative!important;inset:auto!important;margin:14px auto 5px!important;
+    flex-wrap:wrap!important;gap:9px!important;min-height:0!important;
+  }
+  .approved-math-landing #home #resumeInfo{
+    position:relative!important;inset:auto!important;width:100%!important;
+    white-space:normal!important;margin:10px auto 0!important;
+  }
+  .approved-math-landing #home .labs-player-choices label{
+    width:clamp(106px,19vw,156px)!important;height:clamp(125px,21vw,155px)!important;
+  }
+  .approved-math-landing #home #math-players details summary{
+    height:clamp(125px,21vw,155px)!important;
+  }
+}
+@media(max-width:570px){
+  .approved-math-landing #home .landing-utilities{justify-content:center!important}
+  .approved-math-landing #home .landing-utilities #homeOptions[open]{
+    left:0!important;right:0!important;width:100%!important;
+    min-width:0!important;
+  }
+  .approved-math-landing #home .labs-player-choices label{width:clamp(105px,36vw,150px)!important;height:132px!important}
+  .approved-math-landing #home #math-players details summary{height:132px!important}
+}
