@@ -6,6 +6,17 @@ const html=fs.readFileSync('static/labs/math-fact-rally.html','utf8');
 const mathSource=fs.readFileSync('frontend/learning-labs/math/index.html','utf8');
 const mathStyles=fs.readFileSync('frontend/learning-labs/math/upgrade.css','utf8');
 // Deployment rebuilds static HTML from these Vite source files, not the checked-in generated page.
+const approvedArtDir='frontend/learning-labs/math/art/';
+const approvedStage=fs.readFileSync(approvedArtDir+'approved-landing-artwork.avif');
+const approvedCards=fs.readFileSync(approvedArtDir+'approved-explorer-paintings.avif');
+assert(approvedStage.length>10000&&approvedStage.toString('ascii',4,8)==='ftyp','Actual approved watercolor landing image must be packaged');
+assert(approvedCards.length>2000&&approvedCards.toString('ascii',4,8)==='ftyp','Actual approved watercolor explorer images must be packaged');
+assert(mathSource.includes('class="approved-math-landing"'),'Approved painting stage must wrap functional landing screen');
+assert(mathStyles.includes("url('./art/approved-landing-artwork.avif')"),'Landing uses the real approved artwork file');
+assert(mathStyles.includes("url('./art/approved-explorer-paintings.avif')"),'Explorer cards use original painted illustrations');
+assert(mathSource.includes('id="math-players"') && mathSource.includes('id="math-quick"') && mathSource.includes('id="homePlay"'),'Play selectors, Quick 5 and start button remain wired');
+assert(mathSource.includes('href="#math-guide"') && mathSource.includes('id="math-guide"'),'Home Help must reach illustrated guide');
+
 assert(mathSource.includes('class="adventure-field-guide"'),'Illustrated Field Guide must be on landing screen');
 assert(mathSource.includes('class="expedition-layout"'),'Practice Expedition must be in the playable screen');
 assert(mathStyles.includes('.expedition-layout'),'Source CSS must style expedition panels');
