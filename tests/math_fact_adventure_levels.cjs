@@ -40,6 +40,13 @@ assert(mathStyles.includes('.math-trail-card')&&mathStyles.includes('.creation-n
 assert(!mathStyles.includes('APPROVED ARTWORK RELEASE'),'Remove prior fragile positioned-painting layout and accumulated overrides');
 assert(!mathSource.includes('class="nature-gallery"'),'Remove obsolete faux-button cards');
 assert(matEngine.includes("mathFactRally.v2"),'Saved learner history must remain compatible');
+const playerPicker=fs.readFileSync('static/js/labs-players.js','utf8');
+assert(fs.existsSync(artRoot+'explorer-avatar-bank.webp'),'Original 12-portrait explorer icon sheet must be packaged');
+assert(matEngine.includes("explorer-avatar-bank.webp")&&matEngine.includes("id:'wolf'"),'Math student picker must use all twelve watercolor explorer portraits');
+assert(playerPicker.includes("avatarBank = null"),'Shared player picker must keep avatars optional for other games');
+assert(playerPicker.includes("faithsparks.labs.avatars.v1"),'Student icon preferences must persist by profile identifier');
+assert(playerPicker.includes("class: 'labs-avatar-option'"),'Explorer icon bank must have accessible buttons');
+assert(mathStyles.includes(".labs-player-portrait")&&mathStyles.includes(".labs-avatar-grid"),'Selected portraits must be clipped inside player tiles and picker must be responsive');
 assert(fs.readFileSync('frontend/learning-labs/build.mjs','utf8').includes('webp|png|jpg|svg|avif'),'Offline copy must inline painted AVIF artwork');
 
 const code=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
