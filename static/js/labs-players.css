@@ -42,3 +42,19 @@
 .labs-players form button { padding: .35rem .65rem; }
 .labs-players :is(button, select)[hidden], .labs-player-note:empty { display: none; }
 .labs-players p { margin: .45rem 0 0; font-size: .88rem; }
+
+.labs-avatar-save {
+  display: block;
+  margin: .85rem auto .25rem;
+  min-height: 2.85rem;
+  padding: .55rem 1.7rem;
+  border: 1px solid #8a6b38;
+  border-radius: .65rem;
+  background: #244f60;
+  color: #fff8e7;
+  font: 700 1rem/1.3 Georgia, serif;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #bca472;
+}
+.labs-avatar-save:hover, .labs-avatar-save:focus-visible {background: #336c7c;}
+.labs-avatar-save:focus-visible {outline: 3px solid #c79944;outline-offset: 3px;}
