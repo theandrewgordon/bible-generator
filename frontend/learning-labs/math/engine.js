@@ -389,7 +389,7 @@ mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:{
   {id:'fox',label:'Fox'}, {id:'owl',label:'Owl'}, {id:'bear',label:'Bear'}, {id:'rabbit',label:'Rabbit'},
   {id:'raccoon',label:'Raccoon'}, {id:'squirrel',label:'Squirrel'}, {id:'otter',label:'Otter'}, {id:'deer',label:'Deer'},
   {id:'hedgehog',label:'Hedgehog'}, {id:'turtle',label:'Turtle'}, {id:'eagle',label:'Eagle'}, {id:'wolf',label:'Wolf'},
-  {id:'flower-doe',label:'Flower Doe',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:0},
+  {id:'flower-doe',label:'Flower Fox',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:0},
   {id:'bluebird',label:'Bluebird',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:1},
   {id:'flower-badger',label:'Flower Badger',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:2},
   {id:'flower-lynx',label:'Flower Lynx',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:3}
