@@ -60,7 +60,7 @@ const get=id=>document.getElementById(id);
 /* Original illustrated Creation Field Notes rotate each question without altering
    the arithmetic sequence, scoring, learner preferences or saved data. */
 const CREATION_FIELD_NOTES=[
- {art:pineconeArt,alt:'Watercolor botanical illustration of a pinecone and pine needles',title:'Patterns in the pinewoods',body:'Pinecone scales sometimes form visible spirals. Count the patterns in the world God made.',verse:'Psalm 104:24 · Wisdom in creation'},
+ {art:pineconeArt,alt:'Watercolor botanical illustration of a pinecone and pine needles',title:'Patterns in the pinewoods',body:'Pinecone scales can form spirals whose counts follow the Fibonacci sequence (1, 1, 2, 3, 5, 8…). Look for these patterns in God’s creation.',verse:'Psalm 104:24 · Wisdom in creation'},
  {art:honeycombArt,alt:'Watercolor honeycomb with repeating hexagonal cells and a bee',title:'Honeycomb geometry',body:'Bees make hexagonal wax cells. Their repeating shapes fit together with remarkably little wasted space.',verse:'Proverbs 3:19 · Wisdom and understanding'},
  {art:sunflowerArt,alt:'Watercolor sunflower with florets in interlacing spirals',title:'A sunflower’s numbers',body:'Look closely at the tiny florets in a sunflower head. Many grow in two sets of graceful spirals.',verse:'Psalm 111:2 · Wonderful works to study'},
  {art:leafArt,alt:'Watercolor leaf with central vein and branching side veins',title:'Symmetry in a leaf',body:'Many leaves have a central vein with roughly balanced sides. What shapes can you notice?',verse:'Genesis 1:31 · The goodness of creation'},
