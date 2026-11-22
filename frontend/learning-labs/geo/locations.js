@@ -128,10 +128,7 @@ export const locationMaps=Object.fromEntries(Object.entries(maps).map(([branch,m
 
 export const locationQuestions=Object.entries(completeLocationRows).flatMap(([branch,rows])=>{
  const entries=cluesByRegion[branch]||{};
- // Keep Kiribati out of this introductory map trail and its distractors.
- // Other geography/capital data remains unchanged.
- const playableRows=rows.filter(row=>row.name!=='Kiribati');
- const places=playableRows.map(row=>row.name);
+ const places=rows.map(row=>row.name);
  return places.map((target,index)=>{
   const correctIndex=(index+1)%3;
   const point=name=>locationMaps[branch].points[name];
@@ -141,7 +138,7 @@ export const locationQuestions=Object.entries(completeLocationRows).flatMap(([br
   const inset=closeups[target];
   const candidates=places.slice(index+7).concat(places.slice(0,index+7))
    .filter(name=>name!==target&&!closeups[name]);
-  if(inset)locations.push(...inset.nearby.filter(name=>name!=='Kiribati').slice(0,2));
+  if(inset)locations.push(...inset.nearby.slice(0,2));
   for(const name of inset?[]:candidates){
    if(locations.every(other=>distance(name,other)>=68))locations.push(name);
    if(locations.length===3)break;
