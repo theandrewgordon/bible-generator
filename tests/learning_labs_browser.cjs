@@ -92,6 +92,26 @@ function latinFixture(){
    await page.goto(math);
    assert(await page.getByRole('checkbox',{name:'Explorer T'}).isChecked());
    assert.equal(await page.getByRole('checkbox',{name:'New Explorer'}).count(),1);
+   assert.equal(await page.locator('#math-players .labs-player-portrait').count(),4);
+   await page.getByText('Manage players',{exact:true}).click();
+   assert.equal(await page.locator('.labs-avatar-option').count(),12);
+   await page.getByLabel('Choose explorer to customize').selectOption({label:'Explorer T'});
+   await page.getByRole('button',{name:'Use Owl icon'}).click();
+   assert.equal(await page.getByRole('button',{name:'Use Owl icon'}).getAttribute('aria-pressed'),'true');
+   assert.equal(await page.evaluate(()=>{
+     const roster=JSON.parse(localStorage.getItem('faithsparks.labs.players.v1'));
+     const avatarMap=JSON.parse(localStorage.getItem('faithsparks.labs.avatars.v1'));
+     return avatarMap[roster.find(player=>player.name==='Explorer T').id];
+   }),'owl');
+   const paintedPortrait=page.locator('#math-players .labs-player-choices label').filter({hasText:'Explorer T'}).locator('.labs-player-portrait');
+   assert(await paintedPortrait.evaluate(el=>{
+     const icon=el.getBoundingClientRect(),tile=el.closest('label').getBoundingClientRect();
+     return icon.width>40&&icon.height>40&&icon.left>=tile.left&&icon.right<=tile.right&&icon.top>=tile.top&&icon.bottom<=tile.bottom;
+   }));
+   await page.reload();
+   await page.getByText('Manage players',{exact:true}).click();
+   await page.getByLabel('Choose explorer to customize').selectOption({label:'Explorer T'});
+   assert.equal(await page.getByRole('button',{name:'Use Owl icon'}).getAttribute('aria-pressed'),'true');
    await page.getByRole('button',{name:'Copy game link to share'}).click();
    assert.equal(await page.evaluate(()=>window.__copiedGameLink),'https://faithsparksprintables.com/labs/learningadventure/math');
    const friend=await browser.newPage();
