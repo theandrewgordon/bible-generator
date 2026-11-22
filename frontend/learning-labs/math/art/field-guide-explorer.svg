@@ -45,6 +45,28 @@
   </g>
   <path d="M205 229h98" stroke-width=".7" opacity=".35"/>
  </g>
+ <!-- Fine black-ink field mathematics, integrated with the nature drawings rather than practice questions. -->
+ <g fill="#34342f" stroke="#34342f" stroke-linecap="round" stroke-linejoin="round" opacity=".86">
+   <!-- Fibonacci progression beside pinecone-scale spirals. -->
+   <g font-family="Georgia, serif" font-size="10.8" font-style="italic" stroke="none">
+     <text x="36" y="128">3 · 5 · 8 · 13</text>
+     <text x="103" y="128">34 / 55</text>
+     <text x="43" y="224">6 sides · 120°</text>
+     <text x="209" y="133">≈ reflection</text>
+     <text x="270" y="137">1 → 2 → 4 → 8</text>
+     <text x="207" y="224">r increases ↗</text>
+   </g>
+   <!-- A precise reflection axis on the leaf, with mirrored measurement ticks. -->
+   <path d="M239 42L239 128" fill="none" stroke-width="1" stroke-dasharray="3 4"/>
+   <path d="M221 105h36M221 102v6M257 102v6" fill="none" stroke-width="1"/>
+   <!-- Subtle spiral measurement rays on the seashell sketch. -->
+   <path d="M256 174l20-9M256 174l38 18M256 174l-18 34" fill="none" stroke-width=".85" stroke-dasharray="2 3"/>
+   <g fill="none" stroke-width=".85">
+     <path d="M99 188h12M105 182v12"/>
+     <path d="M148 89q10-3 14-10"/>
+     <path d="M293 119h8M297 115v8"/>
+   </g>
+ </g>
  <path d="M7 120 Q-12 123 -12 145 L-12 171 Q-7 191 12 191" fill="none" stroke="#75482c" stroke-width="17"/>
  <rect x="-21" y="136" width="40" height="25" rx="6" fill="url(#brass)" stroke="#8d672e" stroke-width="3"/>
 </g>
