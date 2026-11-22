@@ -4,7 +4,7 @@ import '../../../static/js/labs-players.css';
 
 import explorerAvatarBank from './art/explorer-avatar-bank.webp';
 import feminineExplorerAvatars from './art/feminine-explorer-avatars.webp';
-import {mooseAvatar, snowyOwlAvatar} from './art/new-explorer-avatars.js';
+import {updatedExplorerArt} from './art/explorer-avatars-updated.js';
 import pineconeArt from './art/pinecone-watercolor.avif';
 import honeycombArt from './art/honeycomb-watercolor.avif';
 import sunflowerArt from './art/sunflower-watercolor.avif';
@@ -387,16 +387,16 @@ mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:{
  columns: 4,
  rows: 3,
  choices: [
-  {id:'fox',label:'Fox',cellIndex:0}, {id:'bear',label:'Bear',cellIndex:2}, {id:'rabbit',label:'Rabbit',cellIndex:3}, {id:'raccoon',label:'Raccoon',cellIndex:4},
+  {id:'fox',label:'Fox',cellIndex:0}, {id:'bear',label:'Bear',cellIndex:2}, {id:'rabbit',label:'Rabbit',src:updatedExplorerArt,columns:3,rows:2,cellIndex:0}, {id:'raccoon',label:'Raccoon',cellIndex:4},
   {id:'owl',label:'Owl',cellIndex:1}, {id:'squirrel',label:'Squirrel',cellIndex:5}, {id:'otter',label:'Otter',cellIndex:6},
-  {id:'flower-doe',label:'Fox',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:0},
-  {id:'deer',label:'Deer',cellIndex:7}, {id:'hedgehog',label:'Hedgehog',cellIndex:8}, {id:'turtle',label:'Turtle',cellIndex:9}, {id:'eagle',label:'Eagle',cellIndex:10},
+  {id:'flower-doe',label:'Fox',src:updatedExplorerArt,columns:3,rows:2,cellIndex:1},
+  {id:'deer',label:'Deer',src:updatedExplorerArt,columns:3,rows:2,cellIndex:2}, {id:'hedgehog',label:'Hedgehog',cellIndex:8}, {id:'turtle',label:'Turtle',cellIndex:9}, {id:'eagle',label:'Eagle',cellIndex:10},
   {id:'bluebird',label:'Bluebird',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:1},
   {id:'wolf',label:'Wolf',cellIndex:11},
-  {id:'flower-badger',label:'Badger',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:2},
+  {id:'flower-badger',label:'Badger',src:updatedExplorerArt,columns:3,rows:2,cellIndex:3},
   {id:'flower-lynx',label:'Lynx',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:3},
-  {id:'moose',label:'Moose',src:mooseAvatar,columns:1,rows:1,cellIndex:0},
-  {id:'snowy-owl',label:'Snowy Owl',src:snowyOwlAvatar,columns:1,rows:1,cellIndex:0}
+  {id:'moose',label:'Moose',src:updatedExplorerArt,columns:3,rows:2,cellIndex:4},
+  {id:'snowy-owl',label:'Snowy Owl',src:updatedExplorerArt,columns:3,rows:2,cellIndex:5}
  ]
 },onChange:selected=>{
  roundPlayers=selected;
