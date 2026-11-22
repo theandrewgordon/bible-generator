@@ -1,4 +1,13 @@
-{% extends "base.html" %}{% block title %}Labs | Faith Sparks{% endblock %}
+{% extends "base.html" %}{% block title %}Labs | Faith Sparks
+{% if is_admin %}
+<section class="journey-panel" aria-label="Private admin experiments">
+  <p class="product-kicker">Admin-only preview</p>
+  <h2>💡 Light Lab: The Quest for the Brightest Light</h2>
+  <p>Scripture memory in a watercolor invention lab. Enter a verse, try solo or team play, and review the private memory log.</p>
+  <a class="button primary" href="/labs/light-lab">Open Light Lab</a>
+</section>
+{% endif %}
+{% endblock %}
 {% block head_extra %}<meta name="robots" content="noindex,nofollow">{% endblock %}
 {% block content %}
 <header class="product-hero"><p class="product-kicker">Included with Plus</p><h1>Explore Faith Sparks Labs</h1><p>Choose learning practice, family planning, or a smaller experiment. Your core Scripture and Worship tools stay in the main navigation.</p></header>
