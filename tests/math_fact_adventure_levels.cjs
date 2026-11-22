@@ -43,6 +43,7 @@ assert(matEngine.includes("mathFactRally.v2"),'Saved learner history must remain
 const playerPicker=fs.readFileSync('static/js/labs-players.js','utf8');
 assert(fs.existsSync(artRoot+'explorer-avatar-bank.webp'),'Original 12-portrait explorer icon sheet must be packaged');
 assert(fs.existsSync(artRoot+'feminine-explorer-avatars.webp'),'Four feminine watercolor explorer icons must be included');
+assert(matEngine.includes("label:'Flower Fox'"),'Flower Fox replaces Flower Doe without losing saved avatar IDs');
 assert(matEngine.includes("explorer-avatar-bank.webp")&&matEngine.includes("id:'wolf'")&&matEngine.includes("id:'flower-lynx'")&&matEngine.includes("rows: 3"),'Math student picker must preserve the original twelve icons and add four feminine options');
 assert(playerPicker.includes("avatarBank = null"),'Shared player picker must keep avatars optional for other games');
 assert(playerPicker.includes("faithsparks.labs.avatars.v1"),'Student icon preferences must persist by profile identifier');
