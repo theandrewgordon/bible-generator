@@ -206,3 +206,31 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
 @media(max-width: 480px) {
   #game .labs-session-avatar {flex-basis: 2.8rem; width: 2.8rem; height: 2.8rem;}
 }
+
+/* The Field Guide artwork is a wide original illustration: show the entire composition,
+   never crop a fixed-height image inside the responsive home panel. */
+.approved-math-landing #math-guide .guide-art {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: visible !important;
+}
+.approved-math-landing #math-guide .guide-art img {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  aspect-ratio: 760 / 340;
+  object-fit: contain !important;
+  object-position: center center !important;
+  margin: 0 auto !important;
+}
+@media(max-width:700px) {
+  .approved-math-landing #math-guide .guide-art img {
+    width: min(100%, 460px) !important;
+    max-width: 100% !important;
+    max-height: none !important;
+  }
+}
