@@ -89,7 +89,7 @@ function App(){
  const roster=playingLearners(s), names=s.playMode==='teams'?s.names:roster.map(label);
  const highScore=Math.max(...s.scores), leaders=names.filter((_,i)=>s.scores[i]===highScore);
  const {verse:wisdomVerse,reference:wisdomReference,connection:wisdomConnection}=wisdomForQuestion(q);
- const foxGuide=<aside className="fox-guide"><div className="guide-portrait" aria-hidden="true"/><div className="guide-speech" aria-live="polite"><small>WISDOM FOR THE JOURNEY</small><p>{wisdomVerse} <span>— {wisdomReference} (KJV)</span> {wisdomConnection}</p>{!result&&s.clue<3&&<button onClick={()=>dispatch({type:'clue'})}>Help me uncover a clue →</button>}</div></aside>;
+ const foxGuide=<aside className="fox-guide"><div className="guide-portrait" aria-hidden="true"/><div className="guide-speech" aria-live="polite"><small>WISDOM FOR THE JOURNEY</small><p>{wisdomVerse} <span>— {wisdomReference} (KJV)</span> {wisdomConnection}</p></div></aside>;
  const answerChoices=<div className={'answer-choices'+(mapQuestion?' location-choices':'')} aria-label="Answer choices">{q.choices.map((c,i)=><button key={c} disabled={!!result||reveal} className={result&&result.outcome!=='skipped'?(c===q.answer?'correct-answer':result.selected===c?'wrong-answer':''):''} onClick={()=>award(c===q.answer?4-s.clue:0,c===q.answer,c)}>{!mapQuestion&&<span>{String.fromCharCode(65+i)}</span>}{c}</button>)}</div>;
  const resetScores=<button className="text-button" disabled={!s.scores.some(Boolean)} onClick={()=>dispatch({type:'reset-scores'})}>Reset scores to 0</button>;
  const nextSelection=currentPlayerSettings(s);
