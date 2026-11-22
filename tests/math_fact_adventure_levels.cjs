@@ -42,7 +42,8 @@ assert(!mathSource.includes('class="nature-gallery"'),'Remove obsolete faux-butt
 assert(matEngine.includes("mathFactRally.v2"),'Saved learner history must remain compatible');
 const playerPicker=fs.readFileSync('static/js/labs-players.js','utf8');
 assert(fs.existsSync(artRoot+'explorer-avatar-bank.webp'),'Original 12-portrait explorer icon sheet must be packaged');
-assert(matEngine.includes("explorer-avatar-bank.webp")&&matEngine.includes("id:'wolf'"),'Math student picker must use all twelve watercolor explorer portraits');
+assert(fs.existsSync(artRoot+'feminine-explorer-avatars.webp'),'Four feminine watercolor explorer icons must be included');
+assert(matEngine.includes("explorer-avatar-bank.webp")&&matEngine.includes("id:'wolf'")&&matEngine.includes("id:'flower-lynx'")&&matEngine.includes("rows: 3"),'Math student picker must preserve the original twelve icons and add four feminine options');
 assert(playerPicker.includes("avatarBank = null"),'Shared player picker must keep avatars optional for other games');
 assert(playerPicker.includes("faithsparks.labs.avatars.v1"),'Student icon preferences must persist by profile identifier');
 assert(playerPicker.includes("class: 'labs-avatar-option'"),'Explorer icon bank must have accessible buttons');
