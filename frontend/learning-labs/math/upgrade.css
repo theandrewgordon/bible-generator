@@ -537,3 +537,83 @@ main > header.journal-banner .math-banner-message span {
     font-size: clamp(5px, 1.12vw, 7px);
   }
 }
+
+/* Personalize Your Journey: retain complete field-note artwork and content
+   in a broad, shallow card so the real learner controls appear immediately. */
+#setup .creation-note.creation-setup-preview {
+  width: min(100%, 920px) !important;
+  max-width: 920px !important;
+  grid-template-columns: minmax(115px, 22%) minmax(0, 1fr) !important;
+  grid-template-rows: auto auto;
+  align-items: center !important;
+  align-content: center !important;
+  justify-items: stretch !important;
+  column-gap: clamp(12px, 2vw, 26px) !important;
+  row-gap: 6px !important;
+  margin: 8px auto 15px !important;
+  padding: 12px 20px !important;
+  text-align: left !important;
+}
+#setup .creation-setup-preview .creation-note-heading {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  margin-bottom: 0 !important;
+  padding-bottom: 6px !important;
+  text-align: center;
+}
+#setup .creation-setup-preview .creation-illustration {
+  grid-column: 1;
+  grid-row: 2;
+  width: min(100%, 170px) !important;
+  margin: 0 auto !important;
+}
+#setup .creation-setup-preview .creation-illustration img {
+  width: 100% !important;
+  height: auto !important;
+  max-height: 155px !important;
+  object-fit: contain !important;
+}
+#setup .creation-setup-preview .creation-copy {
+  grid-column: 2;
+  grid-row: 2;
+  gap: 4px !important;
+  text-align: left !important;
+}
+#setup .creation-setup-preview .creation-copy p {
+  font-size: clamp(.86rem, 1.2vw, 1rem) !important;
+  line-height: 1.4 !important;
+}
+#setup > h2 {
+  margin-bottom: 8px !important;
+}
+#setup > .controls {
+  margin-top: 3px !important;
+  margin-bottom: 12px !important;
+}
+@media (max-width: 650px) {
+  #setup .creation-note.creation-setup-preview {
+    grid-template-columns: minmax(86px, 27%) minmax(0, 1fr) !important;
+    width: 100% !important;
+    padding: 10px 12px !important;
+    column-gap: 10px !important;
+  }
+  #setup .creation-setup-preview .creation-illustration {
+    width: 100% !important;
+  }
+  #setup .creation-setup-preview .creation-illustration img {
+    max-height: 140px !important;
+  }
+  #setup .creation-setup-preview .creation-copy {
+    text-align: left !important;
+  }
+  #setup .creation-setup-preview .creation-copy strong {
+    font-size: 1.05rem !important;
+  }
+  #setup .creation-setup-preview .creation-copy p {
+    font-size: .83rem !important;
+    line-height: 1.3 !important;
+  }
+  #setup .creation-setup-preview .creation-copy small {
+    font-size: .7rem !important;
+  }
+}
