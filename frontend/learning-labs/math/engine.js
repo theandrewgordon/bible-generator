@@ -2,6 +2,7 @@ import {labsStorage} from '../../../static/js/labs-storage.js';
 import {gamePlayerId, importMathPlayers, mountPlayers, profiles, selectedPlayers} from '../../../static/js/labs-players.js';
 import '../../../static/js/labs-players.css';
 
+import explorerAvatarBank from './art/explorer-avatar-bank.webp';
 import pineconeArt from './art/pinecone-watercolor.avif';
 import honeycombArt from './art/honeycomb-watercolor.avif';
 import sunflowerArt from './art/sunflower-watercolor.avif';
@@ -379,7 +380,15 @@ get('homePlay').addEventListener('click',()=>{
  get('rounds').value=String(settings.rounds||'10');
  begin(selectedRoster(),true);
 });
-mountPlayers(get('math-players'),{game:'math',limit:4,preferred,onChange:selected=>{
+mountPlayers(get('math-players'),{game:'math',limit:4,preferred,roleName:'explorer',avatarBank:{
+ src: explorerAvatarBank,
+ columns: 4,
+ choices: [
+  {id:'fox',label:'Fox'}, {id:'owl',label:'Owl'}, {id:'bear',label:'Bear'}, {id:'rabbit',label:'Rabbit'},
+  {id:'raccoon',label:'Raccoon'}, {id:'squirrel',label:'Squirrel'}, {id:'otter',label:'Otter'}, {id:'deer',label:'Deer'},
+  {id:'hedgehog',label:'Hedgehog'}, {id:'turtle',label:'Turtle'}, {id:'eagle',label:'Eagle'}, {id:'wolf',label:'Wolf'}
+ ]
+},onChange:selected=>{
  roundPlayers=selected;
  if(!get('home').classList.contains('hidden'))renderMathLaunch();
 }});
