@@ -10,7 +10,7 @@ const matEngine=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
 const artRoot='frontend/learning-labs/math/art/';
 assert(mathSource.includes('<header class="journal-banner"><img src="./art/journal-1.webp"'),'Original illustrated masthead must remain unchanged');
 assert(mathSource.includes('class="approved-math-landing"'),'Functional landing stage must remain');
-assert(mathSource.includes('id="math-guide"')&&mathSource.includes('field-guide-binoculars.svg'),'Field guide must be illustrated and visible beneath landing panel');
+assert(mathSource.includes('id="math-guide"')&&mathSource.includes('field-guide-watercolor.avif'),'Field guide must be illustrated and visible beneath landing panel');
 assert(mathSource.includes('id="math-players"')&&mathSource.includes('id="math-quick"')&&mathSource.includes('id="homePlay"')&&mathSource.includes('id="homeEdit"'),'Learner, quick play and settings controls remain');
 assert(mathSource.includes('id="homeOptions"')&&mathSource.includes('id="answerStyle"')&&mathSource.includes('id="exerciseStyle"'),'Answer style and exercise settings remain accessible');
 assert.equal((mathSource.match(/data-math-operation=/g)||[]).length,5,'All five operation trails must be available');
@@ -26,7 +26,7 @@ for(const name of ['pinecone','honeycomb','sunflower','leaf','branching-tree','s
  assert(fs.existsSync(artRoot+name+'-field-study.svg'),'Original field-note watercolor study must exist: '+name);
  assert(matEngine.includes(name+'-field-study.svg'),'Field study must be used during actual play: '+name);
 }
-assert(fs.existsSync(artRoot+'field-guide-binoculars.svg'),'Original field-guide watercolor study must be packaged');
+assert(fs.existsSync(artRoot+'field-guide-watercolor.avif'),'Original painted field-guide asset must be packaged');
 assert(mathStyles.includes('./art/math-expedition-watercolor.avif'),'Keep the scenic, hand-painted Geo-quality watercolor background');
 assert(fs.existsSync(artRoot+'math-expedition-watercolor.avif'),'Original watercolor landscape must exist');
 assert(mathStyles.includes('math-instruments-overlay.svg'),'Math instrumentation must remain subtle background artwork');
