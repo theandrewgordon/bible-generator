@@ -142,5 +142,6 @@ export const placeQuestions = [
   return capitalMap ? {...question, capitalMap} : question;
  }),
  ...capitalQuestions,
- ...locationQuestions,
+ // Preserve the complete canonical geography bank, but omit Kiribati from playable maps.
+ ...locationQuestions.filter(question=>!question.locations.includes('Kiribati')),
 ];
