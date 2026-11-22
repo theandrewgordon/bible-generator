@@ -51,11 +51,11 @@ for(const [id,cell] of Object.entries({fox:0,owl:1,bear:2,raccoon:4,squirrel:5,o
   assert(matEngine.includes("id:'"+id+"',label:") && new RegExp("id:'"+id+"',label:'[^']+',cellIndex:"+cell+"(?:[,}])").test(matEngine), 'Explorer '+id+' must retain original portrait cell '+cell);
 }
 for(const [id,cell] of Object.entries({rabbit:0,'flower-doe':1,deer:2,'flower-badger':3,moose:4,'snowy-owl':5})) {
-  assert(new RegExp("id:'"+id+"',label:'[^']+',src:updatedExplorerArt,columns:3,rows:2,cellIndex:"+cell+",cropInset:0.095}").test(matEngine), 'Updated explorer '+id+' must use the matching watercolor image cell '+cell);
+  assert(new RegExp("id:'"+id+"',label:'[^']+',src:updatedExplorerArt,columns:3,rows:2,cellIndex:"+cell+"}").test(matEngine), 'Updated explorer '+id+' must use the matching watercolor image cell '+cell);
 }
 assert(fs.existsSync(artRoot+'explorer-avatars-updated.js'),'Approved six-portrait artwork must be bundled in the game');
 assert(matEngine.includes("id:'moose'") && matEngine.includes("id:'snowy-owl'"), 'Both new watercolor explorers must remain selectable');
-assert(playerPicker.includes("const zoom = 1 / (1 - 2 * inset)"), 'Updated portraits should crop baked-in card borders without changing other sprites');
+assert(matEngine.includes("updatedExplorerArt,columns:3,rows:2"), 'Updated portrait grid must use its six exact sprite cells without zoom overrides');
 assert(playerPicker.includes("avatarBank = null"),'Shared player picker must keep avatars optional for other games');
 assert(playerPicker.includes("faithsparks.labs.avatars.v1"),'Student icon preferences must persist by profile identifier');
 assert(playerPicker.includes("Save Avatar")&&playerPicker.includes("pendingAvatarChoice"),'Avatar changes must require an explicit Save Avatar click');
