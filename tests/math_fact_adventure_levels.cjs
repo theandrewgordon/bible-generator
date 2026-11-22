@@ -10,9 +10,14 @@ const matEngine=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
 const artRoot='frontend/learning-labs/math/art/';
 assert(mathSource.includes('<header class="journal-banner"><img src="./art/journal-1.webp"'),'Original illustrated masthead must remain unchanged');
 assert(mathSource.includes('class="approved-math-landing"'),'Functional landing stage must remain');
-assert(mathSource.includes('id="math-guide"')&&mathSource.includes('field-guide-watercolor.avif'),'Field guide must be illustrated and visible beneath landing panel');
+assert(mathSource.includes('id="math-guide"')&&mathSource.includes('field-guide-explorer.svg'),'Field guide must display the latest illustrated explorer artwork');
 assert(mathSource.includes('id="math-players"')&&mathSource.includes('id="math-quick"')&&mathSource.includes('id="homePlay"')&&mathSource.includes('id="homeEdit"'),'Learner, quick play and settings controls remain');
 assert(mathSource.includes('id="homeOptions"')&&mathSource.includes('id="answerStyle"')&&mathSource.includes('id="exerciseStyle"'),'Answer style and exercise settings remain accessible');
+assert(mathSource.includes('id="savePlayChanges"')&&mathSource.includes('id="saveSkillChanges"'),'Both preference panels need an explicit Save Changes action');
+assert(matEngine.includes("get('savePlayChanges').addEventListener('click',savePlayPreferences)")&&matEngine.includes("get('saveSkillChanges').addEventListener('click',saveSkillPreferences)"),'Save Changes controls must be wired');
+assert(matEngine.includes("function saveSkillPreferences()")&&matEngine.includes("const config=readConfig()")&&matEngine.includes("settings.players||[]"),'Saving skills must preserve all learner-specific settings');
+assert(matEngine.includes("Choose at least one operation for")&&matEngine.includes("get('home').classList.remove('hidden')"),'Skill saving validates operation choices and returns home');
+assert(mathStyles.includes(".save-preferences"),'Save Changes buttons must fit existing math styling');
 assert.equal((mathSource.match(/data-math-operation=/g)||[]).length,5,'All five operation trails must be available');
 for(const operation of ['Addition','Subtraction','Multiplication','Division','Exponents'])
  assert(mathSource.includes('data-math-operation="'+operation+'"'),'Illustrated operation trail: '+operation);
