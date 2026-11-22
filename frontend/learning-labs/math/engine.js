@@ -401,6 +401,11 @@ mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:{
 },onChange:selected=>{
  roundPlayers=selected;
  if(!get('home').classList.contains('hidden'))renderMathLaunch();
+},onAvatarSaved:()=>{
+ get('setup').classList.add('hidden');
+ get('home').classList.remove('hidden');
+ renderHome();
+ window.scrollTo?.({top:0,behavior:'instant'});
 }});
 get('exerciseStyle').addEventListener('change',()=>{settings.exercise=get('exerciseStyle').value;persist()});
 get('answerStyle').addEventListener('change',()=>{settings.answerStyle=get('answerStyle').value;persist()});
