@@ -2,12 +2,12 @@ import {labsStorage} from '../../../static/js/labs-storage.js';
 import {gamePlayerId, importMathPlayers, mountPlayers, profiles, selectedPlayers} from '../../../static/js/labs-players.js';
 import '../../../static/js/labs-players.css';
 
-import pineconeArt from './art/pinecone-field-study.svg';
-import honeycombArt from './art/honeycomb-field-study.svg';
-import sunflowerArt from './art/sunflower-field-study.svg';
-import leafArt from './art/leaf-field-study.svg';
-import treeArt from './art/branching-tree-field-study.svg';
-import shellArt from './art/shell-field-study.svg';
+import pineconeArt from './art/pinecone-watercolor.avif';
+import honeycombArt from './art/honeycomb-watercolor.avif';
+import sunflowerArt from './art/sunflower-watercolor.avif';
+import leafArt from './art/leaf-watercolor.avif';
+import treeArt from './art/branching-tree-watercolor.avif';
+import shellArt from './art/shell-watercolor.avif';
 
 'use strict';
 const OPERATIONS=['Addition','Subtraction','Multiplication','Division','Exponents'];
