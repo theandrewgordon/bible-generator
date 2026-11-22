@@ -156,7 +156,9 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
   manage.append(form);
   if (avatarEditor) manage.append(avatarEditor);
   manage.append(node('p', `${roleLabel}s are available in all FaithSparks Labs games in this browser.`));
-  group.append(choices, manage, note);
+  group.append(choices, manage);
+  if (avatarEnabled) group.append(node('p', 'Want a different adventure companion? Open Manage players to choose your icon.', {class: 'labs-avatar-hint'}));
+  group.append(note);
   root.classList.add('labs-players');
   root.replaceChildren(group);
   let selection = selectedPlayers(game, limit, preferred).map(player => player.id);
