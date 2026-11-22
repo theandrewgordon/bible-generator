@@ -21,5 +21,5 @@ const mathOut=path.join(repo,'static/labs/learning/math');
 let offline=fs.readFileSync(path.join(mathOut,'index.html'),'utf8');
 offline=offline.replace(/<script type="module"[^>]*src="([^"]+)"[^>]*><\/script>/g,(_,url)=>'<script type="module">'+fs.readFileSync(path.join(mathOut,path.basename(url)),'utf8').replaceAll('</script','<\\/script')+'</script>');
 offline=offline.replace(/<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/g,(_,url)=>'<style>'+fs.readFileSync(path.join(mathOut,path.basename(url)),'utf8')+'</style>');
-offline=offline.replace(/\/static\/labs\/learning\/math\/[A-Za-z0-9_-]+\.(?:webp|png|jpg|svg)/g,url=>{const file=path.join(mathOut,path.basename(url));const ext=path.extname(file).slice(1);return 'data:image/'+(ext==='svg'?'svg+xml':ext)+';base64,'+fs.readFileSync(file).toString('base64')});
+offline=offline.replace(/\/static\/labs\/learning\/math\/[A-Za-z0-9_-]+\.(?:webp|png|jpg|svg|avif)/g,url=>{const file=path.join(mathOut,path.basename(url));const ext=path.extname(file).slice(1);return 'data:image/'+(ext==='svg'?'svg+xml':ext)+';base64,'+fs.readFileSync(file).toString('base64')});
 fs.writeFileSync(path.join(repo,'static/labs/learning/math-offline.html'),offline);
