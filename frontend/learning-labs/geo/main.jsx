@@ -14,6 +14,7 @@ import {stopVoice} from '../shared/voice.js';
 import {matchesTerm} from './answers.js';
 import {initial,reducer,restore,shuffled,reviewIds,activeLearner,playingLearners,selectPracticeIds} from './logic.js';
 import {LocationMap} from './LocationMap.jsx';
+import {wisdomForQuestion} from './wisdom.js';
 import {CapitalMap} from './CapitalMap.jsx';
 import {ExpeditionMap,TrailMap} from './ExpeditionMap.jsx';
 import './art.css';import './style.css';import './adventure.css';import './board.css';
@@ -87,7 +88,8 @@ function App(){
  const multiplayer=s.playMode!=='solo';
  const roster=playingLearners(s), names=s.playMode==='teams'?s.names:roster.map(label);
  const highScore=Math.max(...s.scores), leaders=names.filter((_,i)=>s.scores[i]===highScore);
- const foxGuide=<aside className="fox-guide"><div className="guide-portrait" aria-hidden="true"/><div className="guide-speech" aria-live="polite"><small>YOUR FOX FIELD GUIDE</small><p>{result?(result.outcome==='skipped'?'This mystery is waiting for another look. No mistake recorded.':result.correct?'A brilliant discovery! Ready for the next mystery?':'Every clue teaches us something. Keep exploring!'):s.clue===1?'Look closely, detective. What does the first clue tell you?':s.clue===2?'A little more of the mystery is unfolding…':'All three clues are open. Which answer fits best?'}</p>{!result&&s.clue<3&&<button onClick={()=>dispatch({type:'clue'})}>Help me uncover a clue →</button>}</div></aside>;
+ const {verse:wisdomVerse,reference:wisdomReference,connection:wisdomConnection}=wisdomForQuestion(q);
+ const foxGuide=<aside className="fox-guide"><div className="guide-portrait" aria-hidden="true"/><div className="guide-speech" aria-live="polite"><small>WISDOM FOR THE JOURNEY</small><p>{wisdomVerse} <span>— {wisdomReference} (KJV)</span> {wisdomConnection}</p>{!result&&s.clue<3&&<button onClick={()=>dispatch({type:'clue'})}>Help me uncover a clue →</button>}</div></aside>;
  const answerChoices=<div className={'answer-choices'+(mapQuestion?' location-choices':'')} aria-label="Answer choices">{q.choices.map((c,i)=><button key={c} disabled={!!result||reveal} className={result&&result.outcome!=='skipped'?(c===q.answer?'correct-answer':result.selected===c?'wrong-answer':''):''} onClick={()=>award(c===q.answer?4-s.clue:0,c===q.answer,c)}>{!mapQuestion&&<span>{String.fromCharCode(65+i)}</span>}{c}</button>)}</div>;
  const resetScores=<button className="text-button" disabled={!s.scores.some(Boolean)} onClick={()=>dispatch({type:'reset-scores'})}>Reset scores to 0</button>;
  const nextSelection=currentPlayerSettings(s);
