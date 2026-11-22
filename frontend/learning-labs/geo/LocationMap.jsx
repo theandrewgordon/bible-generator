@@ -98,16 +98,17 @@ export function LocationMap({question,result,onChoose,children}){
    x:60+880*((lon+360)%360-left)/Math.max(1,right-left),
    y:40+390*(top-lat)/Math.max(1,top-bottom)
   });
-  return <section className="location-region-map" aria-label="Pacific island positions on the regional map">
-   <p className="location-region-heading">The Pacific Region — Oceania</p>
-   <svg viewBox="0 0 1000 480" role="img" aria-label="Pacific Ocean overview with numbered locations at their geographic coordinates">
+  const regionTitle=label==='Pacific islands'?'The Pacific Region — Oceania':label==='Lesser Antilles'?'The Caribbean — Lesser Antilles':label==='Indian Ocean islands'?'The Indian Ocean':label||'Island region';
+  return <section className="location-region-map" aria-label="Island positions on the regional map">
+   <p className="location-region-heading">{regionTitle}</p>
+   <svg viewBox="0 0 1000 480" role="img" aria-label={`${regionTitle} with numbered locations at their geographic coordinates`}>
     <defs>
      <radialGradient id={uid+'-ocean'}><stop stopColor="#b5e5dd"/><stop offset="1" stopColor="#85c2d0"/></radialGradient>
      <pattern id={uid+'-grid'} width="90" height="65" patternUnits="userSpaceOnUse"><path d="M90 0H0V65" fill="none" stroke="#eff8e6" strokeOpacity=".45" strokeWidth="2"/></pattern>
     </defs>
     <rect width="1000" height="480" fill={`url(#${uid}-ocean)`}/>
     <rect width="1000" height="480" fill={`url(#${uid}-grid)`}/>
-    <text x="500" y="96" textAnchor="middle" fontFamily="Georgia,serif" letterSpacing="8" fontWeight="700" fill="#225773" fontSize="34">PACIFIC OCEAN</text>
+    <text x="500" y="96" textAnchor="middle" fontFamily="Georgia,serif" letterSpacing="8" fontWeight="700" fill="#225773" fontSize="34">{label==='Pacific islands'?'PACIFIC OCEAN':label==='Lesser Antilles'?'CARIBBEAN SEA':label==='Indian Ocean islands'?'INDIAN OCEAN':'ISLAND REGION'}</text>
     {coords.map(({number,name,center})=>{
      const {x,y}=project(center);
      return <g key={number} transform={`translate(${x},${y})`} className="location-atlas-pin" role={result?undefined:'button'} tabIndex={result?undefined:0} aria-label={`Choose marker ${number} at ${coordinate(center[1],'N','S')}, ${coordinate(center[0],'E','W')}`}
@@ -122,7 +123,7 @@ export function LocationMap({question,result,onChoose,children}){
   </section>;
  };
  const renderMaps=inDialog=><div className={`location-frame${split?' location-atlas-layout':''}`}>
-  {label&&<p className="location-inset-label">{split?'The Pacific Region — Oceania':label+' — enlarged view'}</p>}
+  {label&&<p className="location-inset-label">{split?'Find the islands — magnified view':label+' — enlarged view'}</p>}
   {split?<div className="location-atlas-scene">
     {renderLocator()}
     <div className="location-magnifier" aria-label="Magnified island candidates">
