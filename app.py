@@ -7605,6 +7605,11 @@ def worship_live_setup(session_id):
         token = _make_worship_live_token(scope=scope, session_id=session_id, role=role)
         params = {"audience": "1"} if role == "view" else {}
         links[role] = url_for(endpoint, session_id=session_id, _external=True, **params) + f"#{role}={token}"
+    links["solo"] = (
+        url_for("worship_live_presenter", session_id=session_id, mode="solo", _external=True)
+        + "#view=" + _make_worship_live_token(scope=scope, session_id=session_id, role="view")
+        + "&control=" + _make_worship_live_token(scope=scope, session_id=session_id, role="control")
+    )
     response = app.make_response(render_template(
         "worship_live_setup.html", session_id=session_id, live=live, links=links,
         follow_url=_worship_live_follow_url(scope, session_id),
@@ -7695,6 +7700,9 @@ def worship_live_presenter(session_id):
                 control_token = ""
         except BadData:
             control_token = ""
+    solo_mode = request.args.get("mode") == "solo" and request.args.get("audience") != "1"
+    if solo_mode and not remote_url:
+        return Response("One-device presenting requires the leader link. Open Live Setup and choose Present from this phone.", status=403)
     response = app.make_response(
         render_template(
             "worship_live_presenter.html",
@@ -7703,6 +7711,7 @@ def worship_live_presenter(session_id):
             session_id=session_id,
             remote_url=remote_url,
             audience_only=request.args.get("audience") == "1",
+            solo_mode=solo_mode,
             stage_url=(
                 url_for("worship_live_stage", session_id=session_id, _external=True)
                 + "#stage="

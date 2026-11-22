@@ -1,0 +1,20 @@
+<button type="button" id="solo-video-controls" class="solo-video-controls" hidden>Slide controls</button>
+<div id="solo-gestures" class="solo-gestures" aria-label="Slide navigation" hidden>
+  <button type="button" data-solo-gesture="previous" aria-label="Previous slide"></button>
+  <button type="button" data-solo-gesture="menu" aria-label="Show presentation controls"></button>
+  <button type="button" data-solo-gesture="next" aria-label="Next slide"></button>
+</div>
+<section id="solo-menu" class="solo-menu" role="dialog" aria-modal="true" aria-labelledby="solo-heading" hidden>
+  <div class="solo-panel">
+    <h2 id="solo-heading">Presentation controls</h2>
+    <p>These controls are visible on the TV too. Hide them to return to clean slides.</p>
+    <div id="solo-position" class="solo-position"></div>
+    <div id="solo-connection" role="status">Session connected</div>
+    <div class="solo-row"><button type="button" data-solo-action="previous">← Back</button><button type="button" data-solo-action="next">Next →</button></div>
+    <div class="solo-row"><button type="button" id="solo-clear" data-solo-action="toggle_clear">Clear words</button><button type="button" id="solo-blank" data-solo-action="toggle_blank">Black screen</button></div>
+    <div id="solo-video" class="solo-row" hidden><button type="button" data-solo-action="video_play">Play video</button><button type="button" data-solo-action="video_pause">Pause video</button><button type="button" data-solo-action="video_unmute">Video sound</button></div>
+    <div class="solo-row"><button type="button" id="solo-fullscreen">Full screen</button><button type="button" id="solo-awake">Keep screen awake</button></div>
+    <button type="button" class="solo-primary" id="solo-close">Hide controls</button>
+    <button type="button" class="solo-end" id="solo-end">End session</button>
+  </div>
+</section>

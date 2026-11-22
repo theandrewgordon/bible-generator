@@ -5,13 +5,21 @@
   <meta name="robots" content="noindex,nofollow"><title>{{ live.name }} · Live Setup</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='dist/live-setup/live-setup.css', v=static_v) }}">
   <style>
-    *{box-sizing:border-box}body{margin:0;background:#07111f;color:#f8fafc;font:17px/1.5 Arial,Helvetica,sans-serif}main{max-width:1080px;margin:auto;padding:32px 22px}a{color:#5eead4}h1{margin:.6rem 0;font-size:clamp(1.8rem,4vw,2.7rem)}.intro{color:#cbd5e1;max-width:760px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:26px 0}.card,.status{border:1px solid #334155;background:#0f172a;border-radius:18px;padding:22px;min-width:0}h2{font-size:1.2rem;margin:0 0 12px}.card p{font-size:.94rem;color:#cbd5e1}.button{display:inline-block;border:1px solid #475569;border-radius:10px;padding:11px 15px;background:#172235;color:#fff;font:inherit;font-weight:700;text-decoration:none;cursor:pointer;margin:4px 0}.primary{background:#0a7a7c;border-color:#0a7a7c}.qr{display:block;width:min(220px,100%);aspect-ratio:1;background:#fff;border-radius:12px;padding:8px;margin:16px auto}.status strong{display:block}.status p{margin:.3rem 0;color:#cbd5e1}.screen-state{font-weight:800;letter-spacing:.05em;color:#5eead4}.screen-state[data-state="black"],.screen-state[data-state="clear"]{color:#fcd34d}#display-status[data-status="confirmed"]{color:#5eead4}.helper{font-size:.84rem;color:#94a3b8}.copy-status{min-height:1.5em;font-size:.85rem;color:#fcd34d}summary{cursor:pointer;font-weight:700}button:focus-visible,a:focus-visible{outline:3px solid #5eead4;outline-offset:3px}@media(max-width:780px){.cards{grid-template-columns:1fr}main{padding:20px 16px}}
+    *{box-sizing:border-box}body{margin:0;background:#07111f;color:#f8fafc;font:17px/1.5 Arial,Helvetica,sans-serif}main{max-width:1080px;margin:auto;padding:32px 22px}a{color:#5eead4}h1{margin:.6rem 0;font-size:clamp(1.8rem,4vw,2.7rem)}.solo-choice{margin:24px 0;border:2px solid #0a7a7c}.solo-choice h2{font-size:1.4rem}.intro{color:#cbd5e1;max-width:760px}.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:26px 0}.card,.status{border:1px solid #334155;background:#0f172a;border-radius:18px;padding:22px;min-width:0}h2{font-size:1.2rem;margin:0 0 12px}.card p{font-size:.94rem;color:#cbd5e1}.button{display:inline-block;border:1px solid #475569;border-radius:10px;padding:11px 15px;background:#172235;color:#fff;font:inherit;font-weight:700;text-decoration:none;cursor:pointer;margin:4px 0}.primary{background:#0a7a7c;border-color:#0a7a7c}.qr{display:block;width:min(220px,100%);aspect-ratio:1;background:#fff;border-radius:12px;padding:8px;margin:16px auto}.status strong{display:block}.status p{margin:.3rem 0;color:#cbd5e1}.screen-state{font-weight:800;letter-spacing:.05em;color:#5eead4}.screen-state[data-state="black"],.screen-state[data-state="clear"]{color:#fcd34d}#display-status[data-status="confirmed"]{color:#5eead4}.helper{font-size:.84rem;color:#94a3b8}.copy-status{min-height:1.5em;font-size:.85rem;color:#fcd34d}summary{cursor:pointer;font-weight:700}button:focus-visible,a:focus-visible{outline:3px solid #5eead4;outline-offset:3px}@media(max-width:780px){.cards{grid-template-columns:1fr}main{padding:20px 16px}}
   </style>
 </head>
 <body>
 <main>
   <a href="{{ url_for('worship') }}">← Back to Worship</a>
   <h1>{{ live.name }} · Live Setup</h1>
+  <p class="intro">Choose the setup that fits your devices. Use one phone for screen mirroring, or keep the laptop, remote, and stage views separate.</p>
+  <section class="card solo-choice" aria-label="One-device presenting">
+    <h2>Just your phone?</h2>
+    <p>Present and control slides from this phone while AirPlay mirrors it to the TV. No second device or QR code needed.</p>
+    <a class="button primary launch" href="{{ links.solo }}">Present from this phone</a>
+    <p class="helper">The TV shows the same screen as your phone. Slide controls stay hidden until you open them.</p>
+  </section>
+  <h2>Laptop + remote setup</h2>
   <p class="intro">Keep this page on your laptop. Open the audience window on your external display, pair the iPad remote, then open your stage view.</p>
   <section class="status" aria-label="Live session status">
     <strong class="screen-state" id="screen-state">CONNECTING</strong>

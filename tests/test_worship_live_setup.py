@@ -55,6 +55,52 @@ class WorshipLiveSetupTests(unittest.TestCase):
         self.assertEqual(set(parse_qs(urlparse(links["control"]).fragment)), {"control"})
         self.assertIn("no-store", response.headers["Cache-Control"])
 
+    def test_setup_offers_one_device_link_in_same_tab_with_both_roles(self):
+        self.pair("control")
+        with patch.object(app, "render_template", wraps=app.render_template) as render:
+            response = self.client.get(f"/worship/live/setup/{self.sid}")
+        link = urlparse(render.call_args.kwargs["links"]["solo"])
+        self.assertEqual(parse_qs(link.query), {"mode": ["solo"]})
+        tokens = parse_qs(link.fragment)
+        self.assertEqual(set(tokens), {"view", "control"})
+        for role in tokens:
+            capability = app._load_worship_live_token(tokens[role][0], required_role=role)
+            self.assertEqual(capability["session_id"], self.sid)
+        html = response.get_data(as_text=True)
+        self.assertIn("Present from this phone", html)
+        self.assertIn("Laptop + remote setup", html)
+        self.assertIn("Open audience window", html)
+
+    def test_one_device_mode_requires_control_and_does_not_expose_leader_codes(self):
+        self.pair("view")
+        self.assertEqual(self.client.get(f"/worship/live/present/{self.sid}?mode=solo").status_code, 403)
+        self.pair("control")
+        response = self.client.get(f"/worship/live/present/{self.sid}?mode=solo")
+        html = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("worship-solo.js", html)
+        self.assertIn("solo-gestures", html)
+        visible = re.sub(r"<script\b.*?</script>", "", html, flags=re.S)
+        self.assertNotIn('id="wl-leader-codes"', visible)
+        self.assertNotIn('id="wl-remote-btn"', visible)
+        self.assertIn("These controls are visible on the TV too", visible)
+        self.assertIn("var canControl=true", html)
+
+    def test_audience_mode_remains_view_only_even_with_solo_query(self):
+        self.pair("view", "control")
+        html = self.client.get(f"/worship/live/present/{self.sid}?audience=1&mode=solo").get_data(as_text=True)
+        self.assertIn("var canControl=false", html)
+        self.assertNotIn("worship-solo.js", html)
+        self.assertNotIn('id="solo-menu"', html)
+        self.assertIn("Ready to present", html)
+
+    def test_existing_presenter_keeps_keyboard_and_leader_setup(self):
+        self.pair("view", "control")
+        html = self.client.get(f"/worship/live/present/{self.sid}").get_data(as_text=True)
+        self.assertIn('id="wl-remote-btn"', html)
+        self.assertIn('id="wl-leader-codes"', html)
+        self.assertNotIn("worship-solo.js", html)
+
     def test_audience_window_never_renders_private_controls_with_mixed_cookies(self):
         self.pair("view", "control", "stage")
         html = self.client.get(f"/worship/live/present/{self.sid}?audience=1").get_data(as_text=True)
