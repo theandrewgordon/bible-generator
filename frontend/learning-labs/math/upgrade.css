@@ -488,3 +488,52 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
     gap: 5px !important;
   }
 }
+
+/* Update the printed masthead subtitle in HTML, preserving journal-1.webp artwork unchanged. */
+main > header.journal-banner { position: relative; }
+main > header.journal-banner .math-banner-message {
+  position: absolute;
+  z-index: 1;
+  top: 48%;
+  left: 28.5%;
+  width: 47%;
+  height: 19%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1px, .45vw, 6px);
+  padding: 1px 3%;
+  box-sizing: border-box;
+  background: radial-gradient(ellipse at center, #fff9ed 58%, #fff9edfa 76%, #fff9ed00 100%);
+  color: #224f58;
+  text-align: center;
+  line-height: 1.12;
+  pointer-events: none;
+}
+main > header.journal-banner .math-banner-message strong {
+  display: block;
+  font: italic 700 clamp(8px, 1.65vw, 21px)/1.1 Georgia, serif;
+  white-space: nowrap;
+}
+main > header.journal-banner .math-banner-message span {
+  display: block;
+  font: italic 500 clamp(7px, 1.27vw, 16px)/1.1 Georgia, serif;
+  white-space: nowrap;
+}
+@media (max-width: 550px) {
+  main > header.journal-banner .math-banner-message {
+    top: 48%;
+    left: 28%;
+    width: 48%;
+    height: 20%;
+    gap: 0;
+    padding: 0 1%;
+  }
+  main > header.journal-banner .math-banner-message strong {
+    font-size: clamp(6px, 1.55vw, 9px);
+  }
+  main > header.journal-banner .math-banner-message span {
+    font-size: clamp(5px, 1.12vw, 7px);
+  }
+}
