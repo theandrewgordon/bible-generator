@@ -181,28 +181,28 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
 
 @media(max-width:650px){.approved-math-landing #home .labs-player-portrait{width:min(80px,calc(100% - 8px))}}
 
-/* Keep the currently answering explorer visible beside their name. */
-#game .who:has(.math-turn-avatar) {
+/* The active explorer sits beside the name beneath YOUR TURN, not in the question. */
+#game .labs-session-learner {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: .55rem;
-  flex-wrap: wrap;
+  gap: .65rem;
+  min-height: 3.4rem;
+  margin-top: .25rem;
 }
-#game .math-turn-avatar {
-  display: inline-block;
-  flex: 0 0 3.25rem;
-  width: 3.25rem;
-  height: 3.25rem;
+#game .labs-session-learner strong {
+  margin-top: 0;
+}
+#game .labs-session-avatar {
+  display: block;
+  flex: 0 0 3.35rem;
+  width: 3.35rem;
+  height: 3.35rem;
   border: 2px solid #b88f54;
   border-radius: .7rem;
-  background-repeat: no-repeat;
   background-color: #f5e8c5;
+  background-repeat: no-repeat;
   box-shadow: 0 2px 0 #cfb789;
 }
-#game .math-turn-mic { font-size: .9em; }
-#game .math-turn-name { line-height: 1.3; }
 @media(max-width: 480px) {
-  #game .math-turn-avatar { width: 2.75rem; height: 2.75rem; flex-basis: 2.75rem; }
-  #game .who:has(.math-turn-avatar) { gap: .35rem; }
+  #game .labs-session-avatar {flex-basis: 2.8rem; width: 2.8rem; height: 2.8rem;}
 }
