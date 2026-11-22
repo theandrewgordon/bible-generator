@@ -12,8 +12,9 @@ assert(mathSource.includes('<header class="journal-banner"><img src="./art/journ
 assert(mathSource.includes('class="approved-math-landing"'),'Functional landing stage must remain');
 assert(mathSource.includes('id="math-guide"')&&mathSource.includes('field-guide-explorer.svg'),'Field guide must display the latest illustrated explorer artwork');
 assert(mathSource.indexOf('id="math-guide"')<mathSource.indexOf('<section id="home"'),'How to Play must appear directly below masthead before home controls');
-assert.equal((mathSource.match(/<li><span>[^<]*<\/span><\/li>/g)||[]).filter(x=>/explorer|math trail|number discoveries|Answer aloud|confidence/.test(x)).length,5,'All five How to Play instructions remain intact');
-assert(mathStyles.includes('#math-guide.adventure-field-guide')&&mathStyles.includes('grid-template-columns: repeat(2, minmax(0, 1fr))'),'How to Play must use compact two-column desktop layout');
+assert.equal((mathSource.slice(mathSource.indexOf('id="math-guide"'),mathSource.indexOf('<section id="home"')).match(/<li><span><strong>/g)||[]).length,5,'All five clearly labeled How to Play steps remain intact');
+assert(mathStyles.includes('One clean parchment panel')&&mathStyles.includes('grid-template-columns: minmax(0, 1fr) !important'),'How to Play must use a clear single-column reading order');
+assert(mathStyles.includes('adventure-field-guide::before')&&mathStyles.includes('content: none !important'),'How to Play must avoid double-box framing');
 assert(mathStyles.includes('#math-guide .guide-art img')&&mathStyles.includes('object-fit: contain !important'),'Entire Field Guide artwork must remain visible');
 assert(mathSource.includes('id="math-players"')&&mathSource.includes('id="math-quick"')&&mathSource.includes('id="homePlay"')&&mathSource.includes('id="homeEdit"'),'Learner, quick play and settings controls remain');
 assert(mathSource.includes('id="homeOptions"')&&mathSource.includes('id="answerStyle"')&&mathSource.includes('id="exerciseStyle"'),'Answer style and exercise settings remain accessible');
