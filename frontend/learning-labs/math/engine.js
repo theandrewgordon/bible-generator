@@ -380,7 +380,7 @@ get('homePlay').addEventListener('click',()=>{
  get('rounds').value=String(settings.rounds||'10');
  begin(selectedRoster(),true);
 });
-mountPlayers(get('math-players'),{game:'math',limit:4,preferred,roleName:'explorer',avatarBank:{
+mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:{
  src: explorerAvatarBank,
  columns: 4,
  choices: [
