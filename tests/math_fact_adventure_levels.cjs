@@ -23,8 +23,8 @@ assert.equal((mathSource.match(/class="creation-note creation-game"/g)||[]).leng
 for(const id of ['creationNoteArt','creationNoteTitle','creationNoteText','creationNoteVerse'])
  assert(mathSource.includes('id="'+id+'"'),'Field note must update dynamically: '+id);
 for(const name of ['pinecone','honeycomb','sunflower','leaf','branching-tree','shell']){
- assert(fs.existsSync(artRoot+name+'-field-study.svg'),'Original field-note watercolor study must exist: '+name);
- assert(matEngine.includes(name+'-field-study.svg'),'Field study must be used during actual play: '+name);
+ assert(fs.existsSync(artRoot+name+'-watercolor.avif'),'Original field-note watercolor study must exist: '+name);
+ assert(matEngine.includes(name+'-watercolor.avif'),'Field study must be used during actual play: '+name);
 }
 assert(fs.existsSync(artRoot+'field-guide-watercolor.avif'),'Original painted field-guide asset must be packaged');
 assert(mathStyles.includes('linear-gradient(155deg,#cadfc5'),'Background must use a subtle green-to-gold ombre');
