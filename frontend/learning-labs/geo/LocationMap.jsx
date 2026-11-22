@@ -1,6 +1,5 @@
 import React,{useId,useRef,useState} from 'react';
 import {questionGeography,locationMaps} from './locations.js';
-import closeups from './location-insets.json' with {type:'json'};
 import {centeredViewport,initialMapViewport,markersViewport,regionViews,scaledViewport,shiftedViewport} from './map-viewport.js';
 import watercolor from './region-maps/location-watercolor.webp';
 import {layoutMarkerCallouts} from './marker-callouts.js';
@@ -84,56 +83,29 @@ export function LocationMap({question,result,onChoose,children}){
  };
  const renderLocator=()=>{
   if(!regional)return null;
-  const coords=question.locations.map((name,index)=>({
-   number:question.choices[index],name,
-   center:closeups[name]?.center
-  })).filter(item=>item.center);
-  // These are geographic longitude/latitude coordinates, not the Australia
-  // regional-map pixel positions (which omit many Pacific island states).
-  const longitudes=coords.map(item=>(item.center[0]+360)%360);
-  const lats=coords.map(item=>item.center[1]);
-  const left=Math.min(...longitudes)-22,right=Math.max(...longitudes)+22;
-  const top=Math.max(30,Math.max(...lats)+18),bottom=Math.min(-38,Math.min(...lats)-18);
-  const project=([lon,lat])=>({
-   x:60+880*((lon+360)%360-left)/Math.max(1,right-left),
-   y:40+390*(top-lat)/Math.max(1,top-bottom)
-  });
-  const regionTitle=label==='Pacific islands'?'The Pacific Region — Oceania':label==='Lesser Antilles'?'The Caribbean — Lesser Antilles':label==='Indian Ocean islands'?'The Indian Ocean':label||'Island region';
-  return <section className="location-region-map" aria-label="Island positions on the regional map">
-   <p className="location-region-heading">{regionTitle}</p>
-   <svg viewBox="0 0 1000 480" role="img" aria-label={`${regionTitle} with numbered locations at their geographic coordinates`}>
-    <defs>
-     <radialGradient id={uid+'-ocean'}><stop stopColor="#b5e5dd"/><stop offset="1" stopColor="#85c2d0"/></radialGradient>
-     <pattern id={uid+'-grid'} width="90" height="65" patternUnits="userSpaceOnUse"><path d="M90 0H0V65" fill="none" stroke="#eff8e6" strokeOpacity=".45" strokeWidth="2"/></pattern>
-    </defs>
-    <rect width="1000" height="480" fill={`url(#${uid}-ocean)`}/>
-    <rect width="1000" height="480" fill={`url(#${uid}-grid)`}/>
-    <text x="500" y="96" textAnchor="middle" fontFamily="Georgia,serif" letterSpacing="8" fontWeight="700" fill="#225773" fontSize="34">{label==='Pacific islands'?'PACIFIC OCEAN':label==='Lesser Antilles'?'CARIBBEAN SEA':label==='Indian Ocean islands'?'INDIAN OCEAN':'ISLAND REGION'}</text>
-    {coords.map(({number,name,center})=>{
-     const {x,y}=project(center);
-     return <g key={number} transform={`translate(${x},${y})`} className="location-atlas-pin" role={result?undefined:'button'} tabIndex={result?undefined:0} aria-label={`Choose marker ${number} at ${coordinate(center[1],'N','S')}, ${coordinate(center[0],'E','W')}`}
-      onClick={result?undefined:()=>choose(number,false)}
-      onKeyDown={result?undefined:event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();choose(number,false);}}}>
-      <circle r="25" fill="none" stroke="#c18e35" strokeWidth="4" strokeDasharray="8 5"/>
-      <circle r="15" fill="#f2e5aa" stroke="#214557" strokeWidth="2"/>
-      <text y="1" textAnchor="middle" dominantBaseline="central" fontSize="23" fontWeight="800" fill="#173e58">{number}</text>
-     </g>;
-    })}
+  const [mx,my,mw,mh]=regional.view;
+  const positions=question.locations.map((name,index)=>{
+   const point=regional.points[name];
+   return point?{number:question.choices[index],x:point[1],y:point[2]}:null;
+  }).filter(Boolean);
+  return <section className="location-locator" aria-label="Where the island choices are on the larger map">
+   <p className="location-locator-heading">Find the islands on the larger map</p>
+   <svg viewBox={regional.view.join(' ')} role="img" aria-label="Regional map showing the locations of markers 1, 2, and 3. Each number matches a magnifying lens below.">
+    <defs><clipPath id={uid+'-locator-land'}>{Object.entries(regional.paths).map(([id,d])=><path key={id} d={d} clipRule="evenodd"/>)}</clipPath></defs>
+    <rect x={mx} y={my} width={mw} height={mh} fill="#b8dfe0"/>
+    <image x={mx} y={my} width={mw} height={mh} href={watercolor} clipPath={`url(#${uid}-locator-land)`} preserveAspectRatio="none"/>
+    <g fill="none" stroke="#42645a" strokeWidth="1.35" strokeLinejoin="round">{Object.entries(regional.paths).map(([id,d])=><path key={id} d={d}/>)}</g>
+    {positions.map(({number,x,y})=><g key={number} className="location-locator-pin" transform={`translate(${x},${y})`} role="button" tabIndex={result?undefined:0} aria-label={`Choose map marker ${number}`} onClick={result?undefined:()=>choose(number,false)} onKeyDown={result?undefined:event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();choose(number,false);}}}>
+     <circle r="24" fill="#fff7de" stroke="#b17c29" strokeWidth="5" opacity=".95"/><circle r="17" fill="#d8ece0" stroke="#234c62" strokeWidth="2"/><text y="1" textAnchor="middle" dominantBaseline="middle" fontSize="23" fontWeight="800" fill="#173e58">{number}</text>
+    </g>)}
    </svg>
+   <p className="location-locator-help">The numbered circles show where to look. Each magnifying glass below shows that place up close.</p>
   </section>;
  };
- const renderMaps=inDialog=><div className={`location-frame${split?' location-atlas-layout':''}`}>
-  {label&&<p className="location-inset-label">{split?'Find the islands — magnified view':label+' — enlarged view'}</p>}
-  {split?<div className="location-atlas-scene">
-    {renderLocator()}
-    <div className="location-magnifier" aria-label="Magnified island candidates">
-     <div className="location-magnifier-glass">
-      {panels.map((panel,index)=><div className="location-magnifier-part" key={index}>{paint(inDialog,panel,index)}</div>)}
-     </div>
-     <div className="location-magnifier-handle" aria-hidden="true"/>
-    </div>
-    <p className="location-lens-note">The map shows where each island is located. The magnifier shows their shapes enlarged; each close-up has its own scale.</p>
-   </div>:panels.map((panel,index)=>paint(inDialog,panel,index))}
+ const renderMaps=inDialog=><div className={`location-frame${split?' location-panel-grid':''}`}>
+  {label&&<p className="location-inset-label">{label} — {split?'magnifying glasses':'enlarged view'}</p>}
+  {split&&<div className="location-overview">{renderLocator()}</div>}
+  {panels.map((panel,index)=><div className={split?'location-lens-card':undefined} key={index}>{split&&<p className="location-lens-title">Magnifying glass {question.choices[index]}</p>}{paint(inDialog,panel,index)}</div>)}
  </div>;
  function choose(number,inDialog){
   if(inDialog)dialog.current?.close();
