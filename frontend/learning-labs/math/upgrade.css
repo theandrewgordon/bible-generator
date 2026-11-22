@@ -341,7 +341,7 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
   margin: 0 auto 5px;
   width: 100%;
 }
-.approved-math-landing #home .landing-title .math-expedition-heading h2 {
+.approved-math-landing #home .landing-title .math-expedition-heading h3 {
   display: block !important;
   margin: 0 !important;
   padding: 0 !important;
