@@ -153,6 +153,7 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
 
 
 /* Explorer icon bank — original 4×3 watercolor portraits, clipped to each tile. */
+.approved-math-landing #home .labs-avatar-hint{flex:1 0 100%;margin:0!important;padding:2px 8px!important;font:italic .76rem/1.4 Georgia,serif!important;color:#6d785e!important;text-align:center}
 .approved-math-landing #home .labs-player-choices label:has(.labs-player-portrait)::before{content:none!important;display:none!important}
 .approved-math-landing #home .labs-player-choices label:has(.labs-player-portrait){justify-content:flex-end!important;isolation:isolate;padding:0 5px 5px!important;background:#e7e4c8!important}
 .approved-math-landing #home .labs-player-portrait{display:block;position:absolute;inset:3px 3px 24px;overflow:hidden;border-radius:8px 8px 4px 4px;background-repeat:no-repeat;background-color:#e2e7d4;pointer-events:none;box-shadow:inset 0 0 0 1px #af9c7899}
