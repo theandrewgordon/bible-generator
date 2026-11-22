@@ -136,12 +136,83 @@ const geographicQuestions = [
  ...makePlaceQuestions('usa', 2000, usa),
  ...Object.entries(continentBranches).flatMap(([id,{firstId,trails}])=>makePlaceQuestions(id,firstId,trails)),
 ];
+// The introductory map trail teaches visible island groups rather than requiring
+// young explorers to identify tiny island nations or isolated atolls. These changes
+// affect the playable Find It on the Map deck ONLY; the canonical country/capital
+// data and other geography trails remain intact.
+export const tinyIslandMapTargets = new Set([
+ 'Antigua and Barbuda','Bahamas','Barbados','Dominica','Grenada',
+ 'Saint Kitts and Nevis','Saint Lucia','Saint Vincent and the Grenadines',
+ 'Trinidad and Tobago',
+ 'Cape Verde','São Tomé and Príncipe','Comoros','Mauritius','Seychelles','Maldives',
+ 'Fiji','Kiribati','Marshall Islands','Micronesia','Nauru','Palau','Samoa',
+ 'Solomon Islands','Tonga','Tuvalu','Vanuatu',
+ 'Malta','Bahrain','Singapore',
+]);
+
+// Each numbered choice marks a visible, recognizable part of an island chain
+// on the existing regional map. Avoid the tiny-island close-up panels entirely.
+export const islandChainMapQuestions = [
+ {
+  id:'island-chain-hawaiian',branch:'usa',target:'Hawaiian Islands',
+  locations:['Alaska','Hawaii','Florida'],answer:'2',
+  clues:['Find the Hawaiian Islands on the U.S. map.',
+   'Look for a chain of islands far out in the Pacific Ocean.',
+   'Honolulu is on Oahu, one of these islands.'],
+  explanation:'Marker 2 shows Hawaii, the island chain in the central Pacific.',
+ },
+ {
+  id:'island-chain-greater-antilles',branch:'north-america',target:'Greater Antilles',
+  locations:['Mexico','Cuba','Canada'],answer:'2',
+  clues:['Find the Greater Antilles island chain in the Caribbean.',
+   'Look south of Florida and east of Mexico for large Caribbean islands.',
+   'Cuba, Hispaniola, Jamaica, and Puerto Rico are part of this chain.'],
+  explanation:'Marker 2 points to Cuba, part of the Greater Antilles island chain.',
+ },
+ {
+  id:'island-chain-japanese',branch:'asia',target:'Japanese Islands',
+  locations:['Japan','Philippines','Indonesia'],answer:'1',
+  clues:['Find the Japanese island chain in East Asia.',
+   'Look east of Korea and China in the Pacific Ocean.',
+   'The large islands include Honshu, Hokkaido, Kyushu, and Shikoku.'],
+  explanation:'Marker 1 points to Japan, an island chain east of mainland Asia.',
+ },
+ {
+  id:'island-chain-philippine',branch:'asia',target:'Philippine Islands',
+  locations:['Japan','Philippines','Indonesia'],answer:'2',
+  clues:['Find the Philippine island chain in Southeast Asia.',
+   'Look south of Taiwan and east of Vietnam.',
+   'Luzon and Mindanao are two of its largest islands.'],
+  explanation:'Marker 2 points to the Philippine Islands.',
+ },
+ {
+  id:'island-chain-indonesian',branch:'asia',target:'Indonesian Islands',
+  locations:['Japan','Philippines','Indonesia'],answer:'3',
+  clues:['Find the Indonesian island chain in Southeast Asia.',
+   'Look south of the Philippines and north of Australia.',
+   'Sumatra, Java, and Borneo are among its islands.'],
+  explanation:'Marker 3 points to Indonesia, a vast archipelago.',
+ },
+ {
+  id:'island-chain-new-zealand',branch:'australia',target:'New Zealand Islands',
+  locations:['Australia','New Zealand','Papua New Guinea'],answer:'2',
+  clues:['Find the islands of New Zealand on the map.',
+   'Look southeast of Australia, across the Tasman Sea.',
+   'The North Island and South Island are its two largest landmasses.'],
+  explanation:'Marker 2 points to the main islands of New Zealand.',
+ },
+].map(question=>({
+ ...question,place:locationTrailName,topic:locationTrailName,
+ choices:['1','2','3'],islandGroup:true,
+}));
+
 export const placeQuestions = [
  ...geographicQuestions.map(question=>{
   const capitalMap = capitalById.get(recurringCapitals[question.id]);
   return capitalMap ? {...question, capitalMap} : question;
  }),
  ...capitalQuestions,
- // Preserve the complete canonical geography bank, but omit Kiribati from playable maps.
- ...locationQuestions.filter(question=>!question.locations.includes('Kiribati')),
+ // Island nations too small to identify reliably are replaced by island-chain questions.
+ ...locationQuestions.filter(question=>!question.locations.some(name=>tinyIslandMapTargets.has(name))),
+ ...islandChainMapQuestions,
 ];
