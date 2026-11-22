@@ -389,12 +389,12 @@ mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:{
  choices: [
   {id:'fox',label:'Fox',cellIndex:0}, {id:'bear',label:'Bear',cellIndex:2}, {id:'rabbit',label:'Rabbit',cellIndex:3}, {id:'raccoon',label:'Raccoon',cellIndex:4},
   {id:'owl',label:'Owl',cellIndex:1}, {id:'squirrel',label:'Squirrel',cellIndex:5}, {id:'otter',label:'Otter',cellIndex:6},
-  {id:'flower-doe',label:'Flower Fox',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:0},
+  {id:'flower-doe',label:'Fox',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:0},
   {id:'deer',label:'Deer',cellIndex:7}, {id:'hedgehog',label:'Hedgehog',cellIndex:8}, {id:'turtle',label:'Turtle',cellIndex:9}, {id:'eagle',label:'Eagle',cellIndex:10},
   {id:'bluebird',label:'Bluebird',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:1},
   {id:'wolf',label:'Wolf',cellIndex:11},
-  {id:'flower-badger',label:'Flower Badger',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:2},
-  {id:'flower-lynx',label:'Flower Lynx',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:3},
+  {id:'flower-badger',label:'Badger',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:2},
+  {id:'flower-lynx',label:'Lynx',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:3},
   {id:'moose',label:'Moose',src:mooseAvatar,columns:1,rows:1,cellIndex:0},
   {id:'snowy-owl',label:'Snowy Owl',src:snowyOwlAvatar,columns:1,rows:1,cellIndex:0}
  ]
