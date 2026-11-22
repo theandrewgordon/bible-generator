@@ -27,7 +27,10 @@ for(const name of ['pinecone','honeycomb','sunflower','leaf','branching-tree','s
  assert(matEngine.includes(name+'-field-study.svg'),'Field study must be used during actual play: '+name);
 }
 assert(fs.existsSync(artRoot+'field-guide-watercolor.avif'),'Original painted field-guide asset must be packaged');
-assert(mathStyles.includes('./art/math-expedition-watercolor.avif'),'Keep the scenic, hand-painted Geo-quality watercolor background');
+assert(mathStyles.includes('linear-gradient(155deg,#cadfc5'),'Background must use a subtle green-to-gold ombre');
+assert(mathStyles.includes("url('./art/math-instruments-overlay.svg') center/1100px auto repeat"),'Floating math sketches must continue across the parchment panels');
+assert(mathStyles.includes('#game .expedition-main{background:linear-gradient'),'Practice panel must also include understated math artwork');
+assert(mathStyles.includes('./art/math-expedition-watercolor.avif'),'Original painted expedition trail cards must remain');
 assert(fs.existsSync(artRoot+'math-expedition-watercolor.avif'),'Original watercolor landscape must exist');
 assert(mathStyles.includes('math-instruments-overlay.svg'),'Math instrumentation must remain subtle background artwork');
 assert(mathStyles.includes('.math-trail-card')&&mathStyles.includes('.creation-note.creation-game'),'Style expedition cards and field notes as part of the game');
