@@ -26,6 +26,9 @@ assert(mathStyles.includes('#math-guide .guide-art img')&&mathStyles.includes('o
 assert(mathSource.includes('id="math-players"')&&mathSource.includes('id="math-quick"')&&mathSource.includes('id="homePlay"')&&mathSource.includes('id="homeEdit"'),'Learner, quick play and settings controls remain');
 assert(mathSource.includes('id="homeOptions"')&&mathSource.includes('id="answerStyle"')&&mathSource.includes('id="exerciseStyle"'),'Answer style and exercise settings remain accessible');
 assert(mathSource.includes('id="savePlayChanges"')&&mathSource.includes('id="saveSkillChanges"'),'Both preference panels need an explicit Save Changes action');
+assert(mathSource.includes('id="start" class="adventure-primary"')&&mathSource.includes('class="button-compass"'), 'Start Game uses an expedition compass instead of a rocket');
+assert(!mathSource.includes('🚀 Start game')&&mathSource.includes('✦ Field Hint')&&mathSource.includes('◇ Reveal Answer'), 'Play controls use the field-journal vocabulary');
+assert(mathStyles.includes('Expedition controls: one watercolor-journal design language')&&mathStyles.includes('#setup button.adventure-primary')&&mathStyles.includes('#game button.yellow'), 'Controls retain cohesive themed colors across setup and gameplay');
 assert(matEngine.includes("get('savePlayChanges').addEventListener('click',savePlayPreferences)")&&matEngine.includes("get('saveSkillChanges').addEventListener('click',saveSkillPreferences)"),'Save Changes controls must be wired');
 assert(matEngine.includes("function saveSkillPreferences()")&&matEngine.includes("const config=readConfig()")&&matEngine.includes("settings.players||[]"),'Saving skills must preserve all learner-specific settings');
 assert(matEngine.includes("Choose at least one operation for")&&matEngine.includes("get('home').classList.remove('hidden')"),'Skill saving validates operation choices and returns home');
