@@ -182,8 +182,13 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
     const x = cellIndex % cols;
     const y = Math.floor(cellIndex / cols);
     image.style.backgroundImage = `url("${icon.src || avatarBank.src}")`;
-    image.style.backgroundSize = `${cols * 100}% ${rows * 100}%`;
-    image.style.backgroundPosition = `${cols === 1 ? 0 : (x / (cols - 1)) * 100}% ${rows === 1 ? 0 : (y / (rows - 1)) * 100}%`;
+    // A small cropInset removes framing baked into some newer portrait sheets.
+    // Keep the crop centered on the *original cell*, even for a reordered grid.
+    const inset = Math.max(0, Math.min(0.2, Number(icon.cropInset) || 0));
+    const zoom = 1 / (1 - 2 * inset);
+    image.style.backgroundSize = `${cols * zoom * 100}% ${rows * zoom * 100}%`;
+    const percent = (cell, count) => count === 1 ? 50 : (((cell + .5) * zoom - .5) / (count * zoom - 1)) * 100;
+    image.style.backgroundPosition = `${percent(x, cols)}% ${percent(y, rows)}%`;
     return image;
   }
 
