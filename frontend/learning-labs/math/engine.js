@@ -411,9 +411,43 @@ mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:mathA
  renderHome();
  window.scrollTo?.({top:0,behavior:'instant'});
 }});
-get('exerciseStyle').addEventListener('change',()=>{settings.exercise=get('exerciseStyle').value;persist()});
-get('answerStyle').addEventListener('change',()=>{settings.answerStyle=get('answerStyle').value;persist()});
-get('homeEdit').addEventListener('click',()=>{renderPlayers();get('home').classList.add('hidden');get('setup').classList.remove('hidden')});
+// Preference changes are committed explicitly, without beginning or resetting a round.
+function savePlayPreferences(){
+ settings.exercise=get('exerciseStyle').value;
+ settings.answerStyle=get('answerStyle').value;
+ persist();
+ renderHome();
+ window.scrollTo?.({top:0,behavior:'instant'});
+}
+function saveSkillPreferences(){
+ const config=readConfig().map(player=>({...player,level:normalizeLevel(player.level)}));
+ const missing=config.find(player=>!player.operations.length);
+ const validation=get('validation');
+ if(missing){
+  validation.textContent=`Choose at least one operation for ${missing.name} before saving.`;
+  validation.classList.remove('hidden');
+  return;
+ }
+ validation.classList.add('hidden');
+ settings={
+  ...settings,
+  exercise:get('exerciseStyle').value,
+  answerStyle:get('answerStyle').value,
+  rounds:get('rounds').value,
+  players:[
+   ...(settings.players||[]).filter(previous=>!config.some(player=>mathId(previous)===player.id||mathId(previous)===player.legacy?.math)),
+   ...config
+  ]
+ };
+ persist();
+ get('setup').classList.add('hidden');
+ get('home').classList.remove('hidden');
+ renderHome();
+ window.scrollTo?.({top:0,behavior:'instant'});
+}
+get('savePlayChanges').addEventListener('click',savePlayPreferences);
+get('saveSkillChanges').addEventListener('click',saveSkillPreferences);
+get('homeEdit').addEventListener('click',()=>{get('rounds').value=settings.rounds||'10';renderPlayers();get('validation').classList.add('hidden');get('home').classList.add('hidden');get('setup').classList.remove('hidden')});
 
 /* An illustrated expedition card is a shortcut into the complete per-learner
    setup. Other operation checkboxes remain available for mixed practice. */
