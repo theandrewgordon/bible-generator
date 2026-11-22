@@ -59,6 +59,10 @@ assert(matEngine.includes("updatedExplorerArt,columns:3,rows:2"), 'Updated portr
 assert(playerPicker.includes("avatarBank = null"),'Shared player picker must keep avatars optional for other games');
 assert(playerPicker.includes("faithsparks.labs.avatars.v1"),'Student icon preferences must persist by profile identifier');
 assert(playerPicker.includes("Save Avatar")&&playerPicker.includes("pendingAvatarChoice"),'Avatar changes must require an explicit Save Avatar click');
+assert(playerPicker.includes("export function playerAvatarPortrait(")&&playerPicker.includes("read(avatarKey, {})[player.id]"),'Turn portrait must resolve the saved animal ID for the active student');
+assert(matEngine.includes("playerAvatarPortrait(p, mathAvatarBank")&&matEngine.includes("who.replaceChildren("),'Each question must display the active learner portrait next to the name');
+assert(matEngine.includes("avatarBank:mathAvatarBank"),'Avatar picker and question must use identical portrait artwork mapping');
+assert(fs.readFileSync('frontend/learning-labs/math/upgrade.css','utf8').includes("#game .math-turn-avatar"),'Active learner portrait must have a correctly framed display style');
 assert(playerPicker.includes("onAvatarSaved(player, icon)"),'Avatar save must notify the game after persisting the selection');
 assert(matEngine.includes("onAvatarSaved:()=>")&&matEngine.includes("get('home').classList.remove('hidden')"),'Saving a math avatar must return to the home screen');
 assert(playerPicker.includes("class: 'labs-avatar-option'"),'Explorer icon bank must have accessible buttons');
