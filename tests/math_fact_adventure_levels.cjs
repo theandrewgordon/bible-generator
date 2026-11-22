@@ -43,7 +43,8 @@ assert(matEngine.includes("mathFactRally.v2"),'Saved learner history must remain
 const playerPicker=fs.readFileSync('static/js/labs-players.js','utf8');
 assert(fs.existsSync(artRoot+'explorer-avatar-bank.webp'),'Original 12-portrait explorer icon sheet must be packaged');
 assert(fs.existsSync(artRoot+'feminine-explorer-avatars.webp'),'Four feminine watercolor explorer icons must be included');
-assert(matEngine.includes("label:'Flower Fox'"),'Flower Fox replaces Flower Doe without losing saved avatar IDs');
+assert(matEngine.includes("id:'flower-doe',label:'Fox'"),'Feminine fox retains saved avatar ID while displaying the animal name');
+assert(matEngine.includes("id:'flower-badger',label:'Badger'")&&matEngine.includes("id:'flower-lynx',label:'Lynx'"),'Feminine animal portraits use animal-only labels');
 assert(matEngine.includes("explorer-avatar-bank.webp")&&matEngine.includes("id:'wolf'")&&matEngine.includes("id:'flower-lynx'")&&matEngine.includes("rows: 3"),'Math student picker must preserve the original twelve icons and add four feminine options');
 // Reordering the picker must never change which portrait belongs to a label.
 for(const [id,cell] of Object.entries({fox:0,owl:1,bear:2,rabbit:3,raccoon:4,squirrel:5,otter:6,deer:7,hedgehog:8,turtle:9,eagle:10,wolf:11})) {
