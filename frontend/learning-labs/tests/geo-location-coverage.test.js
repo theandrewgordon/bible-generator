@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {capitalMapData} from '../geo/capital-map-data.js';
 import {locationQuestions,completeLocationRows,questionGeography,pointOnFeature} from '../geo/locations.js';
 import {capitalQuestions} from '../geo/capitals.js';
+import {placeQuestions,tinyIslandMapTargets,islandChainMapQuestions} from '../geo/places.js';
 
 const regions=['usa','north-america','south-america','europe','africa','asia','australia'];
 const expected={usa:50,'north-america':23,'south-america':12,europe:44,africa:54,asia:48,australia:14};
@@ -100,5 +101,26 @@ test('the Caribbean shares a map and dispersed archipelagos have a wider view',(
     assert.ok(pointOnFeature(paths[pin.id],pin.x,pin.y),name);
    }
   }
+ }
+});
+
+test('playable map trail replaces tiny island countries with recognizable island chains',()=>{
+ const playable=placeQuestions.filter(question=>question.place==='Find it on the Map');
+ assert.equal(islandChainMapQuestions.length,6);
+ assert.ok(playable.length>islandChainMapQuestions.length);
+ for(const question of playable){
+  assert.ok(!question.locations.some(name=>tinyIslandMapTargets.has(name)),question.id+' still points to tiny islands');
+  assert.ok(!tinyIslandMapTargets.has(question.target),question.id+' still targets a tiny island');
+ }
+ for(const question of islandChainMapQuestions){
+  assert.ok(playable.some(item=>item.id===question.id),question.id+' is not playable');
+  assert.equal(question.locations.length,3,question.id);
+  assert.equal(new Set(question.locations).size,3,question.id);
+  assert.ok(question.clues.every(clue=>clue.length>0),question.id);
+  const map=questionGeography(question);
+  assert.equal(map.panels.length,1,question.id+' should use the regional map');
+  const pins=map.panels[0].numbered;
+  assert.deepEqual(new Set(pins.map(pin=>pin.number)),new Set(['1','2','3']),question.id);
+  for(const pin of pins)assert.ok(pointOnFeature(map.panels[0].paths[pin.id],pin.x,pin.y),question.id+' arrow misses land');
  }
 });
