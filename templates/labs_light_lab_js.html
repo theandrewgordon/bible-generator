@@ -1,0 +1,496 @@
+
+(function () {
+  'use strict';
+  const API = '/labs/light-lab/state';
+  const token = document.querySelector('meta[name="csrf-token"]').content;
+  const root = document.getElementById('light-lab');
+  const screenEl = document.getElementById('screen');
+  const statusEl = document.getElementById('save-status');
+  const ACTIVITY = {
+    choice: 'Choose the Missing Word',
+    type: 'Type the Missing Word',
+    multi: 'Fill the Blanks',
+    first: 'First-Letter Clues',
+    lock: 'Unlock the Word',
+    audio: 'Hear and Remember',
+    order: 'Build the Verse',
+    puzzle: 'Puzzle Breaker',
+    next: 'Continue the Verse',
+    intruder: 'Spot the Intruder',
+    spot: 'Repair the Verse',
+    match: 'What Comes Next?',
+    phrase: 'Find the Missing Phrase',
+    recall: 'Recall from Memory'
+  };
+  const CHALLENGES = ['multi','puzzle','recall','phrase','type'];
+  const REVIEW_DAYS = [1,3,7,14,30,60,90];
+  function initial() { return {verses:[],players:[{id:'p1',name:'Explorer 1'},{id:'p2',name:'Explorer 2'}],progress:{},goal:12}; }
+  let state=initial(), view='home', mode='solo', playerId='p1', teams=['p1','p2'];
+  let verseId=null, editId=null, historyVerseId=null, round=null, outcome=null, turn=0, scores={}, roundsPlayed=0;
+  let roundTicker=null, deadline=null, remaining=0, pending=Promise.resolve(), errorLoading=false;
+  function h(value) { return String(value==null?'':value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function norm(value) { return String(value||'').toLocaleLowerCase().replace(/[’‘]/g,"'").replace(/[^a-z0-9']+/g,' ').trim().replace(/\s+/g,' '); }
+  function choice(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+  function shuffle(arr) { const out=arr.slice(); for(let i=out.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1)); [out[i],out[j]]=[out[j],out[i]];}return out; }
+  function id(prefix) { return prefix+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10); }
+  function isoDay(d) { return new Date(d||Date.now()).toISOString().slice(0,10); }
+  function nextDay(days) { const d=new Date();d.setDate(d.getDate()+days);return isoDay(d); }
+  function findVerse(vid) { return state.verses.find(function(v){return v.id===vid;}); }
+  function findPlayer(pid) { return state.players.find(function(p){return p.id===pid;}); }
+  function freshRecord() { return {attempts:0,correct:0,streak:0,mastered:false,challengeWins:0,reviewInterval:0,reviewDue:'',lastPracticed:'',history:[],seen:[],challengeSeen:[],activities:[]}; }
+  function record(pid,vid) { if(!state.progress[pid])state.progress[pid]={};if(!state.progress[pid][vid])state.progress[pid][vid]=freshRecord();return state.progress[pid][vid]; }
+  function allMasteredIds(){return state.verses.filter(function(v){return state.players.some(function(p){return !!state.progress[p.id]?.[v.id]?.mastered;});}).map(function(v){return v.id;});}
+  function dueReviews(pid) { return state.verses.filter(function(v){let r=state.progress[pid]?.[v.id];return r&&r.mastered&&r.reviewDue&&r.reviewDue<=isoDay();}); }
+  function practiceReady(r){return r.correct>=6 && new Set(r.activities||[]).size>=4;}
+  function storyBeat(count,goal){
+    if(count===0)return {chapter:'Chapter 1 · A Darkened Laboratory',title:'The First Spark',story:'Professor Atlas has built a remarkable lamp, but the workshop is still dim. Dr. Lumi has discovered that remembering Scripture will help illuminate their research. Your first verse is the first spark.'};
+    if(count===1)return {chapter:'Chapter 2 · The Circuit Awakens',title:'One Bright Beginning',story:'The first lamp is glowing! Dr. Lumi records your discovery and Atlas adjusts the invention. But the great light is far from complete. Many more passages await.'};
+    if(count<goal*.5)return {chapter:'Chapter 3 · Building the Beam',title:'The Workshop Grows Brighter',story:'Each newly remembered verse powers another lamp. Blueprints become easier to read, and the two scientists begin to see a path through the shadows.'};
+    if(count<goal*.85)return {chapter:'Chapter 4 · The Shadows Retreat',title:'A Light Stronger Than Darkness',story:'Brilliant rays now fill the laboratory. Atlas and Lumi discover that Jesus calls himself the Light of the World. Keep learning the Scriptures that point to him.'};
+    if(count<goal)return {chapter:'Chapter 5 · The Final Instruments',title:'Almost Dazzling!',story:'The great machine is nearly shining at full strength. The scientists gather their finest discoveries, and every new verse draws the room nearer to its brightest glow.'};
+    return {chapter:'Chapter 6 · Light That Never Goes Out',title:'The Quest Continues',story:'The laboratory is radiant! Its brightest discovery is not a machine at all: Jesus is the Light of the World. Keep memorizing, reviewing, and discovering Scripture. This quest never needs to end.'};
+  }
+  function playerName(pid){return findPlayer(pid)?.name||'Explorer';}
+  function message(txt,isError) { statusEl.textContent=txt;statusEl.className='save-status'+(isError?' error':''); }
+  async function load() {
+    try {
+      const res=await fetch(API,{credentials:'same-origin',cache:'no-store',headers:{'Accept':'application/json'}});
+      if(!res.ok)throw new Error('The memory log could not load ('+res.status+').');
+      const data=await res.json();
+      if(data.state&&Array.isArray(data.state.verses)&&Array.isArray(data.state.players)&&data.state.progress&&typeof data.state.progress==='object')state=data.state;
+      if(!state.players.length){state.players=initial().players;store();}
+      if(!Number.isInteger(state.goal))state.goal=12;
+      playerId=state.players[0].id;
+      teams=[state.players[0]?.id,state.players[1]?.id||state.players[0].id];
+      errorLoading=false;message('✓ Your memory log is saved to your admin account.',false);
+      render();
+    }catch(err){errorLoading=true;screenEl.innerHTML='<section class="panel"><div class="panel-inner"><h2>Lab connection unavailable</h2><p>'+h(err.message)+'</p><p>No changes will be made until the saved memory log can be loaded.</p><button class="btn" data-action="retry-load">Try again</button></div></section>';message('Your saved verses could not be loaded.',true);}
+  }
+  function store(){
+    const payload=JSON.stringify({state:state});
+    message('Saving memory log…',false);
+    pending=pending.catch(function(){}).then(async function(){
+      const res=await fetch(API,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':token},body:payload});
+      if(!res.ok){let why='Save failed ('+res.status+').';try{why=(await res.json()).error||why;}catch(e){}throw new Error(why);}
+      message('✓ Memory log saved to your admin account.',false);
+    }).catch(function(e){message('⚠ '+e.message+' Changes are not saved. Retry after checking your connection.',true);});
+    return pending;
+  }
+  function meter(){
+    const count=allMasteredIds().length,goal=Math.max(1,state.goal||12),percent=Math.min(100,Math.round(100*count/goal));
+    document.getElementById('meter-label').textContent=count+' of '+goal+' verses mastered';
+    const bar=document.getElementById('meter-fill');bar.style.width=percent+'%';
+    const box=document.getElementById('light-meter');box.setAttribute('aria-valuenow',String(percent));
+    document.getElementById('meter-hint').textContent=count===0?'Each newly mastered verse will make the lab brighter.':count<goal?'The lab is growing brighter! '+(goal-count)+' more unique verses until the next discovery.':'Brilliant discovery! Keep adding verses: the quest and its light continue.';
+    root.dataset.glow=percent>70?'3':percent>35?'2':percent>0?'1':'0';
+    root.style.setProperty('--lab-light',(0.22+percent/125).toFixed(3));
+  }
+  function setView(next){stopTimer();round=null;outcome=null;view=next;render();}
+  function header(title,description){return '<div class="panel"><div class="panel-inner"><h2>'+title+'</h2><p class="lead">'+description+'</p></div></div>';}
+  function home(){
+    const due=dueReviews(playerId),count=allMasteredIds().length,beat=storyBeat(count,Math.max(1,state.goal||12));
+    return '<section class="panel lit"><div class="panel-inner"><span class="badge gold">'+h(beat.chapter)+'</span><h2>'+h(beat.title)+'</h2><p class="lead">'+h(beat.story)+'</p><div class="journey-box"><strong>✦ Today’s mission</strong><p>Practice with a different kind of puzzle each round. Build enough confidence to unlock timed challenges. Each <strong>new mastered verse</strong> adds another glow to the lab—and the journey continues!</p><p class="small">Inspired by Psalm 119:105 and Jesus’ words in John 8:12.</p></div>'+
+      (due.length?'<div class="review-callout"><div><strong>🔁 '+due.length+' mastered verse'+(due.length===1?'':'s')+' ready for review</strong><div class="small">Keep your discoveries bright with a quick recall round.</div></div><button class="btn secondary" data-action="review-due">Review now</button></div>':'')+
+      '<div class="actions"><button class="btn" data-action="choose-mode">▶ Start a Mission</button><button class="btn secondary" data-view="verses">＋ Add a Verse</button><button class="btn ghost" data-view="log">▤ See Memory Log</button></div></div></section>'+
+      '<div class="grid two home-grid"><div class="panel blue"><div class="panel-inner"><h3>⚙️ Practice with Variety</h3><p>Fourteen kinds of recall, word puzzles, word order, first-letter clues, word repairs, and more. Activities rotate before repeating; missing words and phrases change each time.</p></div></div><div class="panel blue"><div class="panel-inner"><h3>💡 Light Never Stops Growing</h3><p>One mastered verse is a bright beginning—not the end of the mission. Review old discoveries, add new passages, and keep the lab shining.</p></div></div></div>';
+  }
+  function modeHtml(){
+    return header('Choose Your Play Mode','Pick an explorer or compete side by side. Every learner has a separate memory log, even when working together.')+
+    '<div class="grid two"><button class="card selectable'+(mode==='solo'?' selected':'')+'" data-action="set-mode" data-value="solo"><span class="character-emblem">🔬</span><h3>Single Play</h3><p>One learner. Personal practice, timed challenges, and a steady path to Scripture mastery.</p><span class="badge">1 explorer</span></button><button class="card selectable'+(mode==='team'?' selected':'')+'" data-action="set-mode" data-value="team"><span class="character-emblem">🧪</span><h3>Team Play</h3><p>Take turns and compete at your own memory levels. Each learner’s progress is saved separately.</p><span class="badge">2 explorers</span></button></div>'+
+    '<div class="panel"><div class="panel-inner"><div class="actions"><button class="btn" data-action="mode-next">Continue →</button><button class="btn ghost" data-view="home">Back to Lab</button></div></div></div>';
+  }
+  function playersHtml(){
+    const playerCards=state.players.map(function(p){
+      return '<div class="card"><div class="form-row"><label for="player-'+h(p.id)+'">Explorer name</label><input id="player-'+h(p.id)+'" maxlength="40" data-name="'+h(p.id)+'" value="'+h(p.name)+'"></div>'+
+      '<div class="actions"><button class="btn smallbtn secondary" data-action="select-player" data-value="'+h(p.id)+'">Play as '+h(p.name)+'</button>'+
+      (state.players.length>2?'<button class="btn smallbtn ghost" data-action="remove-player" data-value="'+h(p.id)+'">Remove</button>':'')+'</div></div>';
+    }).join('');
+    const options=state.players.map(function(p){return '<option value="'+h(p.id)+'">'+h(p.name)+'</option>';}).join('');
+    return header('Set Up Your Explorers',mode==='team'?'Choose two learners. Each gets a fair turn at the same verse and their own score.':'Choose a learner. Names and progress remain saved in your memory log.')+
+    '<section class="panel"><div class="panel-inner"><div class="grid two">'+playerCards+'</div><div class="actions"><button class="btn secondary smallbtn" data-action="add-player" '+(state.players.length>=12?'disabled':'')+'>＋ Add Learner</button><button class="btn smallbtn ghost" data-action="save-names">Save Names</button></div>'+
+    (mode==='team'?'<div class="line-fields" style="margin-top:20px"><div class="form-row"><label>Explorer / Team A</label><select id="team-a">'+options+'</select></div><div class="form-row"><label>Explorer / Team B</label><select id="team-b">'+options+'</select></div></div>':'<div class="form-row" style="margin-top:18px"><label>Active explorer</label><select id="solo-player">'+options+'</select></div>')+
+    '<div class="actions"><button class="btn" data-action="players-next">Choose a Verse →</button><button class="btn ghost" data-action="choose-mode">Back</button></div></div></section>';
+  }
+  function selectedPlayerOptions(){return state.players.map(function(p){return '<option value="'+h(p.id)+'" '+(p.id===playerId?'selected':'')+'>'+h(p.name)+'</option>';}).join('');}
+  function versesHtml(){
+    const due=dueReviews(playerId);
+    let rows=state.verses.map(function(v){
+      const r=state.progress[playerId]?.[v.id]||freshRecord(),ready=practiceReady(r);
+      const stat=r.mastered?'✓ Mastered · review '+(r.reviewDue&&r.reviewDue<=isoDay()?'due now':r.reviewDue||'scheduled'):ready?'⚡ Challenge ready':'⚙ Practice '+r.correct+'/6';
+      return '<div class="library-row"><div><strong>'+h(v.reference)+'</strong> <span class="badge '+(r.mastered?'green':'')+'">'+h(stat)+'</span><p>'+h(v.text)+'</p></div><div class="actions" style="margin-top:0"><button class="btn smallbtn" data-action="practice-verse" data-value="'+h(v.id)+'">Practice</button>'+
+      (r.mastered?'<button class="btn smallbtn secondary" data-action="review-verse" data-value="'+h(v.id)+'">Review</button>':'')+
+      '<button class="btn smallbtn ghost" data-action="edit-verse" data-value="'+h(v.id)+'">Edit</button><button class="btn smallbtn ghost" data-action="delete-verse" data-value="'+h(v.id)+'" aria-label="Delete '+h(v.reference)+'">✕</button></div></div>';
+    }).join('');
+    return '<section class="panel"><div class="panel-inner"><div class="status-panel"><div><h2>My Verse Library</h2><p>Parents add the exact NLT wording they want their children to memorize. Each passage is kept in your private admin log.</p></div><button class="btn" data-action="add-verse">＋ Add Verse</button></div><div class="form-row" style="max-width:300px"><label for="library-player">Showing progress for</label><select id="library-player">'+selectedPlayerOptions()+'</select></div>'+
+    (due.length?'<div class="chip due">🔁 '+due.length+' review'+(due.length>1?'s':'')+' due</div>':'')+
+    (rows?'<div class="log-grid">'+rows+'</div>':'<div class="empty-note">Your verse notebook is empty. Add your first passage to begin the experiment!</div>')+'</div></section>';
+  }
+  function verseForm(){
+    const v=editId?findVerse(editId):null;
+    return '<section class="panel"><div class="panel-inner"><span class="badge">Parent / Admin Verse Entry</span><h2>'+(v?'Edit This Verse':'Add a Verse to Your Lab')+'</h2><p class="lead">Enter the Bible reference and paste the exact NLT wording you want to memorize. The game creates activities from <em>your</em> text, with different missing words on subsequent rounds.</p>'+
+    '<form id="verse-form"><div class="form-row"><label for="verse-ref">Scripture reference</label><input id="verse-ref" maxlength="100" placeholder="e.g., Psalm 119:105" required value="'+h(v?.reference||'')+'"></div>'+
+    '<div class="form-row"><label for="verse-text">Scripture text (NLT)</label><textarea id="verse-text" maxlength="1800" required placeholder="Paste your chosen passage here…">'+h(v?.text||'')+'</textarea></div>'+
+    '<div class="admin-disclaimer">Private testing only. NLT Scripture is entered by the parent; a built-in NLT passage library will not be published until the needed permissions are arranged.</div>'+
+    '<div class="actions"><button class="btn" type="submit">✓ '+(v?'Save Changes':'Save Verse')+'</button><button class="btn ghost" type="button" data-view="verses">Cancel</button></div></form></div></section>';
+  }
+  function logHtml(){
+    const pid=playerId,due=dueReviews(pid);
+    const rows=state.verses.map(function(v){
+      const r=state.progress[pid]?.[v.id]||freshRecord();
+      const status=r.mastered?'<span class="badge green">✓ Mastered</span>':r.attempts?'<span class="badge">'+(practiceReady(r)?'Challenge '+(r.challengeWins||0)+'/2':'Practicing '+Math.min(6,r.correct)+'/6')+'</span>':'<span class="badge">Not started</span>';
+      return '<div class="log-row"><div><button type="button" class="text-link" data-action="view-history" data-value="'+h(v.id)+'">'+h(v.reference)+'</button></div><div>'+status+'</div><div class="small">'+h(r.lastPracticed||'—')+'</div><div class="small">'+(r.streak||0)+' correct</div><div class="small">'+(r.mastered?(r.reviewDue<=isoDay()?'🔁 Due now':h(r.reviewDue||'—')):'—')+'</div></div>';
+    }).join('');
+    const mastered=state.verses.filter(function(v){return !!state.progress[pid]?.[v.id]?.mastered;}).length;
+    return '<section class="panel"><div class="panel-inner"><div class="status-panel"><div><h2>📖 Your Memory Log</h2><p>Saved verses, mastery, and review dates. Mastered passages return for spaced review so they stay bright.</p></div><button class="btn secondary" data-action="add-verse">＋ New Verse</button></div>'+
+    '<div class="line-fields"><div class="form-row"><label for="log-player">Learner</label><select id="log-player">'+selectedPlayerOptions()+'</select></div><div class="form-row"><label for="mastery-goal">Light Lab goal (unique verses)</label><input type="number" id="mastery-goal" min="3" max="100" value="'+h(state.goal)+'"></div></div>'+
+    '<div class="stat-row"><span class="stat">✦ '+mastered+' mastered by '+h(playerName(pid))+'</span><span class="stat">💡 '+allMasteredIds().length+' unique verses lighting the lab</span><span class="stat">🔁 '+due.length+' reviews due</span></div>'+
+    '<div class="log-grid" style="margin-top:17px"><div class="log-row log-head"><div>Verse / History</div><div>Status</div><div>Last Practiced</div><div>Streak</div><div>Next Review</div></div>'+ (rows||'<div class="empty-note">Add a verse to start your memory log.</div>') +'</div>'+
+    '<div class="actions"><button class="btn" data-action="review-due" '+(due.length?'':'disabled')+'>Review Due Verses</button><button class="btn secondary" data-action="save-goal">Save Light Goal</button><button class="btn ghost" data-view="verses">Manage Verses</button></div>'+
+    '<p class="footnote">Reviews use increasing intervals of 1, 3, 7, 14, 30, 60, and 90 days after successful recall. A missed review returns the verse sooner without erasing its history.</p></div></section>';
+  }
+  function historyHtml(){
+    const v=findVerse(historyVerseId);if(!v)return logHtml();
+    const r=state.progress[playerId]?.[v.id]||freshRecord();
+    const entries=(r.history||[]).slice().reverse().slice(0,40);
+    return '<section class="panel"><div class="panel-inner"><span class="badge">Memory History · '+h(playerName(playerId))+'</span><h2>'+h(v.reference)+'</h2>'+
+    '<p class="lead">Every round is logged for this learner. Review sessions appear alongside normal practice and challenges.</p>'+
+    '<div class="stat-row"><span class="stat">⚙ '+r.attempts+' rounds</span><span class="stat">✓ '+r.correct+' correct</span><span class="stat">★ '+(r.streak||0)+' current streak</span><span class="stat">🏆 '+(r.challengeWins||0)+'/2 challenges</span></div>'+
+    '<div class="log-grid" style="margin-top:17px"><div class="log-row log-head history-row"><div>Date</div><div>Activity</div><div>Result</div><div>Type</div></div>'+
+    (entries.map(function(entry){return '<div class="log-row history-row"><div>'+h(entry.date||'—')+'</div><div>'+h(ACTIVITY[entry.activity]||entry.activity||'Practice')+'</div><div>'+(entry.correct?'✓ Correct':'Try again')+'</div><div>'+h(entry.kind||'practice')+'</div></div>';}).join('')||'<div class="empty-note">No attempts yet. Open this verse to begin practicing.</div>')+'</div>'+
+    '<div class="actions"><button class="btn" data-action="practice-verse" data-value="'+h(v.id)+'">Practice This Verse</button><button class="btn ghost" data-view="log">← Back to Memory Log</button></div></div></section>';
+  }
+  function helpHtml(){
+    return header('Field Guide: How to Play','The path from first look to lasting recall. It is easy enough to begin right away and challenging enough to keep learning.')+
+    '<div class="grid two"><div class="panel"><div class="panel-inner"><h3>1 · Stock the Verse Notebook</h3><p>Parents type a Bible reference and its NLT passage. Each learner keeps a separate progress record.</p><h3>2 · Choose Your Scientists</h3><p>Go solo or compete with another explorer. Take turns in Team Play at your own memory level.</p><h3>3 · Build Your Memory</h3><p>Work through fourteen rotating activities. Missing words, word tiles, and clues change each time you practice.</p></div></div><div class="panel"><div class="panel-inner"><h3>4 · Break the Challenge</h3><p>After six correct practices across at least four different activities, unlock forty-five-second challenges. Two successful challenges complete the verse.</p><h3>5 · Grow the Light</h3><p>Every newly mastered verse brightens the lab. The first verse never ends the quest. Add more passages to keep discovering.</p><h3>6 · Keep It Bright</h3><p>Mastered verses return at spaced review intervals. The memory log tracks your journey.</p></div></div></div><div class="actions"><button class="btn" data-action="choose-mode">▶ Begin a Mission</button><button class="btn ghost" data-view="home">Back to Lab</button></div>';
+  }
+  function verseChoose(){
+    if(!state.verses.length)return header('The Verse Notebook Is Empty','A parent needs to add a passage before the scientists can begin.')+'<div class="actions"><button class="btn" data-action="add-verse">＋ Add Your First Verse</button></div>';
+    const pid=mode==='team'?teams[turn%2]:playerId;
+    let rows=state.verses.map(function(v){
+      const r=state.progress[pid]?.[v.id]||freshRecord();
+      let badge=r.mastered?'Mastered · Keep Reviewing':practiceReady(r)?'Challenge Unlocked':r.correct+' of 6 practices';
+      return '<button class="card selectable" data-action="choose-verse" data-value="'+h(v.id)+'"><strong>'+h(v.reference)+'</strong><p>'+h(v.text).slice(0,180)+'</p><span class="badge">'+h(badge)+'</span></button>';
+    }).join('');
+    return header('Select Your Experiment','Choose a verse for '+h(playerName(pid))+'. Each puzzle helps you remember the same passage in a fresh way.')+
+    '<div class="grid">'+rows+'</div><div class="actions"><button class="btn secondary" data-action="add-verse">＋ Add Another Verse</button><button class="btn ghost" data-view="home">Back to Lab</button></div>';
+  }
+  function stageHtml(r){
+    const current=r.mastered?5:practiceReady(r)?4:Math.min(3,Math.floor(r.correct/2));
+    const stages=[['📖','Read'],['⚙️','Remember'],['🧩','Rebuild'],['🧠','Recall'],['⏱️','Challenge'],['💡','Mastered']];
+    return '<div class="stage-map">'+stages.map(function(s,i){return '<div class="stage '+(i<current?'done ':i===current?'active':'')+'"><span class="stage-icon">'+s[0]+'</span>'+s[1]+'</div>';}).join('<span class="stage-arrow">›</span>')+'</div>';
+  }
+  function briefing(){
+    const v=findVerse(verseId),pid=mode==='team'?teams[turn%2]:playerId;
+    if(!v)return verseChoose();
+    const r=record(pid,v.id),ready=practiceReady(r);
+    const team=mode==='team'?'<div class="stat-row"><span class="stat">Team '+h(playerName(teams[0]))+': '+(scores[teams[0]]||0)+' pts</span><span class="stat">Team '+h(playerName(teams[1]))+': '+(scores[teams[1]]||0)+' pts</span></div>':'';
+    return '<section class="panel"><div class="panel-inner"><div class="status-panel"><div><span class="badge gold">The Great Experiment · '+h(playerName(pid))+'</span><h2>'+h(v.reference)+'</h2><p>Read the passage, then power up the memory engines. Every attempt helps build recall.</p></div><span class="bulb">💡</span></div>'+
+    team+stageHtml(r)+'<div class="verse-card"><p>'+h(v.text)+'</p><small>'+h(v.reference)+' · NLT (parent entered)</small></div>'+
+    '<div class="stat-row" style="margin-top:14px"><span class="stat">✓ '+r.correct+' correct practices</span><span class="stat">⚙ '+new Set(r.activities||[]).size+' activity types</span><span class="stat">🏆 '+r.challengeWins+'/2 challenges</span></div>'+
+    (r.mastered?'<div class="response good"><strong>✦ Verse mastered!</strong><p>You made the lab brighter. Keep this verse alive with periodic reviews, or begin another Scripture mission.</p></div>':ready?'<div class="response good"><strong>⚡ Challenge unlocked!</strong><p>You are ready for the 45-second recall rounds. Win two to master this passage.</p></div>':'<div class="response"><strong>🔬 Practice stage</strong><p>Get six correct answers from at least four activity types. Practice rounds give you plenty of time to think and change activities before repeating.</p></div>')+
+    '<div class="actions"><button class="btn" data-action="start-practice">'+(r.mastered?'Practice Again':'Start Practice')+'</button>'+
+    '<button class="btn plum" data-action="start-challenge" '+(!ready||r.mastered?'disabled':'')+'>⏱ 45-Second Challenge</button>'+
+    (r.mastered?'<button class="btn secondary" data-action="start-review">🔁 Review Verse</button>':'')+
+    '<button class="btn ghost" data-view="choose">Choose Another Verse</button></div></div></section>';
+  }
+  function wordsFor(v){return (v.text||'').trim().split(/\s+/).filter(Boolean);}
+  function cleanWord(w){return norm(w).replace(/\s+/g,'');}
+  function eligibleIndexes(words){const a=[];words.forEach(function(w,i){if(cleanWord(w).length>=3)a.push(i);});return a.length?a:words.map(function(w,i){return i;});}
+  function distraction(exclude,words){
+    const pool=['lantern','engine','discover','courage','wisdom','garden','promise','river','paper','window','cloud','journey','light','faith','hope','trust','strong','kind','truth','glory','heart','grace'];
+    const set=new Set(words.map(cleanWord).concat([cleanWord(exclude)]));
+    const available=pool.filter(function(x){return !set.has(cleanWord(x));});
+    return choice(available.length?available:['another']);
+  }
+  function optionsFor(answer,words,count){
+    const other=shuffle(words.map(function(w){return w.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g,'');}).filter(function(w){return cleanWord(w)&&norm(w)!==norm(answer);}));
+    const opts=[answer],used=new Set([norm(answer)]);
+    for(const item of other.concat(shuffle(['grace','truth','hope','lamp','river','bright','joy','strong','promise','care','faith','light','path','peace','love']))){
+      if(!used.has(norm(item))&&opts.length<count){opts.push(item);used.add(norm(item));}
+    }return shuffle(opts);
+  }
+  function chunks(words,n){
+    const out=[];for(let i=0;i<words.length;i+=n)out.push(words.slice(i,i+n).join(' '));return out;
+  }
+  function activityBag(r,challenge,words){
+    let list=challenge?CHALLENGES.slice():Object.keys(ACTIVITY);
+    if(words.length<4)list=list.filter(function(x){return !['next','phrase','order','puzzle','multi','spot','match'].includes(x);});
+    if(words.length>90)list=list.filter(function(x){return x!=='recall';});
+    const key=challenge?'challengeSeen':'seen';
+    if(!Array.isArray(r[key]))r[key]=[];
+    const available=list.filter(function(x){return !r[key].includes(x);});
+    if(!available.length){r[key]=[];}
+    const pool=available.length?available:list;
+    const different=pool.filter(function(x){return x!==r.lastActivity;});
+    const type=choice(different.length?different:pool);
+    r[key].push(type);r.lastActivity=type;
+    return type;
+  }
+  function makeRound(vid,pid,kind,forceActivity){
+    const v=findVerse(vid);if(!v)return;
+    const w=wordsFor(v),r=record(pid,vid);
+    const activity=forceActivity||activityBag(r,kind==='challenge',w);
+    const candidates=eligibleIndexes(w),fresh=candidates.filter(function(i){return i!==r.lastBlank;});
+    const target=choice(fresh.length?fresh:candidates);
+    r.lastBlank=target;
+    const q={activity:activity,kind:kind,vid:vid,pid:pid,words:w,selected:[],answer:'',options:[],idx:target,starts:Date.now(),pieces:[],intro:'', prompt:'',missing:[],phase:'answer'};
+    const answer=w[target].replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g,'');
+    q.answer=answer;
+    if(['choice','type','first','lock','audio','spot'].includes(activity)){
+      q.options=optionsFor(answer,w,4);
+      if(activity==='spot'){const bad=distraction(answer,w);q.display=w.slice();q.display[target]=bad;q.prompt=bad;}
+    }
+    if(activity==='multi'){
+      const count=Math.min(kind==='challenge'?4:3,Math.max(1,Math.ceil(w.length/6)));
+      let attempts=0;
+      do {q.missing=shuffle(eligibleIndexes(w)).slice(0,count).sort(function(a,b){return a-b;});attempts++;}
+      while(q.missing.join(',')===r.lastMask&&attempts<20&&eligibleIndexes(w).length>count);
+      r.lastMask=q.missing.join(',');
+      q.answer=q.missing.map(function(i){return w[i];}).join(' / ');
+    }
+    if(['order','puzzle'].includes(activity)){
+      const size=activity==='puzzle'?Math.max(2,Math.ceil(Math.min(w.length,30)/5)):Math.max(1,Math.ceil(Math.min(w.length,28)/6));
+      const part=chunks(w.slice(0,Math.min(w.length,30)),size);
+      q.pieces=shuffle(part.map(function(s,i){return {id:i,text:s};}));
+      q.answer=part.join(' ');
+    }
+    if(['next','phrase','match'].includes(activity)){
+      const parts=chunks(w,Math.max(2,Math.ceil(w.length/4)));
+      if(activity==='match'){
+        q.idx=Math.floor(Math.random()*(w.length-1));
+        q.prompt=w[q.idx];q.answer=w[q.idx+1];q.options=optionsFor(q.answer,w,4);
+      }else{
+        q.idx=Math.floor(Math.random()*(parts.length-1));
+        q.prompt=parts[q.idx];q.answer=parts[q.idx+1];
+        q.options=shuffle([q.answer,...shuffle(parts.filter(function(p){return p!==q.answer;})).slice(0,3)]);
+        while(q.options.length<3){q.options.push(distraction(q.answer,w));}
+      }
+    }
+    if(activity==='intruder'){
+      q.answer=distraction('',w);
+      q.options=shuffle(shuffle([...new Set(w.map(function(x){return x.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g,'');}))]).slice(0,3).concat([q.answer]));
+    }
+    if(activity==='recall'){q.answer=v.text;}
+    if(activity==='audio'&&!("speechSynthesis" in window)){q.activity='type';}
+    return q;
+  }
+  function stopTimer(){if(roundTicker!==null){clearInterval(roundTicker);roundTicker=null;}deadline=null;}
+  function startRound(kind,forced){
+    if(!verseId)return;
+    const pid=mode==='team'?teams[turn%2]:playerId;
+    const r=record(pid,verseId);
+    if(kind==='challenge'&&!practiceReady(r))return;
+    stopTimer();round=makeRound(verseId,pid,kind,forced);if(!round)return;
+    outcome=null;view='round';
+    remaining=kind==='challenge'?45:(r.correct>=4?75:0);
+    if(remaining){deadline=Date.now()+remaining*1000;roundTicker=setInterval(tick,250);}
+    render();
+  }
+  function tick(){
+    if(!round||view!=='round'){stopTimer();return;}
+    remaining=Math.max(0,Math.ceil((deadline-Date.now())/1000));
+    const el=document.getElementById('round-timer');
+    if(el){el.textContent='⏱ '+remaining+'s';el.classList.toggle('low',remaining<=10);}
+    if(!remaining)finishRound(false,true);
+  }
+  function maskedText(q,idx){
+    return q.words.map(function(w,i){return i===idx?'_______':h(w);}).join(' ');
+  }
+  function filledMultiple(q){return q.words.map(function(w,i){return q.missing.includes(i)?'<span class="blank-highlight">______</span>':h(w);}).join(' ');}
+  function versePanel(text,v){
+    return '<div class="verse-card"><p>'+text+'</p><small>'+h(v.reference)+' · NLT</small></div>';
+  }
+  function choiceButtons(opts){
+    return '<div class="answer-options">'+opts.map(function(o,i){return '<button class="choice" data-action="answer-choice" data-value="'+h(o)+'">'+h(o)+'</button>';}).join('')+'</div>';
+  }
+  function activityHtml(q){
+    const v=findVerse(q.vid),a=q.activity;
+    if(a==='choice')return '<p class="lead">Choose the missing word to repair the circuit.</p>'+versePanel(maskedText(q,q.idx),v)+choiceButtons(q.options);
+    if(['type','first','lock','audio'].includes(a)){
+      let clue='';
+      if(a==='first')clue='<div class="chip">First-letter clue: <strong>'+h(q.answer.charAt(0).toUpperCase())+' '+Array(Math.min(15,q.answer.length)).join('• ')+'</strong></div>';
+      if(a==='lock')clue='<div class="chip">Code lock: begins with <strong>'+h(q.answer[0])+'</strong> and ends with <strong>'+h(q.answer.slice(-1))+'</strong></div>';
+      if(a==='audio')clue='<button class="btn secondary smallbtn" data-action="speak">🔊 Listen to the Verse</button><p class="small">Listen, remember, and type the missing word.</p>';
+      return '<p class="lead">'+(a==='lock'?'Crack the word lock using the clues.':a==='first'?'Follow the first letter to remember the word.':a==='audio'?'Hear and remember the verse.':'Type the missing word from memory.')+'</p>'+
+      (a==='audio'?versePanel('🔊 The verse is ready to play',v):versePanel(maskedText(q,q.idx),v))+'<div class="actions center">'+clue+'</div><form id="answer-form"><div class="form-row"><label for="answer-input">Missing word</label><input id="answer-input" autocomplete="off" spellcheck="false" autofocus required placeholder="Type the word…"></div><button class="btn" type="submit">Check My Answer</button></form>';
+    }
+    if(a==='multi'){
+      const boxes=q.missing.map(function(i,j){return '<div class="form-row"><label>Blank '+(j+1)+'</label><input class="blank-field" data-blank="'+i+'" autocomplete="off" required></div>';}).join('');
+      return '<p class="lead">Several bulbs are dark. Fill each gap to reconnect the whole verse.</p>'+versePanel(filledMultiple(q),v)+'<form id="answer-form"><div class="grid '+(q.missing.length>2?'three':'two')+'">'+boxes+'</div><button class="btn" type="submit">Light These Bulbs</button></form>';
+    }
+    if(a==='order'||a==='puzzle'){
+      const selected=q.selected.map(function(i){const p=q.pieces.find(function(x){return x.id===i;});return '<button class="choice picked" data-action="undo-piece" data-value="'+i+'">'+h(p?.text||'')+' ↶</button>';}).join('');
+      const remaining=q.pieces.filter(function(p){return !q.selected.includes(p.id);}).map(function(p){return '<button class="choice" data-action="add-piece" data-value="'+p.id+'">'+h(p.text)+'</button>';}).join('');
+      return '<p class="lead">'+(a==='puzzle'?'Snap the broken Scripture puzzle into its proper order.':'Build the verse from shuffled word groups, starting with the first phrase.')+'</p>'+
+      '<div class="assembly">'+(selected||'<span class="muted">Tap the correct first piece…</span>')+'</div><div class="word-bank">'+remaining+'</div><div class="actions center"><button class="btn" data-action="check-pieces" '+(remaining?'disabled':'')+'>Check the Verse</button><button class="btn secondary" data-action="reset-pieces">↶ Start Over</button></div><p class="footnote">Only the first section is used for longer passages. Tap a placed piece to undo it.</p>';
+    }
+    if(a==='next'||a==='phrase'){
+      const text=a==='phrase'?'<span class="blank-highlight">________</span> '+q.prompt:q.prompt+' <span class="blank-highlight">________</span>';
+      return '<p class="lead">'+(a==='phrase'?'Find the phrase that belongs in this broken verse.':'What comes next in the passage? Choose the correct continuation.')+'</p>'+versePanel(text,v)+choiceButtons(q.options);
+    }
+    if(a==='intruder')return '<p class="lead">One word has slipped into the lab that is <strong>not</strong> in this verse. Spot the intruder!</p>'+versePanel('🔎 '+h(v.reference),v)+choiceButtons(q.options);
+    if(a==='spot')return '<p class="lead">The machine changed a word. Choose the word that fixes the verse.</p>'+versePanel(q.display.map(h).join(' '),v)+choiceButtons(q.options);
+    if(a==='match')return '<p class="lead">Find the word that follows the highlighted word in the original passage.</p>'+versePanel('What comes after “<span class="blank-highlight">'+h(q.prompt)+'</span>”?',v)+choiceButtons(q.options);
+    if(a==='recall')return '<p class="lead">The laboratory lights have dimmed. Can you recall the passage without seeing it?</p>'+versePanel('🧠 Recall '+h(v.reference)+' from memory',v)+'<form id="answer-form"><div class="form-row"><label for="recall-input">Write the original verse as closely as you remember it</label><textarea class="recall-box" id="recall-input" required spellcheck="false" placeholder="Write what you remember…"></textarea></div><button class="btn" type="submit">Check My Recall</button></form><details class="details" style="margin-top:14px"><summary>Prefer spoken recall?</summary><p>Recite the verse to a parent, then have the parent confirm it was accurate.</p><button class="btn secondary smallbtn" data-action="parent-confirm">✓ Parent Confirms Accurate Recitation</button></details>';
+    return '<p>Let’s remember this verse.</p>';
+  }
+  function roundHtml(){
+    const q=round,v=q&&findVerse(q.vid);if(!q||!v)return briefing();
+    const p=playerName(q.pid);
+    return '<section class="panel"><div class="panel-inner"><div class="round-head"><div><span class="badge '+(q.kind==='challenge'?'gold':'')+'">'+(q.kind==='challenge'?'⚡ Timed Challenge':q.kind==='review'?'🔁 Spaced Review':'⚙ Practice Experiment')+'</span><h2>'+h(ACTIVITY[q.activity]||'Scripture Practice')+'</h2><span class="player-pill">'+h(p)+' · '+h(v.reference)+'</span></div>'+
+    (remaining?'<span id="round-timer" class="timer">⏱ '+remaining+'s</span>':'<span class="stat">Take your time · learn well</span>')+'</div>'+
+    activityHtml(q)+'<div class="actions"><button class="btn ghost smallbtn" data-action="quit-round">↶ Return to Verse</button></div></div></section>';
+  }
+  function finishRound(correct,timedOut){
+    if(!round||outcome)return;
+    const q=round,r=record(q.pid,q.vid),v=findVerse(q.vid);
+    stopTimer();
+    r.attempts+=1;
+    if(correct){r.correct+=q.kind==='review'?0:1;}
+    r.streak=correct?(r.streak||0)+1:0;
+    r.lastPracticed=isoDay();
+    if(!Array.isArray(r.activities))r.activities=[];
+    if(correct&&!r.activities.includes(q.activity))r.activities.push(q.activity);
+    let newlyMastered=false;
+    if(q.kind==='challenge'&&correct&&!r.mastered){
+      r.challengeWins=(r.challengeWins||0)+1;
+      if(r.challengeWins>=2){r.mastered=true;r.masteredAt=isoDay();r.reviewInterval=0;r.reviewDue=nextDay(1);newlyMastered=true;}
+    }
+    if(q.kind==='review'&&r.mastered){
+      r.reviewInterval=correct?Math.min(REVIEW_DAYS.length-1,(r.reviewInterval||0)+1):0;
+      r.reviewDue=nextDay(correct?REVIEW_DAYS[r.reviewInterval]:1);
+    }
+    const elapsed=Math.max(0,Math.round((Date.now()-q.starts)/1000));
+    r.history=[...(r.history||[]),{date:isoDay(),activity:q.activity,correct:!!correct,kind:q.kind,seconds:elapsed}].slice(-100);
+    if(correct)scores[q.pid]=(scores[q.pid]||0)+(q.kind==='challenge'?150:100);
+    roundsPlayed++;
+    outcome={correct:!!correct,timedOut:!!timedOut,newlyMastered:newlyMastered,answer:q.answer,activity:q.activity,kind:q.kind,pid:q.pid,vid:q.vid};
+    view='result';store();render();
+  }
+  function resultHtml(){
+    const out=outcome,v=findVerse(out.vid),r=record(out.pid,out.vid);
+    const good=out.correct;
+    const title=out.newlyMastered?'💡 This Verse Made the Light Brighter!':good?'✓ Circuit Connected!':out.timedOut?'⏱ Time for a Recharge':'Almost! Keep Experimenting!';
+    const detail=out.newlyMastered?'You mastered '+h(v.reference)+'! The great lamp glows brighter, and the quest continues with more Scripture.':good?'Nicely remembered. Every good recall strengthens your memory.':'Review the verse below and try a fresh puzzle. Each attempt is a chance to learn.';
+    return '<section class="panel '+(out.newlyMastered?'lit':'')+'"><div class="panel-inner"><span class="badge '+(good?'green':'')+'">'+(good?'Successful recall':'Practice and learn')+'</span><h2>'+title+'</h2><p class="lead">'+detail+'</p>'+
+    '<div class="response '+(good?'good':'try')+'"><strong>'+(good?'✓ Answer accepted':'The correct answer was:')+'</strong> '+(!good?'<span>'+h(out.answer)+'</span>':'')+'</div>'+
+    '<div class="verse-card"><p>'+h(v.text)+'</p><small>'+h(v.reference)+' · NLT</small></div>'+
+    '<div class="stat-row" style="margin-top:16px"><span class="stat">✦ '+h(playerName(out.pid))+'</span><span class="stat">⚙ '+r.correct+' correct practices</span><span class="stat">🏆 '+r.challengeWins+'/2 challenge wins</span><span class="stat">💡 '+allMasteredIds().length+' verses mastered in the lab</span></div>'+
+    '<div class="actions"><button class="btn" data-action="next-round">'+(mode==='team'?'Next Explorer →':out.newlyMastered?'Next Discovery →':'Next Puzzle →')+'</button>'+
+    '<button class="btn secondary" data-action="return-briefing">Review This Verse</button><button class="btn ghost" data-view="log">Memory Log</button></div></div></section>';
+  }
+  function render(){
+    meter();
+    document.querySelectorAll('[data-view]').forEach(function(link){link.setAttribute('aria-current',link.dataset.view===view?'page':'false');});
+    if(errorLoading)return;
+    const pages={home:home,mode:modeHtml,players:playersHtml,verses:versesHtml,form:verseForm,log:logHtml,history:historyHtml,help:helpHtml,choose:verseChoose,briefing:briefing,round:roundHtml,result:resultHtml};
+    screenEl.innerHTML=(pages[view]||home)();
+    if(view==='players'){
+      const a=document.getElementById('team-a'),b=document.getElementById('team-b'),solo=document.getElementById('solo-player');
+      if(a)a.value=teams[0];if(b)b.value=teams[1];if(solo)solo.value=playerId;
+    }
+  }
+  function nextMission(){
+    if(mode==='team')turn++;
+    const pid=mode==='team'?teams[turn%2]:playerId;
+    const due=dueReviews(pid);
+    if(roundsPlayed>0&&roundsPlayed%3===0&&due.length){verseId=due[0].id;startRound('review');return;}
+    if(!findVerse(verseId)){setView('choose');return;}
+    const r=record(pid,verseId);
+    if(r.mastered){setView('choose');return;}
+    if(practiceReady(r)){setView('briefing');return;}
+    startRound('practice');
+  }
+  function handle(action,value){
+    if(errorLoading&&action!=='retry-load')return;
+    if(action==='retry-load'){load();return;}
+    if(action==='choose-mode'){setView('mode');return;}
+    if(action==='set-mode'){mode=value==='team'?'team':'solo';render();return;}
+    if(action==='mode-next'){setView('players');return;}
+    if(action==='save-names'){saveNames();render();return;}
+    if(action==='add-player'){if(state.players.length<12){state.players.push({id:id('p'),name:'Explorer '+(state.players.length+1)});store();render();}return;}
+    if(action==='remove-player'){if(state.players.length<=2)return;if(!window.confirm('Remove this learner and their saved progress?'))return;state.players=state.players.filter(function(p){return p.id!==value;});delete state.progress[value];if(playerId===value)playerId=state.players[0].id;teams=[state.players[0].id,state.players[1].id];store();render();return;}
+    if(action==='select-player'){saveNames();playerId=value;setView('choose');return;}
+    if(action==='players-next'){
+      saveNames();
+      if(mode==='solo'){playerId=document.getElementById('solo-player').value;}
+      else{
+        const a=document.getElementById('team-a').value,b=document.getElementById('team-b').value;
+        if(a===b){window.alert('Choose two different learners for Team Play.');return;}
+        teams=[a,b];turn=0;scores={};
+      }
+      setView('choose');return;
+    }
+    if(action==='add-verse'){editId=null;setView('form');return;}
+    if(action==='edit-verse'){editId=value;setView('form');return;}
+    if(action==='delete-verse'){
+      const v=findVerse(value);if(!v||!window.confirm('Delete '+v.reference+' and all learners’ practice history for this verse?'))return;
+      state.verses=state.verses.filter(function(x){return x.id!==value;});
+      Object.keys(state.progress).forEach(function(k){delete state.progress[k][value];});
+      if(verseId===value)verseId=null;
+      store();render();return;
+    }
+    if(action==='view-history'){historyVerseId=value;setView('history');return;}
+    if(action==='save-goal'){
+      const goal=Number(document.getElementById('mastery-goal').value);
+      if(!Number.isInteger(goal)||goal<3||goal>100){window.alert('Choose a light goal between 3 and 100 verses.');return;}
+      state.goal=goal;store();render();return;
+    }
+    if(action==='choose-verse'||action==='practice-verse'){verseId=value;setView('briefing');return;}
+    if(action==='review-verse'){verseId=value;startRound('review');return;}
+    if(action==='review-due'){
+      const due=dueReviews(playerId);if(due.length){verseId=due[0].id;startRound('review');}else setView('log');
+      return;
+    }
+    if(action==='start-practice'){startRound('practice');return;}
+    if(action==='start-challenge'){startRound('challenge');return;}
+    if(action==='start-review'){startRound('review');return;}
+    if(action==='quit-round'){stopTimer();round=null;setView('briefing');return;}
+    if(action==='answer-choice'){finishRound(norm(value)===norm(round.answer),false);return;}
+    if(action==='add-piece'){if(!round)return;round.selected.push(Number(value));render();return;}
+    if(action==='undo-piece'){if(!round)return;const i=round.selected.lastIndexOf(Number(value));if(i>=0)round.selected.splice(i,1);render();return;}
+    if(action==='reset-pieces'){if(round)round.selected=[];render();return;}
+    if(action==='check-pieces'){if(!round)return;const correct=round.selected.length===round.pieces.length && round.selected.every(function(k,i){return k===i;});finishRound(correct,false);return;}
+    if(action==='parent-confirm'){if(!round||round.activity!=='recall')return;if(window.confirm('Parent: Was the full passage recited accurately from memory?'))finishRound(true,false);return;}
+    if(action==='speak'){if(!round||!('speechSynthesis' in window))return;window.speechSynthesis.cancel();const speech=new SpeechSynthesisUtterance(findVerse(round.vid).text);speech.rate=.85;window.speechSynthesis.speak(speech);return;}
+    if(action==='next-round'){nextMission();return;}
+    if(action==='return-briefing'){setView('briefing');return;}
+  }
+  function saveNames(){
+    document.querySelectorAll('[data-name]').forEach(function(el){const p=findPlayer(el.dataset.name);if(p)p.name=el.value.trim().slice(0,40)||p.name;});
+    store();
+  }
+  document.addEventListener('click',function(e){
+    const el=e.target.closest('[data-action], [data-view]');
+    if(!el||!root.contains(el))return;
+    if(el.dataset.view){setView(el.dataset.view);return;}
+    handle(el.dataset.action,el.dataset.value);
+  });
+  document.addEventListener('change',function(e){
+    if(['library-player','log-player'].includes(e.target.id)){playerId=e.target.value;render();}
+  });
+  document.addEventListener('submit',function(e){
+    if(e.target.id==='verse-form'){
+      e.preventDefault();const reference=document.getElementById('verse-ref').value.trim();
+      const text=document.getElementById('verse-text').value.trim();
+      if(!reference||!text)return;
+      if(text.split(/\s+/).length<3){window.alert('Please enter at least three words to make memory puzzles.');return;}
+      if(editId){const v=findVerse(editId);if(v){const changed=v.text!==text;v.reference=reference;v.text=text;if(changed){Object.values(state.progress).forEach(function(rec){delete rec[v.id];});}}}
+      else state.verses.push({id:id('v'),reference:reference,text:text,addedAt:isoDay()});
+      editId=null;store();setView('verses');return;
+    }
+    if(e.target.id==='answer-form'){
+      e.preventDefault();if(!round)return;
+      let good=false;
+      if(round.activity==='multi'){
+        good=round.missing.every(function(i){const el=document.querySelector('[data-blank="'+i+'"]');return el&&norm(el.value)===norm(round.words[i]);});
+      }else{
+        const el=document.getElementById(round.activity==='recall'?'recall-input':'answer-input');
+        good=!!el&&norm(el.value)===norm(round.answer);
+      }
+      finishRound(good,false);
+    }
+  });
+  window.addEventListener('pagehide',stopTimer);
+  load();
+})();

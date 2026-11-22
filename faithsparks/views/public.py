@@ -1640,3 +1640,103 @@ def settings():
 def learning_adventure_latin():
     from faithsparks.views.latin_quest import page
     return page()
+
+
+# Light Lab stays entirely outside public navigation and is available only to
+# explicit ADMIN_EMAILS users. Never place its UI or data under /static/.
+def _light_lab_admin_email():
+    email = str(session.get("user_email") or "").strip().casefold()
+    admins = {value.strip().casefold() for value in os.getenv("ADMIN_EMAILS", "").split(",") if value.strip()}
+    if not (email and email in admins and google.authorized):
+        abort(404)
+    return email
+
+
+def _light_lab_response(response):
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@bp.get("/labs/light-lab")
+def light_lab_page():
+    _light_lab_admin_email()
+    return _light_lab_response(make_response(render_template("labs_light_lab.html")))
+
+
+@bp.route("/labs/light-lab/state", methods=["GET", "POST"])
+def light_lab_state():
+    email = _light_lab_admin_email()
+    client = db()
+    if client is None:
+        return _light_lab_response(make_response(jsonify({"error": "Saved progress is temporarily unavailable."}), 503))
+    # State lives in the admin's account, not an anonymous localStorage profile.
+    ref = client.collection("users").document(email).collection("light_lab").document("state")
+    if request.method == "GET":
+        try:
+            snap = ref.get()
+            state = (snap.to_dict() or {}).get("state") if snap.exists else None
+            if not isinstance(state, dict):
+                state = {"verses": [], "players": [], "progress": {}, "goal": 12}
+            return _light_lab_response(make_response(jsonify({"state": state})))
+        except Exception:
+            current_app.logger.exception("Light Lab state read failed")
+            return _light_lab_response(make_response(jsonify({"error": "Could not load your memory log."}), 503))
+
+    # All writes require the same session's CSRF token, even for administrators.
+    token = request.headers.get("X-CSRF-Token", "")
+    expected = session.get("_csrf_token", "")
+    if (request.headers.get("Sec-Fetch-Site") == "cross-site"
+            or not token or not expected or not hmac.compare_digest(token, expected)):
+        abort(403)
+    if request.content_length is None or request.content_length > 100_000:
+        return _light_lab_response(make_response(jsonify({"error": "Save is too large."}), 413))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or set(payload) != {"state"} or not isinstance(payload.get("state"), dict):
+        return _light_lab_response(make_response(jsonify({"error": "Invalid memory log."}), 400))
+    state = payload["state"]
+    verses, players, progress = state.get("verses"), state.get("players"), state.get("progress")
+    if not (isinstance(verses, list) and len(verses) <= 80
+            and isinstance(players, list) and len(players) <= 12
+            and isinstance(progress, dict) and len(progress) <= 12
+            and isinstance(state.get("goal"), int) and 1 <= state["goal"] <= 100):
+        return _light_lab_response(make_response(jsonify({"error": "Invalid memory log shape."}), 400))
+    ids = set()
+    for verse in verses:
+        if not isinstance(verse, dict):
+            abort(400)
+        vid, reference, passage = verse.get("id"), verse.get("reference"), verse.get("text")
+        if not (isinstance(vid, str) and re.fullmatch(r"[a-zA-Z0-9-]{1,64}", vid)
+                and isinstance(reference, str) and 1 <= len(reference.strip()) <= 100
+                and isinstance(passage, str) and 1 <= len(passage.strip()) <= 1800
+                and vid not in ids):
+            abort(400)
+        ids.add(vid)
+    player_ids = set()
+    for player in players:
+        if not (isinstance(player, dict) and isinstance(player.get("id"), str)
+                and re.fullmatch(r"[a-zA-Z0-9-]{1,64}", player["id"])
+                and isinstance(player.get("name"), str) and 1 <= len(player["name"].strip()) <= 40
+                and player["id"] not in player_ids):
+            abort(400)
+        player_ids.add(player["id"])
+    if set(progress) - player_ids:
+        abort(400)
+    for pid, records in progress.items():
+        if not isinstance(records, dict) or set(records) - ids:
+            abort(400)
+        for record in records.values():
+            if not (isinstance(record, dict)
+                    and isinstance(record.get("attempts", 0), int)
+                    and isinstance(record.get("correct", 0), int)
+                    and isinstance(record.get("mastered", False), bool)
+                    and isinstance(record.get("history", []), list)
+                    and len(record.get("history", [])) <= 120):
+                abort(400)
+    try:
+        ref.set({"state": state, "updated_at": firestore.SERVER_TIMESTAMP}, merge=True)
+        return _light_lab_response(make_response(jsonify({"ok": True})))
+    except Exception:
+        current_app.logger.exception("Light Lab state save failed")
+        return _light_lab_response(make_response(jsonify({"error": "Could not save your memory log."}), 503))
