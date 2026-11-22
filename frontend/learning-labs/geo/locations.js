@@ -132,7 +132,7 @@ export const locationQuestions=Object.entries(completeLocationRows).flatMap(([br
  // Other geography/capital data remains unchanged.
  const playableRows=rows.filter(row=>row.name!=='Kiribati');
  const places=playableRows.map(row=>row.name);
- return playableRows.map((target,index)=>{
+ return places.map((target,index)=>{
   const correctIndex=(index+1)%3;
   const point=name=>locationMaps[branch].points[name];
   const distance=(a,b)=>Math.hypot(point(a)[1]-point(b)[1],point(a)[2]-point(b)[2]);
