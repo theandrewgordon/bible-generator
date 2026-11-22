@@ -313,10 +313,10 @@ function selectedRoster(){return roundPlayers.map(mathProfile)}
 function canResumeSelected(){const roster=selectedRoster();return !!session?.sequence?.length&&roster.length===session.players?.length&&roster.every((p,i)=>(mathId(p)===mathId(session.players[i])||p.legacy?.math===mathId(session.players[i])))}
 function renderMathLaunch(){
  const roster=selectedRoster(),resume=canResumeSelected(),names=roster.map(p=>p.name).join(' & ');
- window.LabsUI?.quick('math',{id:'quickFive',onStart:startQuickFive,onResume:()=>restoreSession(),resume,resumeLabel:'Resume '+names+'’s saved game →',heading:'A fresh adventure for '+names,description:'Start a new round at question 1 with zero round points. Learning history stays saved.'});
+ window.LabsUI?.quick('math',{id:'quickFive',onStart:startQuickFive,startLabel:'Ready for Adventure · 5 questions →',onResume:()=>restoreSession(),resume,resumeLabel:'Resume '+names+'’s saved game →',heading:'A fresh adventure for '+names,description:'Start a new round at question 1 with zero round points. Learning history stays saved.'});
  const box=get('homePlayers');box.replaceChildren();for(const x of roster){const row=el('div');row.append(el('strong','',x.name),el('small','',`${(x.operations||['Addition']).join(' + ')} · ${normalizeLevel(x.level)}`));box.appendChild(row)}
- get('resumeInfo').textContent=resume?'A paused round is available for '+names+'. Choose Start fresh or Resume.':session?.sequence?.length?'A paused round for '+session.players.map(p=>p.name).join(' & ')+' is saved. Select those players to resume it.':'Individual settings and learning history are saved on this device.';
- get('homePlay').textContent='Start fresh · '+(settings.rounds||10)+' questions per learner';
+ get('resumeInfo').textContent=resume?'A paused round is available for '+names+'. Choose Ready for Adventure or Resume.':session?.sequence?.length?'A paused round for '+session.players.map(p=>p.name).join(' & ')+' is saved. Select those players to resume it.':'Individual settings and learning history are saved on this device.';
+ get('homePlay').textContent='Ready for Adventure · '+(settings.rounds||10)+' questions per learner';
 }
 function renderHome(){
  get('exerciseStyle').value=settings.exercise||'calculate';
