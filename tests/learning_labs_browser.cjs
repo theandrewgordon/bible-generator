@@ -94,8 +94,9 @@ function latinFixture(){
    assert.equal(await page.getByRole('checkbox',{name:'New Explorer'}).count(),1);
    assert.equal(await page.locator('#math-players .labs-player-portrait').count(),4);
    await page.getByText('Manage players',{exact:true}).click();
-   assert.equal(await page.locator('.labs-avatar-option').count(),12);
+   assert.equal(await page.locator('.labs-avatar-option').count(),16);
    await page.getByLabel('Choose explorer to customize').selectOption({label:'Explorer T'});
+   assert.equal(await page.getByRole('button',{name:/Use (Flower Doe|Bluebird|Flower Badger|Flower Lynx) icon/}).count(),4);
    await page.getByRole('button',{name:'Use Owl icon'}).click();
    assert.equal(await page.getByRole('button',{name:'Use Owl icon'}).getAttribute('aria-pressed'),'true');
    assert.equal(await page.evaluate(()=>{
