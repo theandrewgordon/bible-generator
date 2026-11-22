@@ -6,3 +6,9 @@
 
 /* Every mastered verse increases the watercolor glow, not just the milestone chapters. */
 .lab-header:before{opacity:var(--lab-light,.22);transition:opacity .65s ease}
+
+.log-row{grid-template-columns:minmax(125px,2fr) minmax(130px,1.6fr) minmax(95px,1fr) minmax(70px,.8fr) minmax(100px,1.2fr)}
+.log-row.history-row{grid-template-columns:minmax(100px,1fr) minmax(150px,2fr) minmax(100px,1fr) minmax(90px,1fr)}
+.text-link{font-weight:bold;color:#254e6d;text-decoration:underline;text-underline-offset:3px;background:transparent;border:0;padding:5px 0;text-align:left}
+.text-link:hover{color:#a1692a}
+@media(max-width:690px){.log-row{min-width:680px}.log-row.history-row{min-width:550px}}
