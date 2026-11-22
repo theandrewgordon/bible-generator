@@ -617,3 +617,85 @@ main > header.journal-banner .math-banner-message span {
     font-size: .7rem !important;
   }
 }
+
+/* Expedition controls: one watercolor-journal design language across setup, play, reports. */
+#setup button,
+#game button:not(.math-choices button),
+#report button,
+.approved-math-landing #home .home-secondary button,
+.approved-math-landing #home .landing-utilities button {
+  border: 2px solid #ae8d56 !important;
+  border-bottom-width: 4px !important;
+  border-radius: 11px !important;
+  box-shadow: 0 2px 0 #705b3670, 0 3px 8px #394a3517 !important;
+  font-family: Georgia, serif !important;
+  font-weight: 700 !important;
+  letter-spacing: .005em;
+  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+}
+#setup button:not(.green):not(.orange):not(.adventure-primary),
+#game button.gray,
+#report button.gray,
+.approved-math-landing #home .home-secondary button.gray {
+  background: linear-gradient(180deg, #fff8e8 0%, #ead5ae 100%) !important;
+  color: #235369 !important;
+}
+#setup button.adventure-primary,
+#setup button.green,
+#game button.green,
+.approved-math-landing #home .home-secondary button.green {
+  background: linear-gradient(180deg, #42896b 0%, #1d6249 100%) !important;
+  color: #fff8e6 !important;
+  border-color: #a78a50 !important;
+}
+#setup button.orange,
+#game button.orange {
+  background: linear-gradient(180deg, #bd7055 0%, #96503a 100%) !important;
+  color: #fff9e8 !important;
+}
+#game button.yellow {
+  background: linear-gradient(180deg, #fff1c8 0%, #e9c77d 100%) !important;
+  color: #684922 !important;
+}
+#setup #start {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 10px 18px;
+}
+#setup #start .button-compass {
+  display: inline-block;
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  vertical-align: middle;
+}
+#setup .utility button,
+#game .actions button,
+#report .actions button {
+  min-height: 44px;
+  padding: 9px 13px !important;
+}
+#setup button:focus-visible,
+#game button:focus-visible,
+#report button:focus-visible {
+  outline: 3px solid #d1a451 !important;
+  outline-offset: 3px;
+}
+#setup button:not(:disabled):active,
+#game button:not(:disabled):active,
+#report button:not(:disabled):active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #705b3670 !important;
+}
+#game .math-choices button {
+  background: linear-gradient(180deg, #fff9e9 0%, #e4edc5 100%) !important;
+  border-color: #9dad73 !important;
+  color: #22536b !important;
+}
+@media(max-width:650px) {
+  #setup #start .button-compass { width: 17px; height: 17px; flex-basis: 17px; }
+  #setup button, #game .actions button, #report button { font-size: .9rem !important; }
+}
