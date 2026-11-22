@@ -5,47 +5,34 @@ const fs=require('node:fs');
 const html=fs.readFileSync('static/labs/math-fact-rally.html','utf8');
 const mathSource=fs.readFileSync('frontend/learning-labs/math/index.html','utf8');
 const mathStyles=fs.readFileSync('frontend/learning-labs/math/upgrade.css','utf8');
-// Deployment rebuilds static HTML from these Vite source files, not the checked-in generated page.
-const approvedArtDir='frontend/learning-labs/math/art/';
-const approvedStage=fs.readFileSync(approvedArtDir+'approved-landing-artwork.avif');
-const approvedCards=fs.readFileSync(approvedArtDir+'approved-explorer-paintings.avif');
-assert(approvedStage.length>10000&&approvedStage.toString('ascii',4,8)==='ftyp','Actual approved watercolor landing image must be packaged');
-assert(approvedCards.length>2000&&approvedCards.toString('ascii',4,8)==='ftyp','Actual approved watercolor explorer images must be packaged');
-assert(mathSource.includes('class="approved-math-landing"'),'Approved painting stage must wrap functional landing screen');
-assert(mathStyles.includes("url('./art/approved-landing-artwork.avif')"),'Landing uses the real approved artwork file');
-assert(mathStyles.includes("url('./art/approved-explorer-paintings.avif')"),'Explorer cards use original painted illustrations');
-assert(mathSource.includes('id="math-players"') && mathSource.includes('id="math-quick"') && mathSource.includes('id="homePlay"'),'Play selectors, Quick 5 and start button remain wired');
-assert(mathSource.includes('href="#math-guide"') && mathSource.includes('id="math-guide"'),'Home Help must reach illustrated guide');
-
-assert(mathSource.includes('class="adventure-field-guide"'),'Illustrated Field Guide must be on landing screen');
-assert(mathSource.includes('class="expedition-layout"'),'Practice Expedition must be in the playable screen');
-assert(mathStyles.includes('.expedition-layout'),'Source CSS must style expedition panels');
-assert(mathStyles.includes('.adventure-field-guide'),'Source CSS must style the landing Field Guide');
-assert(mathStyles.includes("art/ambient-math-watercolor.svg"),'The Vite source must load the painted maths background');
-assert(mathStyles.includes("art/practice-valley-watercolor.svg"),'The practice panel must load original watercolor landscape');
-assert(mathSource.includes('src="./art/field-guide-journal-watercolor.svg"'),'Landing field guide must load its real illustrated asset');
-assert(mathSource.includes('class="landing-title"'),'Landing page has the approved Ready for a Math Adventure headline');
-assert(mathSource.includes('id="homePlay"') && mathSource.includes('id="homeEdit"') && mathSource.includes('id="homeReport"'),'Landing primary controls remain wired to their original IDs');
-assert(mathSource.indexOf('id="homePlay"')<mathSource.indexOf('id="homeOptions"'),'Primary landing buttons must remain visible outside optional settings');
-
-assert(mathSource.includes('<header class="journal-banner"><img src="./art/journal-1.webp"'),'Original masthead art must remain unchanged');
-assert(mathSource.includes('id="mathChoices"')&&mathSource.includes('id="typedPractice"')&&mathSource.includes('id="gradeActions"'),'Play controls must be preserved');
-assert((mathSource.match(/class="creation-note creation-game"/g)||[]).length===1,'One creation field note appears on each practice page');
-
-assert(mathSource.includes('class="creation-note creation-setup"'),'Setup nature note must live in source');
-assert(mathSource.includes('class="creation-note creation-game"'),'Practice nature note must live in source');
-assert(mathSource.includes('class="creation-note creation-report"'),'Journal nature note must live in source');
-assert(!mathSource.includes('class="nature-gallery"'),'Remove old faux-button nature cards from source');
-assert(mathStyles.includes('.creation-note'),'Source CSS must include creation-note artwork styling');
-assert(mathSource.includes('journal-1.webp'),'Original watercolor masthead asset must remain');
-
-assert(mathSource.includes('pinecone-field-study.svg'),'Math problem screen must display its own illustrated creation field note');
-assert.equal((mathSource.match(/class="creation-note creation-game"/g)||[]).length,1,'Exactly one field note per practice screen');
-assert(mathStyles.includes('../geo/art/expedition-page-background.webp'),'The scenic watercolor landscape must be loaded through the build source');
-assert(mathStyles.includes('math-instruments-overlay.svg'),'Math-specific pencil illustrations must be present in the background');
-assert(fs.existsSync('frontend/learning-labs/math/art/math-instruments-overlay.svg'),'Math instruments illustration asset must exist');
-assert(fs.existsSync('frontend/learning-labs/math/art/pinecone-field-study.svg'),'Botanical field-study illustration must exist');
-
+const matEngine=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
+// Check the authored Vite sources: Docker replaces generated HTML on every release.
+const artRoot='frontend/learning-labs/math/art/';
+assert(mathSource.includes('<header class="journal-banner"><img src="./art/journal-1.webp"'),'Original illustrated masthead must remain unchanged');
+assert(mathSource.includes('class="approved-math-landing"'),'Functional landing stage must remain');
+assert(mathSource.includes('id="math-guide"')&&mathSource.includes('field-guide-binoculars.svg'),'Field guide must be illustrated and visible beneath landing panel');
+assert(mathSource.includes('id="math-players"')&&mathSource.includes('id="math-quick"')&&mathSource.includes('id="homePlay"')&&mathSource.includes('id="homeEdit"'),'Learner, quick play and settings controls remain');
+assert(mathSource.includes('id="homeOptions"')&&mathSource.includes('id="answerStyle"')&&mathSource.includes('id="exerciseStyle"'),'Answer style and exercise settings remain accessible');
+assert.equal((mathSource.match(/data-math-operation=/g)||[]).length,5,'All five operation trails must be available');
+for(const operation of ['Addition','Subtraction','Multiplication','Division','Exponents'])
+ assert(mathSource.includes('data-math-operation="'+operation+'"'),'Illustrated operation trail: '+operation);
+assert(matEngine.includes("document.querySelectorAll('[data-math-operation]')"),'Operation shortcuts must be interactive and open full settings');
+for(const id of ['math','mathChoices','typedPractice','mathVoice','mathHintVoice','mathAnswerVoice','gradeActions','hintBtn','reveal','correct','assisted','incorrect','next','restart','undo','scoreboard','adventureProgress'])
+ assert(mathSource.includes('id="'+id+'"'),'Practice control must remain: '+id);
+assert.equal((mathSource.match(/class="creation-note creation-game"/g)||[]).length,1,'Exactly one field note per question');
+for(const id of ['creationNoteArt','creationNoteTitle','creationNoteText','creationNoteVerse'])
+ assert(mathSource.includes('id="'+id+'"'),'Field note must update dynamically: '+id);
+for(const name of ['pinecone','honeycomb','sunflower','leaf','branching-tree','shell']){
+ assert(fs.existsSync(artRoot+name+'-field-study.svg'),'Original field-note watercolor study must exist: '+name);
+ assert(matEngine.includes(name+'-field-study.svg'),'Field study must be used during actual play: '+name);
+}
+assert(fs.existsSync(artRoot+'field-guide-binoculars.svg'),'Original field-guide watercolor study must be packaged');
+assert(mathStyles.includes('../geo/art/expedition-page-background.webp'),'Keep the scenic, hand-painted Geo-quality watercolor background');
+assert(mathStyles.includes('math-instruments-overlay.svg'),'Math instrumentation must remain subtle background artwork');
+assert(mathStyles.includes('.math-trail-card')&&mathStyles.includes('.creation-note.creation-game'),'Style expedition cards and field notes as part of the game');
+assert(!mathStyles.includes('APPROVED ARTWORK RELEASE'),'Remove prior fragile positioned-painting layout and accumulated overrides');
+assert(!mathSource.includes('class="nature-gallery"'),'Remove obsolete faux-button cards');
+assert(matEngine.includes("mathFactRally.v2"),'Saved learner history must remain compatible');
 
 const code=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
 require('node:child_process').execFileSync(process.execPath,['--check','frontend/learning-labs/math/engine.js']);
