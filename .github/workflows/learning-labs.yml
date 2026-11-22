@@ -1,5 +1,13 @@
 name: Learning Labs
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/learning-labs/math/**'
+      - 'frontend/learning-labs/build.mjs'
+      - 'tests/math_fact_adventure_levels.cjs'
+      - 'tests/learning_labs_browser.cjs'
+      - '.github/workflows/learning-labs.yml'
   pull_request:
     paths:
       - 'frontend/learning-labs/**'
