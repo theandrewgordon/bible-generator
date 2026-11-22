@@ -46,10 +46,14 @@ assert(fs.existsSync(artRoot+'feminine-explorer-avatars.webp'),'Four feminine wa
 assert(matEngine.includes("id:'flower-doe',label:'Fox'"),'Feminine fox retains saved avatar ID while displaying the animal name');
 assert(matEngine.includes("id:'flower-badger',label:'Badger'")&&matEngine.includes("id:'flower-lynx',label:'Lynx'"),'Feminine animal portraits use animal-only labels');
 assert(matEngine.includes("explorer-avatar-bank.webp")&&matEngine.includes("id:'wolf'")&&matEngine.includes("id:'flower-lynx'")&&matEngine.includes("rows: 3"),'Math student picker must preserve the original twelve icons and add four feminine options');
-// Reordering the picker must never change which portrait belongs to a label.
-for(const [id,cell] of Object.entries({fox:0,owl:1,bear:2,rabbit:3,raccoon:4,squirrel:5,otter:6,deer:7,hedgehog:8,turtle:9,eagle:10,wolf:11})) {
+// Original portrait positions remain pinned; replacement animals use their own refined 3x2 artwork sheet.
+for(const [id,cell] of Object.entries({fox:0,owl:1,bear:2,raccoon:4,squirrel:5,otter:6,hedgehog:8,turtle:9,eagle:10,wolf:11})) {
   assert(matEngine.includes("id:'"+id+"',label:") && new RegExp("id:'"+id+"',label:'[^']+',cellIndex:"+cell+"(?:[,}])").test(matEngine), 'Explorer '+id+' must retain original portrait cell '+cell);
 }
+for(const [id,cell] of Object.entries({rabbit:0,'flower-doe':1,deer:2,'flower-badger':3,moose:4,'snowy-owl':5})) {
+  assert(new RegExp("id:'"+id+"',label:'[^']+',src:updatedExplorerArt,columns:3,rows:2,cellIndex:"+cell+"(?:[,}])").test(matEngine), 'Updated explorer '+id+' must use the matching watercolor image cell '+cell);
+}
+assert(fs.existsSync(artRoot+'explorer-avatars-updated.js'),'Approved six-portrait artwork must be bundled in the game');
 assert(matEngine.includes("id:'moose'") && matEngine.includes("id:'snowy-owl'"), 'Both new watercolor explorers must remain selectable');
 assert(playerPicker.includes("avatarBank = null"),'Shared player picker must keep avatars optional for other games');
 assert(playerPicker.includes("faithsparks.labs.avatars.v1"),'Student icon preferences must persist by profile identifier');
