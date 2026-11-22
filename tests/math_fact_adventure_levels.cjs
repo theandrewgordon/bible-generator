@@ -60,9 +60,11 @@ assert(playerPicker.includes("avatarBank = null"),'Shared player picker must kee
 assert(playerPicker.includes("faithsparks.labs.avatars.v1"),'Student icon preferences must persist by profile identifier');
 assert(playerPicker.includes("Save Avatar")&&playerPicker.includes("pendingAvatarChoice"),'Avatar changes must require an explicit Save Avatar click');
 assert(playerPicker.includes("export function playerAvatarPortrait(")&&playerPicker.includes("read(avatarKey, {})[player.id]"),'Turn portrait must resolve the saved animal ID for the active student');
-assert(matEngine.includes("playerAvatarPortrait(p, mathAvatarBank")&&matEngine.includes("who.replaceChildren("),'Each question must display the active learner portrait next to the name');
+assert(matEngine.includes("playerAvatarPortrait(p, mathAvatarBank")&&matEngine.includes("total:sequence.length,avatar"),'Every turn must pass the saved portrait to the Your Turn header');
+assert(!matEngine.includes("who.replaceChildren("),'The question line must no longer include the avatar');
+assert(fs.readFileSync('frontend/learning-labs/shared/widgets.jsx','utf8').includes('className="labs-session-avatar"'),'Your Turn header must render its student avatar');
 assert(matEngine.includes("avatarBank:mathAvatarBank"),'Avatar picker and question must use identical portrait artwork mapping');
-assert(fs.readFileSync('frontend/learning-labs/math/upgrade.css','utf8').includes("#game .math-turn-avatar"),'Active learner portrait must have a correctly framed display style');
+assert(fs.readFileSync('frontend/learning-labs/math/upgrade.css','utf8').includes("#game .labs-session-avatar"),'Active learner portrait must be styled within Your Turn');
 assert(playerPicker.includes("onAvatarSaved(player, icon)"),'Avatar save must notify the game after persisting the selection');
 assert(matEngine.includes("onAvatarSaved:()=>")&&matEngine.includes("get('home').classList.remove('hidden')"),'Saving a math avatar must return to the home screen');
 assert(playerPicker.includes("class: 'labs-avatar-option'"),'Explorer icon bank must have accessible buttons');
