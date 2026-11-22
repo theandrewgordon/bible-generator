@@ -127,25 +127,41 @@ function latinFixture(){
   await page.getByRole('button',{name:'Read the explanation',exact:true}).click();
   await page.waitForFunction(()=>[...document.querySelectorAll('.labs-voice-status')].at(-1)?.textContent.includes('saved'));
   assert.equal(spoken.length,2);assert.notEqual(spoken[1].text,first);
-  // Every selected operation must occur in the first four turns, for each learner.
+  // Original masthead and a real, accessible illustrated Math expedition.
   await page.goto(base+'/labs/math-fact-adventure');
-  await page.getByText('Practice options',{exact:true}).click();
+  assert.equal(await page.locator('header.journal-banner img').count(),1);
+  assert(await page.locator('header.journal-banner img').evaluate(img=>img.complete&&img.naturalWidth>0));
+  assert(await page.locator('#math-guide').isVisible());
+  assert.equal(await page.locator('[data-math-operation]').count(),5);
+  await page.locator('[data-math-operation="Multiplication"]').click();
+  assert(await page.locator('#setup').isVisible());
+  assert.equal(await page.locator('.op-checkbox:checked').count(),await page.locator('.person').count());
+  assert(await page.locator('.op-checkbox:checked').evaluateAll(inputs=>inputs.every(input=>input.value==='Multiplication')));
+  assert(await page.locator('.op-checkbox[value="Exponents"]').count()>0);
+  await page.locator('#setupBack').click();
+  // Every selected operation must occur in the first four turns, for each learner.
+  await page.getByText('More say in how you play',{exact:true}).click();
   await page.locator('#answerStyle').selectOption('choice');
   await page.locator('#homeEdit').click();
   await page.locator('.op-checkbox').evaluateAll(nodes=>nodes.forEach(n=>n.checked=n.value!=='Exponents'));
   await page.locator('#rounds').selectOption('5');
   await page.locator('#start').click();
+  assert.equal(await page.locator('.creation-note.creation-game').count(),1);
+  assert(await page.locator('#mathChoices').evaluate(node=>node.closest('.expedition-main')!==null));
+  const observedNotes=new Set();
   const operations=[];
   for(let i=0;i<4;i++){
    operations.push((await page.locator('#who').textContent()).split(' · ')[1]);
+   observedNotes.add(await page.locator('#creationNoteTitle').textContent());
    const choices=await page.locator('#mathChoices button').allTextContents();
    assert.equal(choices.length,3);assert.equal(new Set(choices).size,3);
    await page.locator('#mathChoices button').first().click();
    await page.locator('#next').click();
   }
   assert.equal(new Set(operations).size,4);
+  assert.equal(observedNotes.size,4,'Creation field notes should rotate, one per question');
   await page.locator('#restart').click();
-  await page.getByText('Practice options',{exact:true}).click();
+  await page.getByText('More say in how you play',{exact:true}).click();
   await page.locator('#answerStyle').selectOption('type');
   await page.locator('#exerciseStyle').selectOption('missing');
   await page.locator('#homePlay').click();
