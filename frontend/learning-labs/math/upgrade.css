@@ -250,3 +250,79 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
   margin: 12px 0 2px;
 }
 #setup .save-preferences { margin: 6px 8px 6px 0; }
+
+/* Setup preview matches the Creation Field Notes seen while students play. */
+#setup .creation-note.creation-setup-preview {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: minmax(0,1fr) !important;
+  justify-items: center;
+  align-content: center;
+  gap: 5px;
+  width: min(100%, 390px);
+  max-width: 390px;
+  margin: 14px auto 24px;
+  padding: 14px 13px !important;
+  border: 3px solid #b59463 !important;
+  border-radius: 17px !important;
+  background: radial-gradient(ellipse at 40% 10%,#fffaf0fb,#f1dbb4f7) !important;
+  box-shadow: 0 4px 0 #95784e88,0 9px 20px #3b4d422d !important;
+  text-align: center;
+}
+#setup .creation-note.creation-setup-preview::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px dashed #bc9b64;
+  border-radius: 11px;
+  opacity: .65;
+  pointer-events: none;
+}
+#setup .creation-setup-preview .creation-note-heading {
+  width: 100%;
+  padding: 3px 0 8px;
+  margin-bottom: 2px;
+  border-bottom: 2px solid #ba9a62;
+  color: #21576b;
+  font: italic 700 clamp(1rem,2vw,1.2rem)/1.2 Georgia,serif;
+}
+#setup .creation-setup-preview .creation-illustration {
+  position: relative;
+  width: min(175px,100%);
+  margin: 0 auto;
+}
+#setup .creation-setup-preview .creation-illustration img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 175px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 5px #614c302d);
+}
+#setup .creation-setup-preview .creation-copy {
+  position: relative;
+  display: grid;
+  gap: 7px;
+  text-align: center;
+}
+#setup .creation-setup-preview .creation-copy strong {
+  font: italic 700 clamp(1rem,1.8vw,1.22rem)/1.15 Georgia,serif !important;
+  color: #285669 !important;
+}
+#setup .creation-setup-preview .creation-copy p {
+  margin: 0 !important;
+  color: #3c5557;
+  font: italic .9rem/1.4 Georgia,serif;
+}
+#setup .creation-setup-preview .creation-copy small {
+  color: #84623c;
+  font: italic 700 .75rem/1.4 Georgia,serif;
+}
+@media(max-width:480px) {
+  #setup .creation-note.creation-setup-preview {
+    width: 100%;
+    max-width: 100%;
+    padding: 12px !important;
+  }
+  #setup .creation-setup-preview .creation-illustration { width: min(140px,100%); }
+}
