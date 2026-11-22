@@ -156,7 +156,7 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
 .approved-math-landing #home .labs-avatar-hint{flex:1 0 100%;margin:0!important;padding:2px 8px!important;font:italic .76rem/1.4 Georgia,serif!important;color:#6d785e!important;text-align:center}
 .approved-math-landing #home .labs-player-choices label:has(.labs-player-portrait)::before{content:none!important;display:none!important}
 .approved-math-landing #home .labs-player-choices label:has(.labs-player-portrait){justify-content:flex-end!important;isolation:isolate;padding:0 5px 5px!important;background:#e7e4c8!important}
-.approved-math-landing #home .labs-player-portrait{display:block;position:absolute;inset:3px 3px 24px;overflow:hidden;border-radius:8px 8px 4px 4px;background-repeat:no-repeat;background-color:#e2e7d4;pointer-events:none;box-shadow:inset 0 0 0 1px #af9c7899}
+.approved-math-landing #home .labs-player-portrait{display:block;position:absolute;inset:auto;top:3px;left:50%;transform:translateX(-50%);width:min(90px,calc(100% - 8px));aspect-ratio:1/1;overflow:hidden;border-radius:8px 8px 4px 4px;background-repeat:no-repeat;background-color:#e2e7d4;pointer-events:none;box-shadow:inset 0 0 0 1px #af9c7899}
 .approved-math-landing #home .labs-player-choices label:has(.labs-player-portrait)>span{z-index:1;width:calc(100% - 4px);margin-top:auto;pointer-events:none}
 .approved-math-landing #home .labs-player-choices label:has(.labs-player-portrait)>input{z-index:2}
 .approved-math-landing #home #math-players details[open]{flex:1 1 100%!important;width:100%!important;max-width:100%!important;margin:12px 0 0!important;padding:12px!important;border:1px solid #c2a476!important;border-radius:14px;background:linear-gradient(#fff8e9,#f4e6c9)!important;box-shadow:0 3px 0 #beaa83!important}
@@ -178,3 +178,5 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
 .approved-math-landing .labs-avatar-option span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:700px){.approved-math-landing .labs-avatar-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:420px){.approved-math-landing .labs-avatar-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.approved-math-landing #home #math-players details[open] form{flex-direction:column!important;align-items:stretch!important}.approved-math-landing #home #math-players details[open] form label{flex:auto;width:100%}}
+
+@media(max-width:650px){.approved-math-landing #home .labs-player-portrait{width:min(80px,calc(100% - 8px))}}
