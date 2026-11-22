@@ -128,7 +128,7 @@ function node(tag, label, attributes = {}) {
   return element;
 }
 
-export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 'player', legend, avatarBank = null, onChange = () => {}}) {
+export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 'player', legend, avatarBank = null, onChange = () => {}, onAvatarSaved = () => {}}) {
   const group = node('fieldset');
   const roleLabel = roleName[0].toUpperCase() + roleName.slice(1);
   group.append(node('legend', legend ?? (limit === 1 ? 'Who’s playing?' : 'Who’s playing this round?')));
@@ -148,10 +148,11 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
   const avatarEditor = avatarEnabled ? node('div', '', {class: 'labs-avatar-editor'}) : null;
   const avatarTarget = avatarEnabled ? node('select', '', {'aria-label': 'Choose explorer to customize'}) : null;
   const avatarGrid = avatarEnabled ? node('div', '', {class: 'labs-avatar-grid', role: 'group', 'aria-label': 'Watercolor explorer icon bank'}) : null;
+  const saveAvatarButton = avatarEnabled ? node('button', 'Save Avatar', {type:'button', class:'labs-avatar-save'}) : null;
   if (avatarEnabled) {
     const avatarLabel = node('label', 'Choose an icon for');
     avatarLabel.append(avatarTarget);
-    avatarEditor.append(node('h3', 'Your Explorer Icon'), node('p', 'Pick a watercolor adventure companion. Your choice is saved on this device.'), avatarLabel, avatarGrid);
+    avatarEditor.append(node('h3', 'Your Explorer Icon'), node('p', 'Pick a watercolor adventure companion, then select Save Avatar.'), avatarLabel, avatarGrid, saveAvatarButton);
   }
   manage.append(form);
   if (avatarEditor) manage.append(avatarEditor);
@@ -163,6 +164,7 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
   root.replaceChildren(group);
   let selection = selectedPlayers(game, limit, preferred).map(player => player.id);
   let avatarFocusId = null;
+  const pendingAvatarChoice = new Map();
 
   function avatarAt(player, index) {
     if (!avatarEnabled) return -1;
@@ -194,21 +196,38 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
     if (!target) return;
     avatarTarget.value = target;
     avatarGrid.replaceChildren();
-    const current = avatarAt(roster.find(p => p.id === target), roster.findIndex(p => p.id === target));
+    const current = avatarBank.choices.findIndex(icon => icon.id === pendingAvatarChoice.get(target));
+    const active = current >= 0 ? current : avatarAt(roster.find(p => p.id === target), roster.findIndex(p => p.id === target));
     avatarBank.choices.forEach((icon, index) => {
-      const button = node('button', '', {type: 'button', class: 'labs-avatar-option', 'aria-label': `Use ${icon.label} icon`, 'aria-pressed': String(index === current)});
+      const button = node('button', '', {type: 'button', class: 'labs-avatar-option', 'aria-label': `Use ${icon.label} icon`, 'aria-pressed': String(index === active)});
       button.append(avatarPicture(index, 'labs-avatar-preview'), node('span', icon.label));
       button.addEventListener('click', () => {
-        const avatarPrefs = read(avatarKey, {});
-        avatarPrefs[target] = icon.id;
-        write(avatarKey, avatarPrefs);
-        note.textContent = `${roster.find(player => player.id === target)?.name || 'Explorer'} now uses the ${icon.label} icon.`;
-        render(false);
+        pendingAvatarChoice.set(target, icon.id);
+        note.textContent = `${icon.label} selected. Choose Save Avatar to keep it.`;
+        renderAvatarBank(profiles());
       });
       avatarGrid.append(button);
     });
   }
   avatarTarget?.addEventListener('change', () => renderAvatarBank(profiles()));
+  saveAvatarButton?.addEventListener('click', () => {
+    const roster = profiles();
+    const targetId = avatarTarget.value;
+    const player = roster.find(person => person.id === targetId);
+    if (!player) return;
+    const index = avatarBank.choices.findIndex(icon => icon.id === pendingAvatarChoice.get(targetId));
+    const chosenIndex = index >= 0 ? index : avatarAt(player, roster.indexOf(player));
+    const icon = avatarBank.choices[chosenIndex];
+    if (!icon) return;
+    const avatarPrefs = read(avatarKey, {});
+    avatarPrefs[targetId] = icon.id;
+    write(avatarKey, avatarPrefs);
+    pendingAvatarChoice.delete(targetId);
+    note.textContent = `${player.name} now uses the ${icon.label} icon.`;
+    manage.open = false;
+    render(false);
+    onAvatarSaved(player, icon);
+  });
 
   function render(notify = true) {
     const roster = profiles();
