@@ -53,6 +53,9 @@ for(const [id,cell] of Object.entries({fox:0,owl:1,bear:2,rabbit:3,raccoon:4,squ
 assert(matEngine.includes("id:'moose'") && matEngine.includes("id:'snowy-owl'"), 'Both new watercolor explorers must remain selectable');
 assert(playerPicker.includes("avatarBank = null"),'Shared player picker must keep avatars optional for other games');
 assert(playerPicker.includes("faithsparks.labs.avatars.v1"),'Student icon preferences must persist by profile identifier');
+assert(playerPicker.includes("Save Avatar")&&playerPicker.includes("pendingAvatarChoice"),'Avatar changes must require an explicit Save Avatar click');
+assert(playerPicker.includes("onAvatarSaved(player, icon)"),'Avatar save must notify the game after persisting the selection');
+assert(matEngine.includes("onAvatarSaved:()=>")&&matEngine.includes("get('home').classList.remove('hidden')"),'Saving a math avatar must return to the home screen');
 assert(playerPicker.includes("class: 'labs-avatar-option'"),'Explorer icon bank must have accessible buttons');
 assert(mathStyles.includes(".labs-player-portrait")&&mathStyles.includes(".labs-avatar-grid"),'Selected portraits must be clipped inside player tiles and picker must be responsive');
 assert(fs.readFileSync('frontend/learning-labs/build.mjs','utf8').includes('webp|png|jpg|svg|avif'),'Offline copy must inline painted AVIF artwork');
