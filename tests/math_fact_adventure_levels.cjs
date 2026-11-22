@@ -28,8 +28,11 @@ for(const name of ['pinecone','honeycomb','sunflower','leaf','branching-tree','s
 }
 assert(fs.existsSync(artRoot+'field-guide-watercolor.avif'),'Original painted field-guide asset must be packaged');
 assert(mathStyles.includes('linear-gradient(155deg,#cadfc5'),'Background must use a subtle green-to-gold ombre');
-assert(mathStyles.includes("url('./art/math-instruments-overlay.svg') center/1100px auto repeat"),'Floating math sketches must continue across the parchment panels');
-assert(mathStyles.includes('#game .expedition-main{background:linear-gradient'),'Practice panel must also include understated math artwork');
+assert(mathStyles.includes("body:before{content:"),'Floating math symbols belong on the outer background');
+assert(!mathStyles.includes("url('./art/math-instruments-overlay.svg') center/1100px auto repeat"),'Parchment panels must remain free of background math illustrations');
+const outerOverlay=fs.readFileSync(artRoot+'math-instruments-overlay.svg','utf8');
+assert(outerOverlay.includes('class="outer-math left"')&&outerOverlay.includes('class="outer-math right"'),'Math tools must decorate both outer margins');
+assert(outerOverlay.includes('π')&&outerOverlay.includes('7 × 6 = 42'),'Background includes mathematical notation');
 assert(mathStyles.includes('./art/math-expedition-watercolor.avif'),'Original painted expedition trail cards must remain');
 assert(fs.existsSync(artRoot+'math-expedition-watercolor.avif'),'Original watercolor landscape must exist');
 assert(mathStyles.includes('math-instruments-overlay.svg'),'Math instrumentation must remain subtle background artwork');
