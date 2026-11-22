@@ -34,6 +34,7 @@ assert(mathStyles.includes('.math-trail-card')&&mathStyles.includes('.creation-n
 assert(!mathStyles.includes('APPROVED ARTWORK RELEASE'),'Remove prior fragile positioned-painting layout and accumulated overrides');
 assert(!mathSource.includes('class="nature-gallery"'),'Remove obsolete faux-button cards');
 assert(matEngine.includes("mathFactRally.v2"),'Saved learner history must remain compatible');
+assert(fs.readFileSync('frontend/learning-labs/build.mjs','utf8').includes('webp|png|jpg|svg|avif'),'Offline copy must inline painted AVIF artwork');
 
 const code=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
 require('node:child_process').execFileSync(process.execPath,['--check','frontend/learning-labs/math/engine.js']);
