@@ -45,6 +45,11 @@ assert(fs.existsSync(artRoot+'explorer-avatar-bank.webp'),'Original 12-portrait 
 assert(fs.existsSync(artRoot+'feminine-explorer-avatars.webp'),'Four feminine watercolor explorer icons must be included');
 assert(matEngine.includes("label:'Flower Fox'"),'Flower Fox replaces Flower Doe without losing saved avatar IDs');
 assert(matEngine.includes("explorer-avatar-bank.webp")&&matEngine.includes("id:'wolf'")&&matEngine.includes("id:'flower-lynx'")&&matEngine.includes("rows: 3"),'Math student picker must preserve the original twelve icons and add four feminine options');
+// Reordering the picker must never change which portrait belongs to a label.
+for(const [id,cell] of Object.entries({fox:0,owl:1,bear:2,rabbit:3,raccoon:4,squirrel:5,otter:6,deer:7,hedgehog:8,turtle:9,eagle:10,wolf:11})) {
+  assert(matEngine.includes("id:'"+id+"',label:") && new RegExp("id:'"+id+"',label:'[^']+',cellIndex:"+cell+"(?:[,}])").test(matEngine), 'Explorer '+id+' must retain original portrait cell '+cell);
+}
+assert(matEngine.includes("id:'moose'") && matEngine.includes("id:'snowy-owl'"), 'Both new watercolor explorers must remain selectable');
 assert(playerPicker.includes("avatarBank = null"),'Shared player picker must keep avatars optional for other games');
 assert(playerPicker.includes("faithsparks.labs.avatars.v1"),'Student icon preferences must persist by profile identifier');
 assert(playerPicker.includes("class: 'labs-avatar-option'"),'Explorer icon bank must have accessible buttons');
