@@ -350,3 +350,164 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
 @media(max-width:840px){#game .expedition-layout{grid-template-columns:1fr!important}#game .creation-note.creation-game{grid-template-columns:minmax(90px,24%) minmax(0,1fr)!important;text-align:left!important}#game .creation-game .creation-copy{text-align:left!important}}
 @media(max-width:620px){body{background-attachment:scroll!important}main{padding:10px 10px 30px}.approved-math-landing{gap:12px!important}.approved-math-landing #home.journal-page{padding:18px 13px!important}.approved-math-landing #home .labs-player-choices{gap:9px!important}.approved-math-landing #home .labs-player-choices label{width:clamp(105px,37vw,140px)!important;height:132px!important}.approved-math-landing #home #math-players details{flex-basis:120px!important;width:120px!important}.approved-math-landing #home #math-players details summary{height:132px!important}.approved-math-landing #home .home-secondary{flex-direction:column;align-items:stretch!important}.approved-math-landing #home .home-secondary button{flex:auto!important;max-width:none!important;width:100%!important}.approved-math-landing .adventure-field-guide{grid-template-columns:1fr!important;gap:9px!important}.approved-math-landing .adventure-field-guide .guide-art img{max-height:155px!important}.approved-math-landing .adventure-field-guide .guide-steps h2{text-align:center}#game .expedition-layout{gap:11px!important}#game .creation-note.creation-game{grid-template-columns:minmax(80px,25%) minmax(0,1fr)!important;padding:12px!important}#game .math-choices{gap:7px}#game .math-choices button{min-height:60px!important}#game .question{min-height:205px!important;margin:9px!important}#game .actions button{flex:1 1 44%!important}}
 @media(prefers-reduced-motion:reduce){#home button,#game button{transition:none!important}}
+
+/* Math Fact Adventure · watercolor expedition release.
+   Use FaithSparks' original painted Geo landscape as the visual substrate,
+   but retain Math's own mountain masthead, field notebook and mathematical sketches.
+   Source art paths are bundled by Vite; never modify original header asset. */
+body,
+body:has(.approved-math-landing:not(:has(#home.hidden))){
+  background-color:#afcfb8!important;
+  background-image:url('./art/math-instruments-overlay.svg'),linear-gradient(90deg,#dfe8d530,#eef0d324 48%,#bed6cb28),url('../geo/art/expedition-page-background.webp')!important;
+  background-position:center top,center top,center center!important;
+  background-size:cover,cover,cover!important;
+  background-repeat:no-repeat!important;
+  background-attachment:fixed,fixed,fixed!important;
+}
+main{width:min(1072px,100%)!important;max-width:1072px!important}
+main>header.journal-banner{border:3px solid #d5b177!important;border-radius:16px!important;box-shadow:0 4px 0 #8d734c94,0 10px 22px #22423a52!important}
+.approved-math-landing #home.journal-page,
+#game.journal-page,#setup.journal-page,#report.journal-page{
+  background:radial-gradient(ellipse at 50% 8%,#fff9e9f8,#faedcff7 72%),repeating-linear-gradient(2deg,#c9a66d12 0 1px,transparent 1px 8px)!important;
+  border:3px solid #bc9150!important;border-top:5px solid #bc9150!important;
+  border-radius:19px!important;
+  box-shadow:0 5px 0 #7d6846a6,0 11px 26px #23403740!important;
+}
+.approved-math-landing #home .landing-title{
+  margin:0 auto 17px!important;padding:0 0 14px!important;
+  background:radial-gradient(ellipse at center,#fff8e59c,transparent 80%)!important;
+  border-bottom:1px dashed #c8a36a!important;
+}
+.approved-math-landing #home .landing-title h2{color:#174a59!important;font-weight:700!important;text-shadow:0 2px 0 #fff8e4!important}
+.approved-math-landing #home .landing-title .field-label{
+  background:linear-gradient(#faedc9,#efd59b)!important;border:1px solid #ae8d53!important;
+  color:#795c35!important;box-shadow:0 2px 0 #d5b77e!important;
+}
+.approved-math-landing #home #math-players fieldset{
+  background:linear-gradient(150deg,#fffaf0ef,#e9eacfe3)!important;
+  border:2px solid #b6aa7c!important;box-shadow:inset 0 0 0 5px #fff7e45c!important;
+  padding:14px 12px!important;
+}
+.approved-math-landing #home .labs-player-choices label,
+.approved-math-landing #home #math-players details summary{
+  box-shadow:0 3px 0 #80623b95,0 6px 12px #284a3633!important;
+}
+.approved-math-landing #home #homePlay,
+.approved-math-landing #home #homeEdit,
+.approved-math-landing #home .landing-utilities button{
+  box-shadow:0 3px 0 #785c3b95,0 5px 10px #233d3a24!important;
+}
+.approved-math-landing .adventure-field-guide{
+  position:relative;isolation:isolate;
+  background:radial-gradient(ellipse at 20% 20%,#fffcf0f7,#f1ddaff5 85%),repeating-linear-gradient(0deg,#bfa07417 0 1px,transparent 1px 11px)!important;
+  border:3px solid #b9965b!important;border-left:11px double #926a38!important;
+  box-shadow:0 5px 0 #7f603fa8,0 14px 26px #28433746!important;
+}
+.approved-math-landing .adventure-field-guide:after{
+  content:"";position:absolute;inset:8px;border:1px dashed #bb9e6a!important;border-radius:12px;
+  display:block!important;pointer-events:none;opacity:.56;
+}
+.approved-math-landing .adventure-field-guide .guide-art img{
+  filter:drop-shadow(0 8px 6px #765c3a2f) saturate(1.13)!important;
+}
+.approved-math-landing .adventure-field-guide .guide-steps{position:relative;z-index:2}
+.approved-math-landing .adventure-field-guide .guide-steps h2{
+  font:italic 700 clamp(1.4rem,2.75vw,2.05rem)/1.23 Georgia,serif!important;
+  color:#184d59!important;border-bottom:2px solid #a7844a!important;
+}
+.approved-math-landing .adventure-field-guide .guide-steps li{
+  font:500 clamp(.94rem,1.5vw,1.07rem)/1.48 Georgia,serif!important;color:#234653!important;
+}
+#game.journal-page{padding:clamp(14px,2.2vw,24px)!important}
+#game .journal-eyebrow{
+  margin:0 0 9px!important;padding:4px 2px!important;color:#9d7740!important;
+  font:italic 700 clamp(.9rem,1.7vw,1.18rem)/1.2 Georgia,serif!important;
+  letter-spacing:.02em!important;
+}
+#game #math-status{margin:3px auto 6px!important}
+#game #math-status>*{margin-block:3px!important}
+#game .scoreboard{gap:8px!important;margin:5px 0 12px!important}
+#game .score{padding:5px 12px!important;display:flex!important;align-items:center;justify-content:space-between;gap:10px;min-height:56px;border:1px solid #b9a175!important;border-radius:11px!important;background:#f9edc9e6!important;box-shadow:0 2px 0 #c3a774a3!important}
+#game .score strong{font:700 clamp(1.25rem,2.5vw,1.7rem) Georgia,serif!important;display:inline-block!important;margin:0!important}
+#game .score.active{border:2px solid #648267!important;background:#eaf0cf!important}
+#game .expedition-layout{grid-template-columns:minmax(0,1.7fr) minmax(200px,.8fr)!important;gap:14px!important}
+#game .expedition-main{
+  background:linear-gradient(#eaf0d026,#e2e9d152),url('../geo/art/expedition-page-background.webp') center/cover!important;
+  border:3px solid #b4945c!important;border-radius:17px!important;
+  box-shadow:0 4px 0 #9f7d4f8f,0 6px 14px #46635235!important;
+  padding:10px!important;
+}
+#game .expedition-ribbon{
+  margin:0 0 11px!important;padding:10px 14px!important;
+  background:linear-gradient(155deg,#2d6475,#164b67)!important;
+  border:2px solid #d4ad64!important;border-bottom:4px solid #a88241!important;
+  border-radius:12px!important;box-shadow:0 3px 0 #33565e67!important;
+  font:italic 700 clamp(1.18rem,2.7vw,1.65rem)/1.2 Georgia,serif!important;
+  text-shadow:0 1px #1d475b!important;
+}
+#game .question{
+  margin:0!important;padding:17px 12px 20px!important;min-height:230px!important;
+  background:radial-gradient(ellipse at 50% 42%,#fffef8f7,#fbe9c6ef)!important;
+  border:3px solid #b99a64!important;border-radius:15px!important;
+  box-shadow:inset 0 0 0 6px #fffbec99,0 4px 0 #9d825a66!important;
+}
+#game .question:before{content:"✦  NUMBER DISCOVERY  ✦"!important;font:700 .67rem Georgia,serif;letter-spacing:.13em;color:#a48454!important}
+#game #math{color:#124c61!important;font:700 clamp(3.4rem,7vw,5.8rem)/1.12 Georgia,serif!important;margin:17px 0 8px!important}
+#game #math.story-question{font-size:clamp(1.4rem,3vw,2.15rem)!important;line-height:1.35!important}
+#game #mathVoice{margin:4px auto 9px!important;min-height:38px!important;padding:7px 18px!important}
+#game #answer{font-family:Georgia,serif!important;color:#1c546c!important}
+#game .creation-note.creation-game{
+  align-content:start!important;justify-items:center!important;
+  gap:4px!important;padding:14px 12px 16px!important;
+  background:linear-gradient(145deg,#fff9eaf9,#f3deb9f7)!important;
+  border:3px solid #b89461!important;border-radius:16px!important;
+  box-shadow:0 4px 0 #9d794a9c,0 6px 12px #344c3e26!important;
+}
+#game .creation-note.creation-game:before{
+  inset:7px!important;border:1px dashed #c4a778!important;border-radius:10px!important;
+}
+#game .creation-game .creation-note-heading{
+  position:relative;display:block!important;width:100%;font:italic 700 clamp(1rem,1.8vw,1.22rem)/1.3 Georgia,serif;
+  color:#1c5360;text-align:center;border-bottom:2px solid #b99861;padding:4px 2px 10px;margin-bottom:7px;
+}
+#game .creation-game .creation-illustration{display:block!important;width:min(100%,190px)!important;max-width:190px!important;margin:0 auto 4px!important}
+#game .creation-game .creation-illustration img{
+  display:block!important;width:100%!important;height:auto!important;max-height:190px!important;object-fit:contain;
+  filter:drop-shadow(0 5px 6px #876e432a)!important;
+}
+#game .creation-game .creation-copy{display:grid;gap:6px;text-align:center!important}
+#game .creation-game .creation-copy strong{font:italic 700 clamp(1rem,1.75vw,1.18rem)/1.18 Georgia,serif!important;color:#214c59!important}
+#game .creation-game .creation-copy p{font:italic 500 clamp(.83rem,1.24vw,.95rem)/1.42 Georgia,serif!important;color:#3b514e!important;margin:0!important}
+#game .creation-game .creation-copy small{font:italic 700 .72rem/1.4 Georgia,serif!important;color:#89673b!important;margin:4px auto 0!important}
+#game .math-choices{max-width:790px;margin:15px auto 6px!important}
+#game .math-choices button{
+  min-height:65px!important;background:linear-gradient(160deg,#fff9e5,#dceab8)!important;
+  border:2px solid #9bad67!important;border-bottom:5px solid #859b54!important;
+  color:#194d65!important;border-radius:14px!important;font:700 clamp(1.3rem,3vw,2rem) Georgia,serif!important;
+  box-shadow:0 3px 0 #83945265!important;
+}
+#game #gradeActions{margin-top:15px!important;gap:8px!important}
+#game .actions button{flex:1 1 145px!important;padding:10px 13px!important}
+#game .actions button.green{background:linear-gradient(#52936f,#1c6048)!important}
+#game .actions button.orange{background:linear-gradient(#c87558,#a1442d)!important}
+#game .actions button.yellow{background:linear-gradient(#ffe6a4,#eaba47)!important}
+#game .actions button.gray{background:linear-gradient(#fff5dd,#e7d3a9)!important}
+#game .help{margin:10px 0 0!important;color:#5b6557!important;font:italic .86rem/1.4 Georgia,serif!important}
+@media(max-width:900px){
+  #game .expedition-layout{grid-template-columns:minmax(0,1fr)!important}
+  #game .creation-note.creation-game{display:grid!important;grid-template-columns:minmax(85px,26%) minmax(0,1fr)!important;align-content:center!important;align-items:center!important;column-gap:14px!important}
+  #game .creation-note-heading{grid-column:1/-1}
+  #game .creation-game .creation-illustration{width:100%!important}
+  #game .creation-game .creation-copy{text-align:left!important}
+}
+@media(max-width:620px){
+  body,body:has(.approved-math-landing:not(:has(#home.hidden))){background-attachment:scroll!important;background-size:auto 1100px!important}
+  #game .expedition-main{padding:7px!important}
+  #game .question{padding:14px 9px!important;min-height:185px!important}
+  #game #math{font-size:clamp(2.65rem,9vw,4rem)!important}
+  #game .creation-note.creation-game{padding:12px!important;gap:9px!important}
+  #game .creation-game .creation-illustration img{max-height:130px!important}
+  #game .creation-game .creation-note-heading{font-size:1rem}
+  #game #gradeActions button{flex:1 1 43%!important;font-size:.88rem!important}
+  .approved-math-landing .adventure-field-guide .guide-art img{max-height:180px!important}
+}
