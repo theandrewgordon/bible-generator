@@ -38,6 +38,8 @@ for(const id of ['math','mathChoices','typedPractice','mathVoice','mathHintVoice
  assert(mathSource.includes('id="'+id+'"'),'Practice control must remain: '+id);
 assert.equal((mathSource.match(/class="creation-note creation-game"/g)||[]).length,1,'Exactly one field note per question');
 assert(mathSource.includes('class="creation-note creation-setup creation-setup-preview"')&&mathSource.includes('alt="Watercolor botanical study of a leaf'), 'Setup note must reuse the watercolor Creation Field Note presentation');
+assert(!mathSource.includes('⚙ Field notebook settings'), 'Setup page should not show redundant field notebook settings label');
+assert(mathStyles.includes('broad, shallow card')&&mathStyles.includes('grid-template-columns: minmax(115px, 22%) minmax(0, 1fr) !important'), 'Creation Field Note should use horizontal space rather than push customization controls down');
 assert(mathStyles.includes('#setup .creation-note.creation-setup-preview')&&mathStyles.includes('#setup .creation-setup-preview .creation-note-heading'), 'Setup note must match the in-game framed card styling');
 for(const id of ['creationNoteArt','creationNoteTitle','creationNoteText','creationNoteVerse'])
  assert(mathSource.includes('id="'+id+'"'),'Field note must update dynamically: '+id);
