@@ -2,6 +2,13 @@ import {labsStorage} from '../../../static/js/labs-storage.js';
 import {gamePlayerId, importMathPlayers, mountPlayers, profiles, selectedPlayers} from '../../../static/js/labs-players.js';
 import '../../../static/js/labs-players.css';
 
+import pineconeArt from './art/pinecone-field-study.svg';
+import honeycombArt from './art/honeycomb-field-study.svg';
+import sunflowerArt from './art/sunflower-field-study.svg';
+import leafArt from './art/leaf-field-study.svg';
+import treeArt from './art/branching-tree-field-study.svg';
+import shellArt from './art/shell-field-study.svg';
+
 'use strict';
 const OPERATIONS=['Addition','Subtraction','Multiplication','Division','Exponents'];
 // Suggested ages are flexible starting points, never age-based restrictions.
@@ -26,6 +33,27 @@ const LEVEL_HELP={
 }
 const KEY='mathFactRally.v2';
 const get=id=>document.getElementById(id);
+
+/* Original illustrated Creation Field Notes rotate each question without altering
+   the arithmetic sequence, scoring, learner preferences or saved data. */
+const CREATION_FIELD_NOTES=[
+ {art:pineconeArt,alt:'Watercolor botanical illustration of a pinecone and pine needles',title:'Patterns in the pinewoods',body:'Pinecone scales sometimes form visible spirals. Count the patterns in the world God made.',verse:'Psalm 104:24 · Wisdom in creation'},
+ {art:honeycombArt,alt:'Watercolor honeycomb with repeating hexagonal cells and a bee',title:'Honeycomb geometry',body:'Bees make hexagonal wax cells. Their repeating shapes fit together with remarkably little wasted space.',verse:'Proverbs 3:19 · Wisdom and understanding'},
+ {art:sunflowerArt,alt:'Watercolor sunflower with florets in interlacing spirals',title:'A sunflower’s numbers',body:'Look closely at the tiny florets in a sunflower head. Many grow in two sets of graceful spirals.',verse:'Psalm 111:2 · Wonderful works to study'},
+ {art:leafArt,alt:'Watercolor leaf with central vein and branching side veins',title:'Symmetry in a leaf',body:'Many leaves have a central vein with roughly balanced sides. What shapes can you notice?',verse:'Genesis 1:31 · The goodness of creation'},
+ {art:treeArt,alt:'Watercolor tree showing many branching limbs and twigs',title:'Branching patterns',body:'A tree divides into limbs, branches and twigs. Repeating branching forms help it reach sunlight.',verse:'Job 12:7–10 · Learn from creation'},
+ {art:shellArt,alt:'Watercolor spiral seashell with radiating growth marks',title:'A growing shell',body:'Some shells grow in winding spirals, adding new material as the animal grows. Trace the curve.',verse:'Psalm 19:1 · Creation tells of God’s glory'}
+];
+function showCreationFieldNote(){
+ const note=CREATION_FIELD_NOTES[position%CREATION_FIELD_NOTES.length];
+ const image=get('creationNoteArt');
+ if(!image)return;
+ image.src=note.art;image.alt=note.alt;
+ get('creationNoteTitle').textContent=note.title;
+ get('creationNoteText').textContent=note.body;
+ get('creationNoteVerse').textContent=note.verse;
+}
+
 let players=[],sequence=[],position=0,graded=false,answerRevealed=false,hintUsed=false,progress={},settings={},previousSnapshot=null,session=null,outcomes={},choiceOptions={};
 function readSaved(){try{return JSON.parse(labsStorage.getItem(KEY)||'{}')}catch(_){return {}}}
 function persist(){try{labsStorage.setItem(KEY,JSON.stringify({progress,settings,session}))}catch(_){}}
@@ -209,7 +237,7 @@ function hint(q){
  return q.a<0?'Multiply the given number of negative factors. An even number of them gives a positive product.':'An exponent counts factors: multiply that many copies of the base, not the base times the exponent.';
 }
 
-function show(){window.LabsUI?.summary('math',null);get('mathChoices').classList.toggle('hidden',settings.answerStyle!=='choice');graded=false;answerRevealed=false;hintUsed=false;const p=players[position%players.length],q=sequence[position];score();window.LabsUI?.status('math',{learner:p.name,current:position,total:sequence.length});get('turn').textContent=`Question ${position+1} of ${sequence.length}`;get('who').textContent=`🎤 ${p.name} · ${q.operation} · ${q.level}`;get('math').style.fontSize='';get('math').classList.toggle('story-question',!!q.prompt);get('math').textContent=notation(q);get('typedPractice').classList.toggle('hidden',settings.answerStyle!=='type');get('typedAnswer').value='';get('typedAnswer').disabled=false;get('checkTyped').disabled=false;get('adventureProgress').max=sequence.length;get('adventureProgress').value=position;get('questionCode').textContent=q.taskKind==='story'?'Story challenge':q.taskKind?.startsWith('missing')?'Missing-number challenge':'Number-sentence challenge';get('answer').textContent=settings.answerStyle==='aloud'?'Say your answer aloud!':settings.answerStyle==='choice'?'Choose the answer below.':'Type your answer below.';get('message').textContent='Take your time. Every question is a chance to learn.';get('hint').classList.add('hidden');for(const id of ['hintBtn','reveal','correct','assisted','incorrect']){get(id).disabled=false;get(id).classList.remove('hidden')}for(const id of ['correct','assisted','incorrect'])get(id).classList.toggle('hidden',settings.answerStyle!=='aloud');get('next').classList.add('hidden');get('undo').disabled=!previousSnapshot;renderChoiceAnswers()}
+function show(){window.LabsUI?.summary('math',null);get('mathChoices').classList.toggle('hidden',settings.answerStyle!=='choice');graded=false;answerRevealed=false;hintUsed=false;const p=players[position%players.length],q=sequence[position];score();window.LabsUI?.status('math',{learner:p.name,current:position,total:sequence.length});get('turn').textContent=`Question ${position+1} of ${sequence.length}`;get('who').textContent=`🎤 ${p.name} · ${q.operation} · ${q.level}`;get('math').style.fontSize='';get('math').classList.toggle('story-question',!!q.prompt);get('math').textContent=notation(q);get('typedPractice').classList.toggle('hidden',settings.answerStyle!=='type');get('typedAnswer').value='';get('typedAnswer').disabled=false;get('checkTyped').disabled=false;get('adventureProgress').max=sequence.length;get('adventureProgress').value=position;get('questionCode').textContent=q.taskKind==='story'?'Story challenge':q.taskKind?.startsWith('missing')?'Missing-number challenge':'Number-sentence challenge';get('answer').textContent=settings.answerStyle==='aloud'?'Say your answer aloud!':settings.answerStyle==='choice'?'Choose the answer below.':'Type your answer below.';get('message').textContent='Take your time. Every question is a chance to learn.';get('hint').classList.add('hidden');for(const id of ['hintBtn','reveal','correct','assisted','incorrect']){get(id).disabled=false;get(id).classList.remove('hidden')}for(const id of ['correct','assisted','incorrect'])get(id).classList.toggle('hidden',settings.answerStyle!=='aloud');get('next').classList.add('hidden');get('undo').disabled=!previousSnapshot;showCreationFieldNote();renderChoiceAnswers()}
 function mark(outcome){if(graded)return;if(outcome==='right'&&(answerRevealed||hintUsed))outcome='assisted';if(answerRevealed&&outcome==='assisted')outcome='wrong';previousSnapshot={progress:JSON.parse(JSON.stringify(progress)),scores:players.map(p=>p.score),position,outcomes:{...outcomes},hintUsed,answerRevealed};outcomes[position]=outcome;graded=true;const p=players[position%players.length],q=sequence[position],key=recordKey(q),rec=getProgress(p)[key]||{right:0,wrong:0,assisted:0};if(outcome==='right'){p.score++;rec.right++}else if(outcome==='assisted'){p.score++;rec.assisted=(rec.assisted||0)+1}else{rec.wrong++}rec.exercise=q.taskKind==='story'?'story':q.taskKind?.startsWith('missing')?'missing':'calculate';rec.level=q.level;rec.lastOutcome=outcome;getProgress(p)[key]=rec;get('typedAnswer').disabled=true;get('checkTyped').disabled=true;get('adventureProgress').value=position+1;get('answer').textContent=`Answer: ${q.answer}`;get('message').textContent=outcome==='right'?'Independent! +1 point.':outcome==='assisted'?'With help — saved for review. +1 point.':'Saved for another practice round.';['hintBtn','reveal','correct','assisted','incorrect'].forEach(id=>get(id).classList.add('hidden'));get('next').classList.remove('hidden');get('next').textContent=position===sequence.length-1?'🏁 Finish game':'Next question →';saveSession();score();get('undo').disabled=false;window.LabsUI?.status('math',{learner:p.name,current:position+1,total:sequence.length});renderChoiceAnswers()}
 
 function nextDiscovery(p){
@@ -358,6 +386,23 @@ mountPlayers(get('math-players'),{game:'math',limit:4,preferred,onChange:selecte
 get('exerciseStyle').addEventListener('change',()=>{settings.exercise=get('exerciseStyle').value;persist()});
 get('answerStyle').addEventListener('change',()=>{settings.answerStyle=get('answerStyle').value;persist()});
 get('homeEdit').addEventListener('click',()=>{renderPlayers();get('home').classList.add('hidden');get('setup').classList.remove('hidden')});
+
+/* An illustrated expedition card is a shortcut into the complete per-learner
+   setup. Other operation checkboxes remain available for mixed practice. */
+document.querySelectorAll('[data-math-operation]').forEach(card=>{
+ card.addEventListener('click',()=>{
+  const operation=card.dataset.mathOperation;
+  if(!OPERATIONS.includes(operation))return;
+  renderPlayers();
+  for(const box of get('playerFields').children){
+   for(const input of box.querySelectorAll('.op-checkbox'))input.checked=input.value===operation;
+  }
+  get('home').classList.add('hidden');get('setup').classList.remove('hidden');
+  get('validation').classList.add('hidden');
+  window.scrollTo?.({top:0,behavior:'instant'});
+ });
+});
+
 get('setupBack').addEventListener('click',restart);
 get('homeReport').addEventListener('click',showReport);
 get('reportBack').addEventListener('click',()=>{get('report').classList.add('hidden');get('home').classList.remove('hidden');renderHome()});
