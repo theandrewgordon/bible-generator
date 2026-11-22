@@ -1,5 +1,5 @@
 import React,{useId,useRef,useState} from 'react';
-import {questionGeography} from './locations.js';
+import {questionGeography,locationMaps} from './locations.js';
 import {centeredViewport,initialMapViewport,markersViewport,regionViews,scaledViewport,shiftedViewport} from './map-viewport.js';
 import watercolor from './region-maps/location-watercolor.webp';
 import {layoutMarkerCallouts} from './marker-callouts.js';
@@ -12,6 +12,7 @@ export function LocationMap({question,result,onChoose,children}){
  const {view,panels,hasInset,label,hasExtent}=questionGeography(question,{continent,extent});
  const numbered=panels.flatMap(panel=>panel.numbered);
  const split=panels.length>1;
+ const regional=split?locationMaps[question.branch]:null;
  const startView=()=>hasInset?view:initialMapViewport(view,numbered,question.branch);
  const [viewport,setViewport]=useState(startView);
  const marked=result&&result.outcome!=='skipped';
@@ -80,9 +81,31 @@ export function LocationMap({question,result,onChoose,children}){
    <span>Map width ≈ {formatScale(widthKm*vw/view[2])}</span></p>}
   </div>;
  };
+ const renderLocator=()=>{
+  if(!regional)return null;
+  const [mx,my,mw,mh]=regional.view;
+  const positions=question.locations.map((name,index)=>{
+   const point=regional.points[name];
+   return point?{number:question.choices[index],x:point[1],y:point[2]}:null;
+  }).filter(Boolean);
+  return <section className="location-locator" aria-label="Where the island choices are on the larger map">
+   <p className="location-locator-heading">Find the islands on the larger map</p>
+   <svg viewBox={regional.view.join(' ')} role="img" aria-label="Regional map showing the locations of markers 1, 2, and 3. Each number matches a magnifying lens below.">
+    <defs><clipPath id={uid+'-locator-land'}>{Object.entries(regional.paths).map(([id,d])=><path key={id} d={d} clipRule="evenodd"/>)}</clipPath></defs>
+    <rect x={mx} y={my} width={mw} height={mh} fill="#b8dfe0"/>
+    <image x={mx} y={my} width={mw} height={mh} href={watercolor} clipPath={`url(#${uid}-locator-land)`} preserveAspectRatio="none"/>
+    <g fill="none" stroke="#42645a" strokeWidth="1.35" strokeLinejoin="round">{Object.entries(regional.paths).map(([id,d])=><path key={id} d={d}/>)}</g>
+    {positions.map(({number,x,y})=><g key={number} className="location-locator-pin" transform={`translate(${x},${y})`} role="button" tabIndex={result?undefined:0} aria-label={`Choose map marker ${number}`} onClick={result?undefined:()=>choose(number,false)} onKeyDown={result?undefined:event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();choose(number,false);}}}>
+     <circle r="24" fill="#fff7de" stroke="#b17c29" strokeWidth="5" opacity=".95"/><circle r="17" fill="#d8ece0" stroke="#234c62" strokeWidth="2"/><text y="1" textAnchor="middle" dominantBaseline="middle" fontSize="23" fontWeight="800" fill="#173e58">{number}</text>
+    </g>)}
+   </svg>
+   <p className="location-locator-help">The numbered circles show where to look. Each magnifying glass below shows that place up close.</p>
+  </section>;
+ };
  const renderMaps=inDialog=><div className={`location-frame${split?' location-panel-grid':''}`}>
-  {label&&<p className="location-inset-label">{label} — {split?'enlarged views':'enlarged view'}</p>}
-  {panels.map((panel,index)=>paint(inDialog,panel,index))}
+  {label&&<p className="location-inset-label">{label} — {split?'magnifying glasses':'enlarged view'}</p>}
+  {split&&<div className="location-overview">{renderLocator()}</div>}
+  {panels.map((panel,index)=><div className={split?'location-lens-card':undefined} key={index}>{split&&<p className="location-lens-title">Magnifying glass {question.choices[index]}</p>}{paint(inDialog,panel,index)}</div>)}
  </div>;
  function choose(number,inDialog){
   if(inDialog)dialog.current?.close();
