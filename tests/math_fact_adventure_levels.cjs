@@ -39,6 +39,14 @@ assert(!mathSource.includes('class="nature-gallery"'),'Remove old faux-button na
 assert(mathStyles.includes('.creation-note'),'Source CSS must include creation-note artwork styling');
 assert(mathSource.includes('journal-1.webp'),'Original watercolor masthead asset must remain');
 
+assert(mathSource.includes('pinecone-field-study.svg'),'Math problem screen must display its own illustrated creation field note');
+assert.equal((mathSource.match(/class="creation-note creation-game"/g)||[]).length,1,'Exactly one field note per practice screen');
+assert(mathStyles.includes('../geo/art/expedition-page-background.webp'),'The scenic watercolor landscape must be loaded through the build source');
+assert(mathStyles.includes('math-instruments-overlay.svg'),'Math-specific pencil illustrations must be present in the background');
+assert(fs.existsSync('frontend/learning-labs/math/art/math-instruments-overlay.svg'),'Math instruments illustration asset must exist');
+assert(fs.existsSync('frontend/learning-labs/math/art/pinecone-field-study.svg'),'Botanical field-study illustration must exist');
+
+
 const code=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
 require('node:child_process').execFileSync(process.execPath,['--check','frontend/learning-labs/math/engine.js']);
 const before=code.slice(code.indexOf('const OPERATIONS='),code.indexOf('const KEY='));
