@@ -234,3 +234,19 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
     max-height: none !important;
   }
 }
+
+/* Explicit save actions for play preferences and individualized skill settings. */
+.approved-math-landing .save-preferences,
+#setup .save-preferences {
+  min-height: 44px;
+  padding: .65rem 1.25rem;
+  border-radius: 10px;
+  font: 700 1rem Georgia,serif;
+  cursor: pointer;
+}
+.approved-math-landing #homeOptions .save-preferences {
+  display: block;
+  width: 100%;
+  margin: 12px 0 2px;
+}
+#setup .save-preferences { margin: 6px 8px 6px 0; }
