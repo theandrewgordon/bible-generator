@@ -173,11 +173,13 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
 
   function avatarPicture(index, className) {
     const image = node('i', '', {class: className, 'aria-hidden': 'true'});
-    const cols = Math.max(1, avatarBank.columns || 4);
-    const rows = Math.max(1, Math.ceil(avatarBank.choices.length / cols));
-    const x = index % cols;
-    const y = Math.floor(index / cols);
-    image.style.backgroundImage = `url("${avatarBank.src}")`;
+    const icon = avatarBank.choices[index];
+    const cols = Math.max(1, icon.columns || avatarBank.columns || 4);
+    const rows = Math.max(1, icon.rows || avatarBank.rows || Math.ceil(avatarBank.choices.length / cols));
+    const cellIndex = Number.isInteger(icon.cellIndex) ? icon.cellIndex : index;
+    const x = cellIndex % cols;
+    const y = Math.floor(cellIndex / cols);
+    image.style.backgroundImage = `url("${icon.src || avatarBank.src}")`;
     image.style.backgroundSize = `${cols * 100}% ${rows * 100}%`;
     image.style.backgroundPosition = `${cols === 1 ? 0 : (x / (cols - 1)) * 100}% ${rows === 1 ? 0 : (y / (rows - 1)) * 100}%`;
     return image;
