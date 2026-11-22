@@ -106,5 +106,5 @@ def test_csrf_required_and_account_log_roundtrips(client):
 @pytest.mark.skipif(not shutil.which("node"), reason="Node is not installed")
 def test_bundled_javascript_syntax():
     path = Path(__file__).resolve().parents[1] / "templates" / "labs_light_lab_js.html"
-    check = subprocess.run(["node", "--check", str(path)], capture_output=True, text=True, timeout=15)
+    check = subprocess.run(["node", "--check"], input=path.read_text(), capture_output=True, text=True, timeout=15)
     assert check.returncode == 0, check.stderr
