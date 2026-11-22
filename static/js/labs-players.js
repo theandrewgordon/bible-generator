@@ -160,6 +160,7 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
   root.classList.add('labs-players');
   root.replaceChildren(group);
   let selection = selectedPlayers(game, limit, preferred).map(player => player.id);
+  let avatarFocusId = null;
 
   function avatarAt(player, index) {
     if (!avatarEnabled) return -1;
@@ -184,7 +185,8 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
     if (!avatarEnabled) return;
     const previousTarget = avatarTarget.value;
     avatarTarget.replaceChildren(...roster.map(player => node('option', player.name, {value: player.id})));
-    const target = roster.find(player => player.id === previousTarget)?.id || selection.find(id => roster.some(p => p.id === id)) || roster[0]?.id;
+    const target = roster.find(player => player.id === avatarFocusId)?.id || roster.find(player => player.id === previousTarget)?.id || selection.find(id => roster.some(p => p.id === id)) || roster[0]?.id;
+    avatarFocusId = null;
     if (!target) return;
     avatarTarget.value = target;
     avatarGrid.replaceChildren();
@@ -260,6 +262,7 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
     } else {
       const player = createPlayer(name);
       roster.push(player);
+      if (avatarEnabled) avatarFocusId = player.id;
       const selected = selection.filter(id => id !== guest.id);
       if (limit === 1) selection = [player.id];
       else if (selected.length < limit) selection = [...selected, player.id];
