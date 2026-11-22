@@ -633,3 +633,27 @@
     mask-image: none;
   }
 }
+
+/* Show the complete approved 3:1 watercolor masthead rather than cropping its
+   upper/lower edges inside the old, shallow game-header dimensions. */
+.atlas-hero,
+.on-expedition .atlas-hero {
+  aspect-ratio: 3 / 1;
+  min-height: 0;
+  padding: 0;
+}
+.atlas-hero::before {
+  background-position: center;
+  background-size: 100% 100%;
+}
+@media (max-width: 680px) {
+  .atlas-hero,
+  .on-expedition .atlas-hero {
+    min-height: 0;
+    padding: 0;
+  }
+  .atlas-hero::before {
+    background-position: center;
+    background-size: 100% 100%;
+  }
+}
