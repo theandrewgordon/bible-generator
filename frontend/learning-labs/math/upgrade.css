@@ -3,7 +3,7 @@
    Geo Detectives supplies the watercolor backdrop; all interactive controls
    remain real HTML, not painted hotspots. */
 :root{--ink:#194b62;--leaf:#346450;--navy:#1d4b6b;--gold:#be9149;--edge:#af864a;--paper:#fff5dc;--paper-deep:#eed6a7;--shadow:#6a583a75;font-synthesis:none}
-html{scroll-behavior:smooth}body{color:var(--ink)!important;background:#afcfb8 url('../geo/art/expedition-page-background.webp') center top/cover fixed no-repeat!important}
+html{scroll-behavior:smooth}body{color:var(--ink)!important;background:#afcfb8 url('./art/math-expedition-watercolor.avif') center top/cover fixed no-repeat!important}
 body:before{content:"";position:fixed;inset:0;background:url('./art/math-instruments-overlay.svg') center top/cover no-repeat;opacity:.64;pointer-events:none;z-index:0}
 main{position:relative;z-index:1;width:min(1080px,100%)!important;max-width:1080px!important;margin:0 auto;padding:clamp(10px,2.3vw,23px) clamp(10px,2vw,22px) 36px}
 main>header.journal-banner{padding:0!important;margin:0 auto 16px!important;line-height:0;overflow:hidden;border:2px solid #d7bd89!important;border-radius:17px!important;background:#d4e7d3;box-shadow:0 4px 0 #a39163,0 11px 25px #1d40495c!important}
@@ -48,7 +48,7 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
 .trail-instructions{font:italic .83rem/1.45 Georgia,serif;color:#6e7664;margin:5px auto 10px;max-width:670px}
 .math-trail-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;max-width:860px;margin:0 auto}
 .math-trail-card{display:grid!important;align-content:start;gap:3px;justify-items:center;min-width:0;min-height:146px!important;padding:5px 5px 9px!important;background:linear-gradient(#fffaf0,#f0deb6)!important;border:2px solid #b4935c!important;border-bottom:5px solid #a7834c!important;border-radius:13px!important;box-shadow:0 3px 0 #8b794d59!important;color:#234e61!important}
-.math-trail-card .math-trail-art{position:relative;display:grid;place-items:center;width:100%;height:86px;overflow:hidden;border-radius:8px 8px 4px 4px;background:linear-gradient(0deg,#bdd6b337,#fff4c94a),url('../geo/art/expedition-page-background.webp') center/360% auto}
+.math-trail-card .math-trail-art{position:relative;display:grid;place-items:center;width:100%;height:86px;overflow:hidden;border-radius:8px 8px 4px 4px;background:linear-gradient(0deg,#bdd6b337,#fff4c94a),url('./art/math-expedition-watercolor.avif') center/360% auto}
 .math-trail-card.trail-addition .math-trail-art{background-position:center,14% 70%}
 .math-trail-card.trail-subtraction .math-trail-art{background-position:center,36% 64%}
 .math-trail-card.trail-multiplication .math-trail-art{background-position:center,55% 84%}
@@ -89,7 +89,7 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
 #game #turn{display:block!important;margin:0 0 5px!important;color:#8b6d3d;font:italic 700 .84rem Georgia,serif}
 #game #who{display:block!important;margin:0 0 5px!important;color:#375e63;font:700 .87rem Georgia,serif}
 #game .expedition-layout{display:grid!important;grid-template-columns:minmax(0,1.72fr) minmax(220px,.83fr)!important;gap:14px!important;align-items:stretch}
-#game .expedition-main{display:flex;flex-direction:column;min-width:0;overflow:hidden;border:3px solid #b89a65;border-radius:18px;padding:10px;background:linear-gradient(#d4ead233,#eaf4d13a),url('../geo/art/expedition-page-background.webp') center/cover;box-shadow:0 4px 0 #8e7d5599,0 9px 18px #24464a2a}
+#game .expedition-main{display:flex;flex-direction:column;min-width:0;overflow:hidden;border:3px solid #b89a65;border-radius:18px;padding:10px;background:linear-gradient(#d4ead233,#eaf4d13a),url('./art/math-expedition-watercolor.avif') center/cover;box-shadow:0 4px 0 #8e7d5599,0 9px 18px #24464a2a}
 #game .expedition-ribbon{margin:0 0 10px!important;padding:10px 15px!important;border:2px solid #d4b177!important;border-bottom:4px solid #9e7f45!important;border-radius:12px!important;background:linear-gradient(160deg,#296c81,#194c6b)!important;color:#fff8e7!important;font:italic 700 clamp(1.12rem,2.45vw,1.6rem)/1.2 Georgia,serif!important;text-shadow:0 1px #285167;box-shadow:0 3px 0 #36566b55}
 #game .question{position:relative;isolation:isolate;flex:1 1 auto;min-height:235px!important;margin:0!important;padding:18px 14px!important;text-align:center;background:radial-gradient(ellipse at 50% 40%,#fffdf4fc,#f9e5c4f5)!important;border:3px solid #ba985f!important;border-radius:15px!important;box-shadow:inset 0 0 0 5px #fff5e3b0,0 4px 0 #9779507c!important}
 #game .question:before{content:"✦ NUMBER DISCOVERY ✦";display:block;color:#99764b;font:700 .67rem Georgia,serif;letter-spacing:.12em;margin:0 0 8px}
