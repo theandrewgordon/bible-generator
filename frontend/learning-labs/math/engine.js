@@ -4,6 +4,7 @@ import '../../../static/js/labs-players.css';
 
 import explorerAvatarBank from './art/explorer-avatar-bank.webp';
 import feminineExplorerAvatars from './art/feminine-explorer-avatars.webp';
+import {mooseAvatar, snowyOwlAvatar} from './art/new-explorer-avatars.js';
 import pineconeArt from './art/pinecone-watercolor.avif';
 import honeycombArt from './art/honeycomb-watercolor.avif';
 import sunflowerArt from './art/sunflower-watercolor.avif';
@@ -393,7 +394,9 @@ mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:{
   {id:'bluebird',label:'Bluebird',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:1},
   {id:'wolf',label:'Wolf'},
   {id:'flower-badger',label:'Flower Badger',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:2},
-  {id:'flower-lynx',label:'Flower Lynx',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:3}
+  {id:'flower-lynx',label:'Flower Lynx',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:3},
+  {id:'moose',label:'Moose',src:mooseAvatar,columns:1,rows:1,cellIndex:0},
+  {id:'snowy-owl',label:'Snowy Owl',src:snowyOwlAvatar,columns:1,rows:1,cellIndex:0}
  ]
 },onChange:selected=>{
  roundPlayers=selected;
