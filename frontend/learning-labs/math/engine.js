@@ -387,16 +387,16 @@ mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:{
  columns: 4,
  rows: 3,
  choices: [
-  {id:'fox',label:'Fox',cellIndex:0}, {id:'bear',label:'Bear',cellIndex:2}, {id:'rabbit',label:'Rabbit',src:updatedExplorerArt,columns:3,rows:2,cellIndex:0}, {id:'raccoon',label:'Raccoon',cellIndex:4},
+  {id:'fox',label:'Fox',cellIndex:0}, {id:'bear',label:'Bear',cellIndex:2}, {id:'rabbit',label:'Rabbit',src:updatedExplorerArt,columns:3,rows:2,cellIndex:0,cropInset:0.095}, {id:'raccoon',label:'Raccoon',cellIndex:4},
   {id:'owl',label:'Owl',cellIndex:1}, {id:'squirrel',label:'Squirrel',cellIndex:5}, {id:'otter',label:'Otter',cellIndex:6},
-  {id:'flower-doe',label:'Fox',src:updatedExplorerArt,columns:3,rows:2,cellIndex:1},
-  {id:'deer',label:'Deer',src:updatedExplorerArt,columns:3,rows:2,cellIndex:2}, {id:'hedgehog',label:'Hedgehog',cellIndex:8}, {id:'turtle',label:'Turtle',cellIndex:9}, {id:'eagle',label:'Eagle',cellIndex:10},
+  {id:'flower-doe',label:'Fox',src:updatedExplorerArt,columns:3,rows:2,cellIndex:1,cropInset:0.095},
+  {id:'deer',label:'Deer',src:updatedExplorerArt,columns:3,rows:2,cellIndex:2,cropInset:0.095}, {id:'hedgehog',label:'Hedgehog',cellIndex:8}, {id:'turtle',label:'Turtle',cellIndex:9}, {id:'eagle',label:'Eagle',cellIndex:10},
   {id:'bluebird',label:'Bluebird',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:1},
   {id:'wolf',label:'Wolf',cellIndex:11},
-  {id:'flower-badger',label:'Badger',src:updatedExplorerArt,columns:3,rows:2,cellIndex:3},
+  {id:'flower-badger',label:'Badger',src:updatedExplorerArt,columns:3,rows:2,cellIndex:3,cropInset:0.095},
   {id:'flower-lynx',label:'Lynx',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:3},
-  {id:'moose',label:'Moose',src:updatedExplorerArt,columns:3,rows:2,cellIndex:4},
-  {id:'snowy-owl',label:'Snowy Owl',src:updatedExplorerArt,columns:3,rows:2,cellIndex:5}
+  {id:'moose',label:'Moose',src:updatedExplorerArt,columns:3,rows:2,cellIndex:4,cropInset:0.095},
+  {id:'snowy-owl',label:'Snowy Owl',src:updatedExplorerArt,columns:3,rows:2,cellIndex:5,cropInset:0.095}
  ]
 },onChange:selected=>{
  roundPlayers=selected;
