@@ -39,7 +39,9 @@ export function LocationMap({question,result,onChoose,children}){
  const paint=(inDialog,{paths,numbered,widthKm,center},index)=>{
   const key=uid+(inDialog?'-zoom':'')+'-'+index;
   const [x,y,width,height]=view;
-  const correct=marked&&numbered.find(pin=>pin.number===question.answer);
+  // A chain may span multiple islands and countries. Do not highlight one
+  // representative island as though it were the entire chain.
+  const correct=!question.islandGroup&&marked&&numbered.find(pin=>pin.number===question.answer);
   const {gutter,radius,callouts}=layoutMarkerCallouts(viewport,numbered,split ? .06 : .03);
   const [vx,vy,vw,vh]=viewport;
   return <div className="location-sheet" key={index}><svg className="location-map" viewBox={[vx-gutter,vy,vw+2*gutter,vh].join(' ')} role="group"
