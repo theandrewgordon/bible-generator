@@ -150,3 +150,30 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
 
 /* Outer background only: clear paper and legible practice panels. */
 @media(max-width:650px){body:before{opacity:.38}}
+
+
+/* Explorer icon bank — original 4×3 watercolor portraits, clipped to each tile. */
+.approved-math-landing #home .labs-player-choices label:has(.labs-player-portrait)::before{content:none!important;display:none!important}
+.approved-math-landing #home .labs-player-choices label:has(.labs-player-portrait){justify-content:flex-end!important;isolation:isolate;padding:0 5px 5px!important;background:#e7e4c8!important}
+.approved-math-landing #home .labs-player-portrait{display:block;position:absolute;inset:3px 3px 24px;overflow:hidden;border-radius:8px 8px 4px 4px;background-repeat:no-repeat;background-color:#e2e7d4;pointer-events:none;box-shadow:inset 0 0 0 1px #af9c7899}
+.approved-math-landing #home .labs-player-choices label:has(.labs-player-portrait)>span{z-index:1;width:calc(100% - 4px);margin-top:auto;pointer-events:none}
+.approved-math-landing #home .labs-player-choices label:has(.labs-player-portrait)>input{z-index:2}
+.approved-math-landing #home #math-players details[open]{flex:1 1 100%!important;width:100%!important;max-width:100%!important;margin:12px 0 0!important;padding:12px!important;border:1px solid #c2a476!important;border-radius:14px;background:linear-gradient(#fff8e9,#f4e6c9)!important;box-shadow:0 3px 0 #beaa83!important}
+.approved-math-landing #home #math-players details[open]>summary{display:block!important;width:100%!important;height:auto!important;min-height:36px;padding:9px 13px!important;border:1px solid #c2a476!important;border-radius:9px!important;background:#fcecc9!important;text-align:left;font:700 1rem Georgia,serif!important}
+.approved-math-landing #home #math-players details[open]>summary::before{content:"" !important;display:none!important}
+.approved-math-landing #home #math-players details[open] form{position:static!important;transform:none!important;display:flex!important;flex-wrap:wrap!important;align-items:end!important;width:100%!important;min-width:0!important;max-width:none!important;margin:12px 0!important;padding:12px!important;gap:8px!important;background:#fffaf0!important;border:1px dashed #cbb28a!important;box-shadow:none!important}
+.approved-math-landing #home #math-players details[open] form label{flex:1 1 150px;min-width:140px}
+.approved-math-landing #home #math-players details[open] form input,.approved-math-landing #home #math-players details[open] form select{width:100%!important;max-width:100%!important;min-height:40px}
+.approved-math-landing #home #math-players details[open] form button{min-height:40px;padding:8px 12px;border-radius:9px;border:1px solid #af955d;background:#e6d7b0;color:#254e5c;font:700 .88rem Georgia,serif}
+.approved-math-landing .labs-avatar-editor{display:grid;gap:9px;margin:12px auto;padding:clamp(10px,2vw,18px);width:100%;max-width:840px;border:2px solid #b69b6b;border-radius:15px;background:linear-gradient(#fffaf1,#f4e5c8);box-shadow:0 3px 0 #c4ac7e}
+.approved-math-landing .labs-avatar-editor h3{margin:0;font:italic 700 clamp(1.15rem,2vw,1.42rem) Georgia,serif;color:#234f5d;text-align:center}
+.approved-math-landing .labs-avatar-editor p{margin:0 auto 4px;max-width:540px;font:italic .86rem/1.4 Georgia,serif;color:#647269;text-align:center}
+.approved-math-landing .labs-avatar-editor>label{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;margin-bottom:4px;font:700 .87rem Georgia,serif;color:#355961}
+.approved-math-landing .labs-avatar-editor>label select{min-width:145px;min-height:38px;padding:7px 12px;background:#fffdf2;border:1px solid #ab9369;border-radius:8px;color:#204e5a}
+.approved-math-landing .labs-avatar-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
+.approved-math-landing .labs-avatar-option{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;padding:5px!important;background:linear-gradient(#fffdf3,#efdfbe)!important;border:2px solid #c0a875!important;border-bottom:4px solid #a68a5c!important;border-radius:11px!important;box-shadow:none!important;color:#284f59!important;font:700 .79rem Georgia,serif!important;cursor:pointer}
+.approved-math-landing .labs-avatar-option[aria-pressed="true"]{border-color:#367e61!important;outline:3px solid #78a781;outline-offset:1px;background:#e6f0d4!important}
+.approved-math-landing .labs-avatar-preview{display:block;width:100%;aspect-ratio:1/1;border-radius:7px;background-color:#e0e8db;background-repeat:no-repeat;border:1px solid #d1ba91}
+.approved-math-landing .labs-avatar-option span{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:700px){.approved-math-landing .labs-avatar-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:420px){.approved-math-landing .labs-avatar-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.approved-math-landing #home #math-players details[open] form{flex-direction:column!important;align-items:stretch!important}.approved-math-landing #home #math-players details[open] form label{flex:auto;width:100%}}
