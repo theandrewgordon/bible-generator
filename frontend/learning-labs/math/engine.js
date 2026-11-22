@@ -1,5 +1,5 @@
 import {labsStorage} from '../../../static/js/labs-storage.js';
-import {gamePlayerId, importMathPlayers, mountPlayers, profiles, selectedPlayers} from '../../../static/js/labs-players.js';
+import {gamePlayerId, importMathPlayers, mountPlayers, playerAvatarPortrait, profiles, selectedPlayers} from '../../../static/js/labs-players.js';
 import '../../../static/js/labs-players.css';
 
 import explorerAvatarBank from './art/explorer-avatar-bank.webp';
@@ -11,6 +11,26 @@ import sunflowerArt from './art/sunflower-watercolor.avif';
 import leafArt from './art/leaf-watercolor.avif';
 import treeArt from './art/branching-tree-watercolor.avif';
 import shellArt from './art/shell-watercolor.avif';
+
+const mathAvatarBank = {
+
+ src: explorerAvatarBank,
+ columns: 4,
+ rows: 3,
+ choices: [
+  {id:'fox',label:'Fox',cellIndex:0}, {id:'bear',label:'Bear',cellIndex:2}, {id:'rabbit',label:'Rabbit',src:updatedExplorerArt,columns:3,rows:2,cellIndex:0}, {id:'raccoon',label:'Raccoon',cellIndex:4},
+  {id:'owl',label:'Owl',cellIndex:1}, {id:'squirrel',label:'Squirrel',cellIndex:5}, {id:'otter',label:'Otter',cellIndex:6},
+  {id:'flower-doe',label:'Fox',src:updatedExplorerArt,columns:3,rows:2,cellIndex:1},
+  {id:'deer',label:'Deer',src:updatedExplorerArt,columns:3,rows:2,cellIndex:2}, {id:'hedgehog',label:'Hedgehog',cellIndex:8}, {id:'turtle',label:'Turtle',cellIndex:9}, {id:'eagle',label:'Eagle',cellIndex:10},
+  {id:'bluebird',label:'Bluebird',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:1},
+  {id:'wolf',label:'Wolf',cellIndex:11},
+  {id:'flower-badger',label:'Badger',src:updatedExplorerArt,columns:3,rows:2,cellIndex:3},
+  {id:'flower-lynx',label:'Lynx',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:3},
+  {id:'moose',label:'Moose',src:updatedExplorerArt,columns:3,rows:2,cellIndex:4},
+  {id:'snowy-owl',label:'Snowy Owl',src:updatedExplorerArt,columns:3,rows:2,cellIndex:5}
+ ]
+
+};
 
 'use strict';
 const OPERATIONS=['Addition','Subtraction','Multiplication','Division','Exponents'];
@@ -240,7 +260,9 @@ function hint(q){
  return q.a<0?'Multiply the given number of negative factors. An even number of them gives a positive product.':'An exponent counts factors: multiply that many copies of the base, not the base times the exponent.';
 }
 
-function show(){window.LabsUI?.summary('math',null);get('mathChoices').classList.toggle('hidden',settings.answerStyle!=='choice');graded=false;answerRevealed=false;hintUsed=false;const p=players[position%players.length],q=sequence[position];score();window.LabsUI?.status('math',{learner:p.name,current:position,total:sequence.length});get('turn').textContent=`Question ${position+1} of ${sequence.length}`;get('who').textContent=`🎤 ${p.name} · ${q.operation} · ${q.level}`;get('math').style.fontSize='';get('math').classList.toggle('story-question',!!q.prompt);get('math').textContent=notation(q);get('typedPractice').classList.toggle('hidden',settings.answerStyle!=='type');get('typedAnswer').value='';get('typedAnswer').disabled=false;get('checkTyped').disabled=false;get('adventureProgress').max=sequence.length;get('adventureProgress').value=position;get('questionCode').textContent=q.taskKind==='story'?'Story challenge':q.taskKind?.startsWith('missing')?'Missing-number challenge':'Number-sentence challenge';get('answer').textContent=settings.answerStyle==='aloud'?'Say your answer aloud!':settings.answerStyle==='choice'?'Choose the answer below.':'Type your answer below.';get('message').textContent='Take your time. Every question is a chance to learn.';get('hint').classList.add('hidden');for(const id of ['hintBtn','reveal','correct','assisted','incorrect']){get(id).disabled=false;get(id).classList.remove('hidden')}for(const id of ['correct','assisted','incorrect'])get(id).classList.toggle('hidden',settings.answerStyle!=='aloud');get('next').classList.add('hidden');get('undo').disabled=!previousSnapshot;showCreationFieldNote();renderChoiceAnswers()}
+function show(){window.LabsUI?.summary('math',null);get('mathChoices').classList.toggle('hidden',settings.answerStyle!=='choice');graded=false;answerRevealed=false;hintUsed=false;const p=players[position%players.length],q=sequence[position];score();window.LabsUI?.status('math',{learner:p.name,current:position,total:sequence.length});get('turn').textContent=`Question ${position+1} of ${sequence.length}`;const portrait = playerAvatarPortrait(p, mathAvatarBank, 'math-turn-avatar', players.indexOf(p));
+const who = get('who');
+who.replaceChildren(el('span','math-turn-mic','🎤'), ...(portrait ? [portrait] : []), el('span','math-turn-name',`${p.name} · ${q.operation} · ${q.level}`));get('math').style.fontSize='';get('math').classList.toggle('story-question',!!q.prompt);get('math').textContent=notation(q);get('typedPractice').classList.toggle('hidden',settings.answerStyle!=='type');get('typedAnswer').value='';get('typedAnswer').disabled=false;get('checkTyped').disabled=false;get('adventureProgress').max=sequence.length;get('adventureProgress').value=position;get('questionCode').textContent=q.taskKind==='story'?'Story challenge':q.taskKind?.startsWith('missing')?'Missing-number challenge':'Number-sentence challenge';get('answer').textContent=settings.answerStyle==='aloud'?'Say your answer aloud!':settings.answerStyle==='choice'?'Choose the answer below.':'Type your answer below.';get('message').textContent='Take your time. Every question is a chance to learn.';get('hint').classList.add('hidden');for(const id of ['hintBtn','reveal','correct','assisted','incorrect']){get(id).disabled=false;get(id).classList.remove('hidden')}for(const id of ['correct','assisted','incorrect'])get(id).classList.toggle('hidden',settings.answerStyle!=='aloud');get('next').classList.add('hidden');get('undo').disabled=!previousSnapshot;showCreationFieldNote();renderChoiceAnswers()}
 function mark(outcome){if(graded)return;if(outcome==='right'&&(answerRevealed||hintUsed))outcome='assisted';if(answerRevealed&&outcome==='assisted')outcome='wrong';previousSnapshot={progress:JSON.parse(JSON.stringify(progress)),scores:players.map(p=>p.score),position,outcomes:{...outcomes},hintUsed,answerRevealed};outcomes[position]=outcome;graded=true;const p=players[position%players.length],q=sequence[position],key=recordKey(q),rec=getProgress(p)[key]||{right:0,wrong:0,assisted:0};if(outcome==='right'){p.score++;rec.right++}else if(outcome==='assisted'){p.score++;rec.assisted=(rec.assisted||0)+1}else{rec.wrong++}rec.exercise=q.taskKind==='story'?'story':q.taskKind?.startsWith('missing')?'missing':'calculate';rec.level=q.level;rec.lastOutcome=outcome;getProgress(p)[key]=rec;get('typedAnswer').disabled=true;get('checkTyped').disabled=true;get('adventureProgress').value=position+1;get('answer').textContent=`Answer: ${q.answer}`;get('message').textContent=outcome==='right'?'Independent! +1 point.':outcome==='assisted'?'With help — saved for review. +1 point.':'Saved for another practice round.';['hintBtn','reveal','correct','assisted','incorrect'].forEach(id=>get(id).classList.add('hidden'));get('next').classList.remove('hidden');get('next').textContent=position===sequence.length-1?'🏁 Finish game':'Next question →';saveSession();score();get('undo').disabled=false;window.LabsUI?.status('math',{learner:p.name,current:position+1,total:sequence.length});renderChoiceAnswers()}
 
 function nextDiscovery(p){
@@ -382,23 +404,7 @@ get('homePlay').addEventListener('click',()=>{
  get('rounds').value=String(settings.rounds||'10');
  begin(selectedRoster(),true);
 });
-mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:{
- src: explorerAvatarBank,
- columns: 4,
- rows: 3,
- choices: [
-  {id:'fox',label:'Fox',cellIndex:0}, {id:'bear',label:'Bear',cellIndex:2}, {id:'rabbit',label:'Rabbit',src:updatedExplorerArt,columns:3,rows:2,cellIndex:0}, {id:'raccoon',label:'Raccoon',cellIndex:4},
-  {id:'owl',label:'Owl',cellIndex:1}, {id:'squirrel',label:'Squirrel',cellIndex:5}, {id:'otter',label:'Otter',cellIndex:6},
-  {id:'flower-doe',label:'Fox',src:updatedExplorerArt,columns:3,rows:2,cellIndex:1},
-  {id:'deer',label:'Deer',src:updatedExplorerArt,columns:3,rows:2,cellIndex:2}, {id:'hedgehog',label:'Hedgehog',cellIndex:8}, {id:'turtle',label:'Turtle',cellIndex:9}, {id:'eagle',label:'Eagle',cellIndex:10},
-  {id:'bluebird',label:'Bluebird',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:1},
-  {id:'wolf',label:'Wolf',cellIndex:11},
-  {id:'flower-badger',label:'Badger',src:updatedExplorerArt,columns:3,rows:2,cellIndex:3},
-  {id:'flower-lynx',label:'Lynx',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:3},
-  {id:'moose',label:'Moose',src:updatedExplorerArt,columns:3,rows:2,cellIndex:4},
-  {id:'snowy-owl',label:'Snowy Owl',src:updatedExplorerArt,columns:3,rows:2,cellIndex:5}
- ]
-},onChange:selected=>{
+mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:mathAvatarBank,onChange:selected=>{
  roundPlayers=selected;
  if(!get('home').classList.contains('hidden'))renderMathLaunch();
 },onAvatarSaved:()=>{
