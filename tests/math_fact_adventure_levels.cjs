@@ -9,6 +9,12 @@ const matEngine=fs.readFileSync('frontend/learning-labs/math/engine.js','utf8');
 // Check the authored Vite sources: Docker replaces generated HTML on every release.
 const artRoot='frontend/learning-labs/math/art/';
 assert(mathSource.includes('<header class="journal-banner"><img src="./art/journal-1.webp"'),'Original illustrated masthead must remain unchanged');
+assert(mathSource.includes('class="math-banner-message"')&&mathSource.includes('Different skill levels, one shared adventure!'), 'Masthead introduces personalized multiplayer play without replacing image artwork');
+assert(mathStyles.includes('header.journal-banner .math-banner-message'),'Printed masthead subtitle is replaced by responsive live text');
+assert(mathSource.includes('⚙ Customize Your Adventure')&&mathSource.includes('<h2>Customize Your Adventure</h2>'), 'Both skill settings entry and heading use Customize Your Adventure');
+assert(!mathSource.includes('Choose Skills')&&!mathSource.includes('Choose your skills.'),'Outdated skill selection wording is replaced');
+assert(mathSource.includes('Every explorer can compete and grow at their own pace.'), 'Expedition introduction explains individualized competition');
+assert(mathSource.includes('Take turns or compete, even when explorers are working on different math skills.'), 'How to Play retains simultaneous different skill levels');
 assert(mathSource.includes('class="approved-math-landing"'),'Functional landing stage must remain');
 assert(mathSource.includes('id="math-guide"')&&mathSource.includes('field-guide-explorer.svg'),'Field guide must display the latest illustrated explorer artwork');
 assert(mathSource.indexOf('id="math-guide"')<mathSource.indexOf('<section id="home"'),'How to Play must appear directly below masthead before home controls');
