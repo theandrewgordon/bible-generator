@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#173852">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Light Lab · The Quest for the Brightest Light</title>
+  <style>{% include 'labs_light_lab_css.html' %}</style>
+</head>
+<body>
+<div class="page-shell" id="light-lab">
+  <header class="topbar">
+    <a class="small-brand" href="/labs" aria-label="Faith Sparks Learning Labs">✦ <strong>Faith Sparks Learning</strong></a>
+    <span class="private-tag">🔒 Admin preview</span>
+    <div class="top-actions">
+      <button type="button" data-view="home" class="toplink">Lab</button>
+      <button type="button" data-view="verses" class="toplink">My Verses</button>
+      <button type="button" data-view="log" class="toplink">Memory Log</button>
+      <button type="button" data-view="help" class="toplink">How to Play</button>
+    </div>
+  </header>
+
+  <main class="main-wrap">
+    <section class="lab-header" aria-label="Light Lab">
+      <div class="header-copy">
+        <div class="eyebrow">The Scripture Memory Workshop</div>
+        <h1>Light Lab</h1>
+        <h2>The Quest for the Brightest Light</h2>
+        <p class="header-blurb">Two brilliant scientists. One extraordinary discovery. Every Scripture you learn adds light to the lab. Keep searching for the light that never goes out.</p>
+        <div class="meter-shell">
+          <div class="meter-title"><span>✦ The Great Light</span><strong id="meter-label">0 of 12 verses mastered</strong></div>
+          <div class="light-meter" role="progressbar" aria-label="Verse mastery progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="light-meter"><span id="meter-fill"></span></div>
+          <p id="meter-hint" class="meter-hint">Your light grows brighter with every new verse mastered.</p>
+        </div>
+      </div>
+      <div class="character-art" aria-label="Original watercolor elephant and macaw scientist characters">
+        <svg viewBox="0 0 500 310" role="img" aria-labelledby="art-title" xmlns="http://www.w3.org/2000/svg">
+          <title id="art-title">An elephant scientist and a female macaw scientist studying the lab's glowing light</title>
+          <defs>
+            <linearGradient id="coat" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#faf3dd"/><stop offset="1" stop-color="#c6c4a7"/></linearGradient>
+            <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe8a0"/><stop offset="1" stop-color="#b98332"/></linearGradient>
+            <linearGradient id="blueprint" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#91bad1"/><stop offset="1" stop-color="#345e82"/></linearGradient>
+            <radialGradient id="bulb"><stop stop-color="#fffbe2"/><stop offset=".5" stop-color="#ffd474"/><stop offset="1" stop-color="#efad37" stop-opacity=".12"/></radialGradient>
+            <filter id="aura"><feGaussianBlur stdDeviation="12"/></filter>
+          </defs>
+          <g opacity=".32" fill="none" stroke="#c4a56b" stroke-width="2">
+            <circle cx="430" cy="85" r="55"/><circle cx="430" cy="85" r="39"/><path d="M430 24v120M370 85h120M389 44l82 82M389 126l82-82"/>
+            <circle cx="55" cy="60" r="33"/><path d="M55 15v90M10 60h90"/>
+          </g>
+          <ellipse cx="250" cy="277" rx="240" ry="23" fill="#071e30" opacity=".28"/>
+          <g transform="translate(45 28)" stroke="#3a4b57" stroke-width="3" stroke-linejoin="round">
+            <path d="M65 225Q59 150 122 153Q194 149 195 230Z" fill="url(#coat)"/>
+            <path d="M105 154l22 44 24-45 22 77H78Z" fill="#fbf5df"/>
+            <path d="M122 177l6 36 14-37" fill="#b58e3f"/>
+            <path d="M82 160Q49 126 49 79Q53 22 118 25Q170 20 182 79Q191 137 156 161Q108 179 82 160Z" fill="#a6b1b2"/>
+            <path d="M79 53Q31 38 20 98Q15 153 76 145Q92 128 91 100Z" fill="#b3bdba"/>
+            <path d="M77 73Q49 70 42 111Q47 127 70 122Z" fill="#d2b7b0"/>
+            <path d="M172 51Q211 47 222 91Q226 129 171 137" fill="#a1adae"/>
+            <path d="M176 73Q198 75 200 102Q197 119 182 120" fill="#d8b8ad"/>
+            <path d="M154 96Q178 128 177 160Q179 198 211 176Q227 158 209 146" fill="none" stroke="#9ca9a9" stroke-width="25" stroke-linecap="round"/>
+            <path d="M154 97Q180 126 177 155Q178 189 206 175" fill="none" stroke="#c5cfca" stroke-width="8" stroke-linecap="round"/>
+            <ellipse cx="108" cy="100" rx="20" ry="18" fill="#f7ebda"/><ellipse cx="159" cy="98" rx="18" ry="17" fill="#f7ebda"/>
+            <circle cx="116" cy="100" r="7" fill="#263d50"/><circle cx="164" cy="100" r="7" fill="#263d50"/>
+            <path d="M84 95Q134 73 178 92" fill="none" stroke="#273f4e" stroke-width="6"/>
+            <circle cx="114" cy="95" r="24" fill="none" stroke="#b77f31" stroke-width="6"/>
+            <circle cx="162" cy="96" r="23" fill="none" stroke="#b77f31" stroke-width="6"/>
+            <path d="M135 91l9-1" stroke="#b77f31" stroke-width="5"/>
+            <path d="M87 43Q127 2 170 37L160 55Q118 31 93 60Z" fill="#6d746a"/>
+            <path d="M96 46Q124 28 154 45" fill="none" stroke="#d2ae55" stroke-width="7"/>
+            <path d="M76 220l-19-36Q38 172 36 199l17 32" fill="#b7c2bd"/>
+            <path d="M163 213l39-45Q220 155 229 175l-26 52" fill="#b7c2bd"/>
+          </g>
+          <g transform="translate(260 58)" stroke="#384956" stroke-width="3" stroke-linejoin="round">
+            <path d="M42 220Q36 147 91 148Q145 144 152 220Z" fill="url(#coat)"/>
+            <path d="M68 154l21 39 23-41 15 65H52Z" fill="#fff6df"/>
+            <path d="M91 192l-9 24 20 0Z" fill="#4e8499"/>
+            <path d="M104 56Q141 19 167 58Q192 100 161 155Q138 183 84 169Q38 150 38 91Q46 40 104 56Z" fill="#24729c"/>
+            <path d="M51 70Q61 27 91 41Q107 61 84 92Z" fill="#eed446"/>
+            <path d="M82 48Q101 18 119 36Q129 57 118 69Z" fill="#df6d47"/>
+            <path d="M100 38Q135 2 142 30L134 62Z" fill="#238e92"/>
+            <path d="M125 73Q163 49 176 88Q186 133 140 153L113 131Z" fill="#e6a83f"/>
+            <path d="M57 94Q19 84 12 123Q13 153 58 147" fill="#2c759f"/>
+            <path d="M38 100Q19 110 28 129" fill="none" stroke="#dba83d" stroke-width="9"/>
+            <path d="M103 95Q151 84 153 117Q133 141 99 124Z" fill="#e9e6cd"/>
+            <path d="M93 96Q141 93 144 113Q127 124 95 116" fill="#273d49"/>
+            <circle cx="99" cy="79" r="19" fill="#fff7da"/><circle cx="104" cy="79" r="7" fill="#183c50"/>
+            <path d="M59 64q26-28 60-7" fill="none" stroke="#cca05a" stroke-width="7"/>
+            <circle cx="91" cy="72" r="24" fill="none" stroke="#d9ad5d" stroke-width="6"/>
+            <path d="M66 185Q37 164 26 181L50 215" fill="#297e9c"/>
+            <path d="M130 183Q154 157 170 177L148 218" fill="#2d869e"/>
+            <path d="M69 151q14 13 36 12" fill="none" stroke="#8c866d" stroke-width="6"/>
+          </g>
+          <circle cx="255" cy="98" r="71" fill="#ffd777" opacity=".24" filter="url(#aura)"/>
+          <circle cx="253" cy="94" r="40" fill="url(#bulb)"/>
+          <path d="M243 111q-34-29-9-45Q260 50 272 70Q284 88 259 111" fill="#ffdf78" stroke="#a46d2b" stroke-width="4"/>
+          <path d="M246 111v15h21v-15m-21 7h21" fill="none" stroke="#b5813c" stroke-width="5"/>
+          <path d="M252 34v-15m-36 31l-11-11m83 0l-12 11m-55 51l-16 7m91-7l-16-7" fill="none" stroke="#ffe5a5" stroke-width="5" stroke-linecap="round"/>
+          <path d="M205 235h125l12 21H188Z" fill="url(#blueprint)" stroke="#d7bb7c" stroke-width="5"/>
+          <path d="M214 243h111m-99 7h77" stroke="#c6dce2" stroke-width="2" opacity=".8"/>
+        </svg>
+        <div class="scientist-labels"><span>Professor Atlas <small>Elephant Engineer</small></span><span>Dr. Lumi <small>Macaw Scientist</small></span></div>
+      </div>
+    </section>
+    <div id="save-status" class="save-status" role="status" aria-live="polite"></div>
+    <div id="screen" class="game-screen" aria-live="polite"><div class="intro-message">Opening your laboratory…</div></div>
+  </main>
+  <footer><span>Faith Sparks Learning · Light Lab private prototype</span><span>“Your word is a lamp to guide my feet and a light for my path.” — Psalm 119:105 (NLT)</span></footer>
+</div>
+<script>{% include 'labs_light_lab_js.html' %}</script>
+</body>
+</html>
