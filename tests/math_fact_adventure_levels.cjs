@@ -27,7 +27,8 @@ for(const name of ['pinecone','honeycomb','sunflower','leaf','branching-tree','s
  assert(matEngine.includes(name+'-field-study.svg'),'Field study must be used during actual play: '+name);
 }
 assert(fs.existsSync(artRoot+'field-guide-binoculars.svg'),'Original field-guide watercolor study must be packaged');
-assert(mathStyles.includes('../geo/art/expedition-page-background.webp'),'Keep the scenic, hand-painted Geo-quality watercolor background');
+assert(mathStyles.includes('./art/math-expedition-watercolor.avif'),'Keep the scenic, hand-painted Geo-quality watercolor background');
+assert(fs.existsSync(artRoot+'math-expedition-watercolor.avif'),'Original watercolor landscape must exist');
 assert(mathStyles.includes('math-instruments-overlay.svg'),'Math instrumentation must remain subtle background artwork');
 assert(mathStyles.includes('.math-trail-card')&&mathStyles.includes('.creation-note.creation-game'),'Style expedition cards and field notes as part of the game');
 assert(!mathStyles.includes('APPROVED ARTWORK RELEASE'),'Remove prior fragile positioned-painting layout and accumulated overrides');
