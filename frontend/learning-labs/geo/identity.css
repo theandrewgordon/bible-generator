@@ -27,7 +27,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: url('./art/expedition-journal-masthead.webp') center 52% / cover no-repeat;
+  background: url('./art/approved-geo-detectives-masthead.webp') center 32% / cover no-repeat;
 }
 
 .atlas-title {
@@ -611,4 +611,25 @@
 .atlas .world-trail-controls :is(select,button):focus-visible {
   outline: 3px solid #a26526;
   outline-offset: 2px;
+}
+
+/* The approved watercolor image contains the masthead lettering.
+   Keep the original h1/tagline in the DOM for accessibility, but do not
+   paint a second copy over the artwork. This also holds on small screens. */
+.atlas-hero .atlas-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+@media (max-width: 680px) {
+  .atlas-hero::before {
+    background-position: center 32%;
+    background-size: cover;
+    mask-image: none;
+  }
 }
