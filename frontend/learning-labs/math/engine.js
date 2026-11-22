@@ -3,6 +3,7 @@ import {gamePlayerId, importMathPlayers, mountPlayers, profiles, selectedPlayers
 import '../../../static/js/labs-players.css';
 
 import explorerAvatarBank from './art/explorer-avatar-bank.webp';
+import feminineExplorerAvatars from './art/feminine-explorer-avatars.webp';
 import pineconeArt from './art/pinecone-watercolor.avif';
 import honeycombArt from './art/honeycomb-watercolor.avif';
 import sunflowerArt from './art/sunflower-watercolor.avif';
@@ -383,10 +384,15 @@ get('homePlay').addEventListener('click',()=>{
 mountPlayers(get('math-players'),{game:'math',limit:4,preferred,avatarBank:{
  src: explorerAvatarBank,
  columns: 4,
+ rows: 3,
  choices: [
   {id:'fox',label:'Fox'}, {id:'owl',label:'Owl'}, {id:'bear',label:'Bear'}, {id:'rabbit',label:'Rabbit'},
   {id:'raccoon',label:'Raccoon'}, {id:'squirrel',label:'Squirrel'}, {id:'otter',label:'Otter'}, {id:'deer',label:'Deer'},
-  {id:'hedgehog',label:'Hedgehog'}, {id:'turtle',label:'Turtle'}, {id:'eagle',label:'Eagle'}, {id:'wolf',label:'Wolf'}
+  {id:'hedgehog',label:'Hedgehog'}, {id:'turtle',label:'Turtle'}, {id:'eagle',label:'Eagle'}, {id:'wolf',label:'Wolf'},
+  {id:'flower-doe',label:'Flower Doe',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:0},
+  {id:'bluebird',label:'Bluebird',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:1},
+  {id:'flower-badger',label:'Flower Badger',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:2},
+  {id:'flower-lynx',label:'Flower Lynx',src:feminineExplorerAvatars,columns:4,rows:1,cellIndex:3}
  ]
 },onChange:selected=>{
  roundPlayers=selected;
