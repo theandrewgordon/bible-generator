@@ -431,3 +431,60 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
     gap: 4px;
   }
 }
+
+/* One clean parchment panel; five easy-to-follow steps in reading order. */
+.approved-math-landing #math-guide.adventure-field-guide {
+  border: 2px solid #b68f54 !important;
+  border-radius: 16px !important;
+  background: linear-gradient(135deg, #fff8e9, #f8ebcf) !important;
+  box-shadow: 0 3px 0 #94754b6e, 0 7px 18px #3b4d4218 !important;
+  padding: 12px 18px !important;
+  grid-template-columns: minmax(0, 30%) minmax(0, 1fr) !important;
+  gap: clamp(12px, 1.8vw, 20px) !important;
+}
+.approved-math-landing #math-guide.adventure-field-guide::before,
+.approved-math-landing #math-guide.adventure-field-guide::after {
+  content: none !important;
+  display: none !important;
+}
+.approved-math-landing #math-guide .guide-steps h2 {
+  border-bottom: 1px solid #c8aa74 !important;
+  padding-bottom: 5px !important;
+  margin-bottom: 7px !important;
+}
+.approved-math-landing #math-guide .guide-steps ol {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 4px !important;
+  padding-left: 23px !important;
+}
+.approved-math-landing #math-guide .guide-steps li {
+  font: 400 clamp(.85rem, 1.15vw, .95rem)/1.35 Georgia, serif !important;
+}
+.approved-math-landing #math-guide .guide-steps li strong {
+  font-weight: 700;
+  color: #205567;
+}
+.approved-math-landing #math-guide .guide-art img {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain !important;
+}
+@media (max-width: 850px) {
+  .approved-math-landing #math-guide.adventure-field-guide {
+    grid-template-columns: minmax(0, 29%) minmax(0, 1fr) !important;
+    padding: 11px 13px !important;
+  }
+}
+@media (max-width: 650px) {
+  .approved-math-landing #math-guide.adventure-field-guide {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 5px !important;
+  }
+  .approved-math-landing #math-guide .guide-art img {
+    width: min(100%, 250px) !important;
+  }
+  .approved-math-landing #math-guide .guide-steps ol {
+    gap: 5px !important;
+  }
+}
