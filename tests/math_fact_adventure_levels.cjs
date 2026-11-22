@@ -25,6 +25,8 @@ assert(matEngine.includes("document.querySelectorAll('[data-math-operation]')"),
 for(const id of ['math','mathChoices','typedPractice','mathVoice','mathHintVoice','mathAnswerVoice','gradeActions','hintBtn','reveal','correct','assisted','incorrect','next','restart','undo','scoreboard','adventureProgress'])
  assert(mathSource.includes('id="'+id+'"'),'Practice control must remain: '+id);
 assert.equal((mathSource.match(/class="creation-note creation-game"/g)||[]).length,1,'Exactly one field note per question');
+assert(mathSource.includes('class="creation-note creation-setup creation-setup-preview"')&&mathSource.includes('alt="Watercolor botanical study of a leaf'), 'Setup note must reuse the watercolor Creation Field Note presentation');
+assert(mathStyles.includes('#setup .creation-note.creation-setup-preview')&&mathStyles.includes('#setup .creation-setup-preview .creation-note-heading'), 'Setup note must match the in-game framed card styling');
 for(const id of ['creationNoteArt','creationNoteTitle','creationNoteText','creationNoteVerse'])
  assert(mathSource.includes('id="'+id+'"'),'Field note must update dynamically: '+id);
 for(const name of ['pinecone','honeycomb','sunflower','leaf','branching-tree','shell']){
