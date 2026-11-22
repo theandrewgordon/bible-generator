@@ -326,3 +326,31 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
   }
   #setup .creation-setup-preview .creation-illustration { width: min(140px,100%); }
 }
+
+/* Match the explorer-selection heading to Choose Your Expedition exactly. */
+.approved-math-landing #home .landing-title {
+  margin: 0 auto 6px !important;
+  padding: 0 !important;
+  border-bottom: 0 !important;
+}
+.approved-math-landing #home .landing-title .math-expedition-heading {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto 5px;
+  width: 100%;
+}
+.approved-math-landing #home .landing-title .math-expedition-heading h2 {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #22536a !important;
+  font: italic 700 clamp(1.22rem,2.5vw,1.78rem)/1.2 Georgia,serif !important;
+  letter-spacing: normal !important;
+  text-shadow: none !important;
+}
+.approved-math-landing #home .landing-title .math-expedition-heading .trail-heading-line {
+  color: #b4935b;
+  font-size: 1.1rem;
+}
