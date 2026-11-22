@@ -26,7 +26,7 @@
   const REVIEW_DAYS = [1,3,7,14,30,60,90];
   function initial() { return {verses:[],players:[{id:'p1',name:'Explorer 1'},{id:'p2',name:'Explorer 2'}],progress:{},goal:12}; }
   let state=initial(), view='home', mode='solo', playerId='p1', teams=['p1','p2'];
-  let verseId=null, editId=null, round=null, outcome=null, turn=0, scores={}, roundsPlayed=0;
+  let verseId=null, editId=null, historyVerseId=null, round=null, outcome=null, turn=0, scores={}, roundsPlayed=0;
   let roundTicker=null, deadline=null, remaining=0, pending=Promise.resolve(), errorLoading=false;
   function h(value) { return String(value==null?'':value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function norm(value) { return String(value||'').toLocaleLowerCase().replace(/[’‘]/g,"'").replace(/[^a-z0-9']+/g,' ').trim().replace(/\s+/g,' '); }
@@ -37,7 +37,7 @@
   function nextDay(days) { const d=new Date();d.setDate(d.getDate()+days);return isoDay(d); }
   function findVerse(vid) { return state.verses.find(function(v){return v.id===vid;}); }
   function findPlayer(pid) { return state.players.find(function(p){return p.id===pid;}); }
-  function freshRecord() { return {attempts:0,correct:0,mastered:false,challengeWins:0,reviewInterval:0,reviewDue:'',lastPracticed:'',history:[],seen:[],challengeSeen:[],activities:[]}; }
+  function freshRecord() { return {attempts:0,correct:0,streak:0,mastered:false,challengeWins:0,reviewInterval:0,reviewDue:'',lastPracticed:'',history:[],seen:[],challengeSeen:[],activities:[]}; }
   function record(pid,vid) { if(!state.progress[pid])state.progress[pid]={};if(!state.progress[pid][vid])state.progress[pid][vid]=freshRecord();return state.progress[pid][vid]; }
   function allMasteredIds(){return state.verses.filter(function(v){return state.players.some(function(p){return !!state.progress[p.id]?.[v.id]?.mastered;});}).map(function(v){return v.id;});}
   function dueReviews(pid) { return state.verses.filter(function(v){let r=state.progress[pid]?.[v.id];return r&&r.mastered&&r.reviewDue&&r.reviewDue<=isoDay();}); }
@@ -137,16 +137,27 @@
     const pid=playerId,due=dueReviews(pid);
     const rows=state.verses.map(function(v){
       const r=state.progress[pid]?.[v.id]||freshRecord();
-      const status=r.mastered?'<span class="badge green">✓ Mastered</span>':r.attempts?'<span class="badge">Practicing '+Math.min(99,Math.round(100*r.correct/Math.max(6,r.attempts)))+'%</span>':'<span class="badge">Not started</span>';
-      return '<div class="log-row"><div><strong>'+h(v.reference)+'</strong></div><div>'+status+'</div><div class="small">'+h(r.lastPracticed||'—')+'</div><div class="small">'+(r.mastered?(r.reviewDue<=isoDay()?'🔁 Due now':h(r.reviewDue||'—')):'—')+'</div></div>';
+      const status=r.mastered?'<span class="badge green">✓ Mastered</span>':r.attempts?'<span class="badge">'+(practiceReady(r)?'Challenge '+(r.challengeWins||0)+'/2':'Practicing '+Math.min(6,r.correct)+'/6')+'</span>':'<span class="badge">Not started</span>';
+      return '<div class="log-row"><div><button type="button" class="text-link" data-action="view-history" data-value="'+h(v.id)+'">'+h(v.reference)+'</button></div><div>'+status+'</div><div class="small">'+h(r.lastPracticed||'—')+'</div><div class="small">'+(r.streak||0)+' correct</div><div class="small">'+(r.mastered?(r.reviewDue<=isoDay()?'🔁 Due now':h(r.reviewDue||'—')):'—')+'</div></div>';
     }).join('');
     const mastered=state.verses.filter(function(v){return !!state.progress[pid]?.[v.id]?.mastered;}).length;
     return '<section class="panel"><div class="panel-inner"><div class="status-panel"><div><h2>📖 Your Memory Log</h2><p>Saved verses, mastery, and review dates. Mastered passages return for spaced review so they stay bright.</p></div><button class="btn secondary" data-action="add-verse">＋ New Verse</button></div>'+
     '<div class="line-fields"><div class="form-row"><label for="log-player">Learner</label><select id="log-player">'+selectedPlayerOptions()+'</select></div><div class="form-row"><label for="mastery-goal">Light Lab goal (unique verses)</label><input type="number" id="mastery-goal" min="3" max="100" value="'+h(state.goal)+'"></div></div>'+
     '<div class="stat-row"><span class="stat">✦ '+mastered+' mastered by '+h(playerName(pid))+'</span><span class="stat">💡 '+allMasteredIds().length+' unique verses lighting the lab</span><span class="stat">🔁 '+due.length+' reviews due</span></div>'+
-    '<div class="log-grid" style="margin-top:17px"><div class="log-row log-head"><div>Verse</div><div>Status</div><div>Last Practiced</div><div>Next Review</div></div>'+ (rows||'<div class="empty-note">Add a verse to start your memory log.</div>') +'</div>'+
+    '<div class="log-grid" style="margin-top:17px"><div class="log-row log-head"><div>Verse / History</div><div>Status</div><div>Last Practiced</div><div>Streak</div><div>Next Review</div></div>'+ (rows||'<div class="empty-note">Add a verse to start your memory log.</div>') +'</div>'+
     '<div class="actions"><button class="btn" data-action="review-due" '+(due.length?'':'disabled')+'>Review Due Verses</button><button class="btn secondary" data-action="save-goal">Save Light Goal</button><button class="btn ghost" data-view="verses">Manage Verses</button></div>'+
     '<p class="footnote">Reviews use increasing intervals of 1, 3, 7, 14, 30, 60, and 90 days after successful recall. A missed review returns the verse sooner without erasing its history.</p></div></section>';
+  }
+  function historyHtml(){
+    const v=findVerse(historyVerseId);if(!v)return logHtml();
+    const r=state.progress[playerId]?.[v.id]||freshRecord();
+    const entries=(r.history||[]).slice().reverse().slice(0,40);
+    return '<section class="panel"><div class="panel-inner"><span class="badge">Memory History · '+h(playerName(playerId))+'</span><h2>'+h(v.reference)+'</h2>'+
+    '<p class="lead">Every round is logged for this learner. Review sessions appear alongside normal practice and challenges.</p>'+
+    '<div class="stat-row"><span class="stat">⚙ '+r.attempts+' rounds</span><span class="stat">✓ '+r.correct+' correct</span><span class="stat">★ '+(r.streak||0)+' current streak</span><span class="stat">🏆 '+(r.challengeWins||0)+'/2 challenges</span></div>'+
+    '<div class="log-grid" style="margin-top:17px"><div class="log-row log-head history-row"><div>Date</div><div>Activity</div><div>Result</div><div>Type</div></div>'+
+    (entries.map(function(entry){return '<div class="log-row history-row"><div>'+h(entry.date||'—')+'</div><div>'+h(ACTIVITY[entry.activity]||entry.activity||'Practice')+'</div><div>'+(entry.correct?'✓ Correct':'Try again')+'</div><div>'+h(entry.kind||'practice')+'</div></div>';}).join('')||'<div class="empty-note">No attempts yet. Open this verse to begin practicing.</div>')+'</div>'+
+    '<div class="actions"><button class="btn" data-action="practice-verse" data-value="'+h(v.id)+'">Practice This Verse</button><button class="btn ghost" data-view="log">← Back to Memory Log</button></div></div></section>';
   }
   function helpHtml(){
     return header('Field Guide: How to Play','The path from first look to lasting recall. It is easy enough to begin right away and challenging enough to keep learning.')+
@@ -336,6 +347,7 @@
     stopTimer();
     r.attempts+=1;
     if(correct){r.correct+=q.kind==='review'?0:1;}
+    r.streak=correct?(r.streak||0)+1:0;
     r.lastPracticed=isoDay();
     if(!Array.isArray(r.activities))r.activities=[];
     if(correct&&!r.activities.includes(q.activity))r.activities.push(q.activity);
@@ -371,7 +383,7 @@
     meter();
     document.querySelectorAll('[data-view]').forEach(function(link){link.setAttribute('aria-current',link.dataset.view===view?'page':'false');});
     if(errorLoading)return;
-    const pages={home:home,mode:modeHtml,players:playersHtml,verses:versesHtml,form:verseForm,log:logHtml,help:helpHtml,choose:verseChoose,briefing:briefing,round:roundHtml,result:resultHtml};
+    const pages={home:home,mode:modeHtml,players:playersHtml,verses:versesHtml,form:verseForm,log:logHtml,history:historyHtml,help:helpHtml,choose:verseChoose,briefing:briefing,round:roundHtml,result:resultHtml};
     screenEl.innerHTML=(pages[view]||home)();
     if(view==='players'){
       const a=document.getElementById('team-a'),b=document.getElementById('team-b'),solo=document.getElementById('solo-player');
@@ -418,6 +430,7 @@
       if(verseId===value)verseId=null;
       store();render();return;
     }
+    if(action==='view-history'){historyVerseId=value;setView('history');return;}
     if(action==='save-goal'){
       const goal=Number(document.getElementById('mastery-goal').value);
       if(!Number.isInteger(goal)||goal<3||goal>100){window.alert('Choose a light goal between 3 and 100 verses.');return;}
