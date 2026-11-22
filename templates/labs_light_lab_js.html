@@ -42,6 +42,14 @@
   function allMasteredIds(){return state.verses.filter(function(v){return state.players.some(function(p){return !!state.progress[p.id]?.[v.id]?.mastered;});}).map(function(v){return v.id;});}
   function dueReviews(pid) { return state.verses.filter(function(v){let r=state.progress[pid]?.[v.id];return r&&r.mastered&&r.reviewDue&&r.reviewDue<=isoDay();}); }
   function practiceReady(r){return r.correct>=6 && new Set(r.activities||[]).size>=4;}
+  function storyBeat(count,goal){
+    if(count===0)return {chapter:'Chapter 1 · A Darkened Laboratory',title:'The First Spark',story:'Professor Atlas has built a remarkable lamp, but the workshop is still dim. Dr. Lumi has discovered that remembering Scripture will help illuminate their research. Your first verse is the first spark.'};
+    if(count===1)return {chapter:'Chapter 2 · The Circuit Awakens',title:'One Bright Beginning',story:'The first lamp is glowing! Dr. Lumi records your discovery and Atlas adjusts the invention. But the great light is far from complete. Many more passages await.'};
+    if(count<goal*.5)return {chapter:'Chapter 3 · Building the Beam',title:'The Workshop Grows Brighter',story:'Each newly remembered verse powers another lamp. Blueprints become easier to read, and the two scientists begin to see a path through the shadows.'};
+    if(count<goal*.85)return {chapter:'Chapter 4 · The Shadows Retreat',title:'A Light Stronger Than Darkness',story:'Brilliant rays now fill the laboratory. Atlas and Lumi discover that Jesus calls himself the Light of the World. Keep learning the Scriptures that point to him.'};
+    if(count<goal)return {chapter:'Chapter 5 · The Final Instruments',title:'Almost Dazzling!',story:'The great machine is nearly shining at full strength. The scientists gather their finest discoveries, and every new verse draws the room nearer to its brightest glow.'};
+    return {chapter:'Chapter 6 · Light That Never Goes Out',title:'The Quest Continues',story:'The laboratory is radiant! Its brightest discovery is not a machine at all: Jesus is the Light of the World. Keep memorizing, reviewing, and discovering Scripture. This quest never needs to end.'};
+  }
   function playerName(pid){return findPlayer(pid)?.name||'Explorer';}
   function message(txt,isError) { statusEl.textContent=txt;statusEl.className='save-status'+(isError?' error':''); }
   async function load() {
@@ -75,12 +83,13 @@
     const box=document.getElementById('light-meter');box.setAttribute('aria-valuenow',String(percent));
     document.getElementById('meter-hint').textContent=count===0?'Each newly mastered verse will make the lab brighter.':count<goal?'The lab is growing brighter! '+(goal-count)+' more unique verses until the next discovery.':'Brilliant discovery! Keep adding verses: the quest and its light continue.';
     root.dataset.glow=percent>70?'3':percent>35?'2':percent>0?'1':'0';
+    root.style.setProperty('--lab-light',(0.22+percent/125).toFixed(3));
   }
   function setView(next){stopTimer();round=null;outcome=null;view=next;render();}
   function header(title,description){return '<div class="panel"><div class="panel-inner"><h2>'+title+'</h2><p class="lead">'+description+'</p></div></div>';}
   function home(){
-    const due=dueReviews(playerId),count=allMasteredIds().length;
-    return '<section class="panel lit"><div class="panel-inner"><span class="badge gold">Chapter '+(Math.floor(count/Math.max(1,state.goal||12))+1)+' · The Great Experiment</span><h2>The lab needs your help!</h2><p class="lead">Professor Atlas and Dr. Lumi are designing a light unlike any other. Their instruments grow brighter as you memorize the words of Scripture. Will you help them discover the Light that never goes out?</p><div class="journey-box"><strong>✦ Today’s mission</strong><p>Practice with a different kind of puzzle each round. Build enough confidence to unlock timed challenges. Each <strong>new mastered verse</strong> adds another glow to the lab—and the journey continues!</p><p class="small">Inspired by Psalm 119:105 and Jesus’ words in John 8:12.</p></div>'+
+    const due=dueReviews(playerId),count=allMasteredIds().length,beat=storyBeat(count,Math.max(1,state.goal||12));
+    return '<section class="panel lit"><div class="panel-inner"><span class="badge gold">'+h(beat.chapter)+'</span><h2>'+h(beat.title)+'</h2><p class="lead">'+h(beat.story)+'</p><div class="journey-box"><strong>✦ Today’s mission</strong><p>Practice with a different kind of puzzle each round. Build enough confidence to unlock timed challenges. Each <strong>new mastered verse</strong> adds another glow to the lab—and the journey continues!</p><p class="small">Inspired by Psalm 119:105 and Jesus’ words in John 8:12.</p></div>'+
       (due.length?'<div class="review-callout"><div><strong>🔁 '+due.length+' mastered verse'+(due.length===1?'':'s')+' ready for review</strong><div class="small">Keep your discoveries bright with a quick recall round.</div></div><button class="btn secondary" data-action="review-due">Review now</button></div>':'')+
       '<div class="actions"><button class="btn" data-action="choose-mode">▶ Start a Mission</button><button class="btn secondary" data-view="verses">＋ Add a Verse</button><button class="btn ghost" data-view="log">▤ See Memory Log</button></div></div></section>'+
       '<div class="grid two home-grid"><div class="panel blue"><div class="panel-inner"><h3>⚙️ Practice with Variety</h3><p>Fourteen kinds of recall, word puzzles, word order, first-letter clues, word repairs, and more. Activities rotate before repeating; missing words and phrases change each time.</p></div></div><div class="panel blue"><div class="panel-inner"><h3>💡 Light Never Stops Growing</h3><p>One mastered verse is a bright beginning—not the end of the mission. Review old discoveries, add new passages, and keep the lab shining.</p></div></div></div>';
@@ -200,15 +209,19 @@
     if(!Array.isArray(r[key]))r[key]=[];
     const available=list.filter(function(x){return !r[key].includes(x);});
     if(!available.length){r[key]=[];}
-    const type=choice(available.length?available:list);
-    r[key].push(type);
+    const pool=available.length?available:list;
+    const different=pool.filter(function(x){return x!==r.lastActivity;});
+    const type=choice(different.length?different:pool);
+    r[key].push(type);r.lastActivity=type;
     return type;
   }
   function makeRound(vid,pid,kind,forceActivity){
     const v=findVerse(vid);if(!v)return;
     const w=wordsFor(v),r=record(pid,vid);
     const activity=forceActivity||activityBag(r,kind==='challenge',w);
-    const target=choice(eligibleIndexes(w));
+    const candidates=eligibleIndexes(w),fresh=candidates.filter(function(i){return i!==r.lastBlank;});
+    const target=choice(fresh.length?fresh:candidates);
+    r.lastBlank=target;
     const q={activity:activity,kind:kind,vid:vid,pid:pid,words:w,selected:[],answer:'',options:[],idx:target,starts:Date.now(),pieces:[],intro:'', prompt:'',missing:[],phase:'answer'};
     const answer=w[target].replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g,'');
     q.answer=answer;
@@ -217,8 +230,11 @@
       if(activity==='spot'){const bad=distraction(answer,w);q.display=w.slice();q.display[target]=bad;q.prompt=bad;}
     }
     if(activity==='multi'){
-      q.missing=shuffle(eligibleIndexes(w)).slice(0,Math.min(kind==='challenge'?4:3,Math.max(1,Math.ceil(w.length/6))));
-      q.missing.sort(function(a,b){return a-b;});
+      const count=Math.min(kind==='challenge'?4:3,Math.max(1,Math.ceil(w.length/6)));
+      let attempts=0;
+      do {q.missing=shuffle(eligibleIndexes(w)).slice(0,count).sort(function(a,b){return a-b;});attempts++;}
+      while(q.missing.join(',')===r.lastMask&&attempts<20&&eligibleIndexes(w).length>count);
+      r.lastMask=q.missing.join(',');
       q.answer=q.missing.map(function(i){return w[i];}).join(' / ');
     }
     if(['order','puzzle'].includes(activity)){
@@ -304,7 +320,7 @@
     if(a==='intruder')return '<p class="lead">One word has slipped into the lab that is <strong>not</strong> in this verse. Spot the intruder!</p>'+versePanel('🔎 '+h(v.reference),v)+choiceButtons(q.options);
     if(a==='spot')return '<p class="lead">The machine changed a word. Choose the word that fixes the verse.</p>'+versePanel(q.display.map(h).join(' '),v)+choiceButtons(q.options);
     if(a==='match')return '<p class="lead">Find the word that follows the highlighted word in the original passage.</p>'+versePanel('What comes after “<span class="blank-highlight">'+h(q.prompt)+'</span>”?',v)+choiceButtons(q.options);
-    if(a==='recall')return '<p class="lead">The laboratory lights have dimmed. Can you recall the passage without seeing it?</p>'+versePanel('🧠 Recall '+h(v.reference)+' from memory',v)+'<form id="answer-form"><div class="form-row"><label for="recall-input">Write the verse in your own words, as closely as you remember it</label><textarea class="recall-box" id="recall-input" required spellcheck="false" placeholder="Write what you remember…"></textarea></div><button class="btn" type="submit">Check My Recall</button></form><details class="details" style="margin-top:14px"><summary>Prefer spoken recall?</summary><p>Recite the verse to a parent, then have the parent confirm it was accurate.</p><button class="btn secondary smallbtn" data-action="parent-confirm">✓ Parent Confirms Accurate Recitation</button></details>';
+    if(a==='recall')return '<p class="lead">The laboratory lights have dimmed. Can you recall the passage without seeing it?</p>'+versePanel('🧠 Recall '+h(v.reference)+' from memory',v)+'<form id="answer-form"><div class="form-row"><label for="recall-input">Write the original verse as closely as you remember it</label><textarea class="recall-box" id="recall-input" required spellcheck="false" placeholder="Write what you remember…"></textarea></div><button class="btn" type="submit">Check My Recall</button></form><details class="details" style="margin-top:14px"><summary>Prefer spoken recall?</summary><p>Recite the verse to a parent, then have the parent confirm it was accurate.</p><button class="btn secondary smallbtn" data-action="parent-confirm">✓ Parent Confirms Accurate Recitation</button></details>';
     return '<p>Let’s remember this verse.</p>';
   }
   function roundHtml(){
