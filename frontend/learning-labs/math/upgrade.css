@@ -354,3 +354,77 @@ main:has(#home.hidden)>.approved-math-landing{display:none!important}
   color: #b4935b;
   font-size: 1.1rem;
 }
+
+/* How to Play sits beneath the masthead: compact, readable, fully illustrated. */
+.approved-math-landing #math-guide.adventure-field-guide {
+  display: grid !important;
+  grid-template-columns: minmax(0, 28%) minmax(0, 1fr) !important;
+  align-items: center;
+  gap: clamp(10px, 1.8vw, 20px) !important;
+  margin: 0 !important;
+  padding: clamp(12px, 1.8vw, 19px) !important;
+}
+.approved-math-landing #math-guide .guide-art {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+.approved-math-landing #math-guide .guide-art img {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  aspect-ratio: 760 / 340;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+.approved-math-landing #math-guide .guide-steps {
+  min-width: 0;
+}
+.approved-math-landing #math-guide .guide-steps h2 {
+  margin: 0 0 8px !important;
+  padding: 0 0 5px !important;
+  font-size: clamp(1.2rem, 2.1vw, 1.65rem) !important;
+}
+.approved-math-landing #math-guide .guide-steps ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 15px;
+  margin: 0;
+  padding-left: 22px;
+}
+.approved-math-landing #math-guide .guide-steps li {
+  font-size: clamp(.83rem, 1.1vw, .95rem);
+  line-height: 1.34;
+  padding-left: 1px;
+}
+@media (max-width: 850px) {
+  .approved-math-landing #math-guide.adventure-field-guide {
+    grid-template-columns: minmax(0, 30%) minmax(0, 1fr) !important;
+  }
+  .approved-math-landing #math-guide .guide-steps ol {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}
+@media (max-width: 650px) {
+  .approved-math-landing #math-guide.adventure-field-guide {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 5px !important;
+    padding: 12px 14px !important;
+  }
+  .approved-math-landing #math-guide .guide-art img {
+    width: min(100%, 310px) !important;
+    max-width: 100% !important;
+    max-height: none !important;
+  }
+  .approved-math-landing #math-guide .guide-steps h2 {
+    margin-bottom: 6px !important;
+    text-align: center;
+  }
+  .approved-math-landing #math-guide .guide-steps ol {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+}
