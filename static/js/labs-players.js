@@ -128,6 +128,27 @@ function node(tag, label, attributes = {}) {
   return element;
 }
 
+// Use the same saved profile ID and sprite coordinates in the picker and during play.
+export function playerAvatarPortrait(player, avatarBank, className = 'math-turn-avatar', fallbackIndex = 0) {
+  if (!player || !avatarBank?.choices?.length) return null;
+  const savedId = read(avatarKey, {})[player.id];
+  const chosen = avatarBank.choices.findIndex(icon => icon.id === savedId);
+  const index = chosen >= 0 ? chosen : fallbackIndex % avatarBank.choices.length;
+  const icon = avatarBank.choices[index];
+  const cols = Math.max(1, icon.columns || avatarBank.columns || 4);
+  const rows = Math.max(1, icon.rows || avatarBank.rows || Math.ceil(avatarBank.choices.length / cols));
+  const cell = Number.isInteger(icon.cellIndex) ? icon.cellIndex : index;
+  const x = cell % cols, y = Math.floor(cell / cols);
+  const inset = Math.max(0, Math.min(0.2, Number(icon.cropInset) || 0));
+  const zoom = 1 / (1 - 2 * inset);
+  const percent = (n, count) => count === 1 ? 50 : (((n + .5) * zoom - .5) / (count * zoom - 1)) * 100;
+  const portrait = node('i', '', {class: className, 'aria-hidden': 'true'});
+  portrait.style.backgroundImage = `url("${icon.src || avatarBank.src}")`;
+  portrait.style.backgroundSize = `${cols * zoom * 100}% ${rows * zoom * 100}%`;
+  portrait.style.backgroundPosition = `${percent(x, cols)}% ${percent(y, rows)}%`;
+  return portrait;
+}
+
 export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 'player', legend, avatarBank = null, onChange = () => {}, onAvatarSaved = () => {}}) {
   const group = node('fieldset');
   const roleLabel = roleName[0].toUpperCase() + roleName.slice(1);
