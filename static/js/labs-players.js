@@ -6,6 +6,7 @@ const mathKey = 'mathFactRally.v2';
 const geoKey = 'faithsparks.geo.v2';
 const latinKey = 'faithsparks.latinQuest.players.v1';
 const changed = 'labs-players-changed';
+const avatarKey = 'faithsparks.labs.avatars.v1';
 const nameKey = name => name.trim().toLowerCase();
 let memory = null;
 
@@ -127,7 +128,7 @@ function node(tag, label, attributes = {}) {
   return element;
 }
 
-export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 'player', legend, onChange = () => {}}) {
+export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 'player', legend, avatarBank = null, onChange = () => {}}) {
   const group = node('fieldset');
   const roleLabel = roleName[0].toUpperCase() + roleName.slice(1);
   group.append(node('legend', legend ?? (limit === 1 ? 'Who’s playing?' : 'Who’s playing this round?')));
@@ -143,11 +144,65 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
   const rename = node('select', '', {'aria-label': `${roleLabel} to rename`});
   const renameButton = node('button', `Rename ${roleName}`, {type: 'button'});
   form.append(label, add, rename, renameButton);
-  manage.append(form, node('p', `${roleLabel}s are available in all FaithSparks Labs games in this browser.`));
+  const avatarEnabled = Boolean(avatarBank?.src && Array.isArray(avatarBank.choices) && avatarBank.choices.length);
+  const avatarEditor = avatarEnabled ? node('div', '', {class: 'labs-avatar-editor'}) : null;
+  const avatarTarget = avatarEnabled ? node('select', '', {'aria-label': 'Choose explorer to customize'}) : null;
+  const avatarGrid = avatarEnabled ? node('div', '', {class: 'labs-avatar-grid', role: 'group', 'aria-label': 'Watercolor explorer icon bank'}) : null;
+  if (avatarEnabled) {
+    const avatarLabel = node('label', 'Choose an icon for');
+    avatarLabel.append(avatarTarget);
+    avatarEditor.append(node('h3', 'Your Explorer Icon'), node('p', 'Pick a watercolor adventure companion. Your choice is saved on this device.'), avatarLabel, avatarGrid);
+  }
+  manage.append(form);
+  if (avatarEditor) manage.append(avatarEditor);
+  manage.append(node('p', `${roleLabel}s are available in all FaithSparks Labs games in this browser.`));
   group.append(choices, manage, note);
   root.classList.add('labs-players');
   root.replaceChildren(group);
   let selection = selectedPlayers(game, limit, preferred).map(player => player.id);
+
+  function avatarAt(player, index) {
+    if (!avatarEnabled) return -1;
+    const chosen = read(avatarKey, {})[player.id];
+    const savedIndex = avatarBank.choices.findIndex(icon => icon.id === chosen);
+    return savedIndex >= 0 ? savedIndex : index % avatarBank.choices.length;
+  }
+
+  function avatarPicture(index, className) {
+    const image = node('i', '', {class: className, 'aria-hidden': 'true'});
+    const cols = Math.max(1, avatarBank.columns || 4);
+    const rows = Math.max(1, Math.ceil(avatarBank.choices.length / cols));
+    const x = index % cols;
+    const y = Math.floor(index / cols);
+    image.style.backgroundImage = `url("${avatarBank.src}")`;
+    image.style.backgroundSize = `${cols * 100}% ${rows * 100}%`;
+    image.style.backgroundPosition = `${cols === 1 ? 0 : (x / (cols - 1)) * 100}% ${rows === 1 ? 0 : (y / (rows - 1)) * 100}%`;
+    return image;
+  }
+
+  function renderAvatarBank(roster) {
+    if (!avatarEnabled) return;
+    const previousTarget = avatarTarget.value;
+    avatarTarget.replaceChildren(...roster.map(player => node('option', player.name, {value: player.id})));
+    const target = roster.find(player => player.id === previousTarget)?.id || selection.find(id => roster.some(p => p.id === id)) || roster[0]?.id;
+    if (!target) return;
+    avatarTarget.value = target;
+    avatarGrid.replaceChildren();
+    const current = avatarAt(roster.find(p => p.id === target), roster.findIndex(p => p.id === target));
+    avatarBank.choices.forEach((icon, index) => {
+      const button = node('button', '', {type: 'button', class: 'labs-avatar-option', 'aria-label': `Use ${icon.label} icon`, 'aria-pressed': String(index === current)});
+      button.append(avatarPicture(index, 'labs-avatar-preview'), node('span', icon.label));
+      button.addEventListener('click', () => {
+        const avatarPrefs = read(avatarKey, {});
+        avatarPrefs[target] = icon.id;
+        write(avatarKey, avatarPrefs);
+        note.textContent = `${roster.find(player => player.id === target)?.name || 'Explorer'} now uses the ${icon.label} icon.`;
+        render(false);
+      });
+      avatarGrid.append(button);
+    });
+  }
+  avatarTarget?.addEventListener('change', () => renderAvatarBank(profiles()));
 
   function render(notify = true) {
     const roster = profiles();
@@ -165,6 +220,7 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
       const control = node('input', '', {type: limit === 1 ? 'radio' : 'checkbox', name: 'labs-' + game + '-player', value: player.id});
       control.checked = selection.includes(player.id);
       const option = node('label');
+      if (avatarEnabled) option.append(avatarPicture(avatarAt(player, roster.indexOf(player)), 'labs-player-portrait'));
       option.append(control, node('span', player.name));
       choices.append(option);
       control.addEventListener('change', () => {
@@ -181,6 +237,7 @@ export function mountPlayers(root, {game, limit = 1, preferred = [], roleName = 
         choices.querySelectorAll('input')[roster.indexOf(player)]?.focus();
       });
     }
+    renderAvatarBank(roster);
     if (notify) onChange(selection.map(id => roster.find(player => player.id === id)), roster);
   }
 
