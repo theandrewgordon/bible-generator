@@ -96,7 +96,7 @@ function latinFixture(){
    await page.getByText('Manage players',{exact:true}).click();
    assert.equal(await page.locator('.labs-avatar-option').count(),16);
    await page.getByLabel('Choose explorer to customize').selectOption({label:'Explorer T'});
-   assert.equal(await page.getByRole('button',{name:/Use (Flower Doe|Bluebird|Flower Badger|Flower Lynx) icon/}).count(),4);
+   assert.equal(await page.getByRole('button',{name:/Use (Flower Fox|Bluebird|Flower Badger|Flower Lynx) icon/}).count(),4);
    await page.getByRole('button',{name:'Use Owl icon'}).click();
    assert.equal(await page.getByRole('button',{name:'Use Owl icon'}).getAttribute('aria-pressed'),'true');
    assert.equal(await page.evaluate(()=>{
