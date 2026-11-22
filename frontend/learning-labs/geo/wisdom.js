@@ -10,7 +10,7 @@ const wisdom = {
  sky: ['“The heavens declare the glory of God.”', 'Psalm 19:1', 'As we look up at the sky, we can marvel at the world God made.'],
  land: ['“And God called the dry land Earth.”', 'Genesis 1:10', 'Mountains, valleys, and plains show us the wonderful variety of the land.'],
  wisdom: ['“For the LORD giveth wisdom.”', 'Proverbs 2:6', 'As you learn a new place, remember that wisdom is a gift from God.'],
- people: ['“He hath made of one blood all nations of men.”', 'Acts 17:26', 'People live in many countries and cultures, and every person matters to God.'],
+ people: ['“And hath made of one blood all nations of men.”', 'Acts 17:26', 'People live in many countries and cultures, and every person matters to God.'],
  maps: ['“For the LORD giveth wisdom.”', 'Proverbs 2:6', 'Maps help us learn about the world. Keep looking closely and asking good questions!'],
  nile: ['“And the child grew, and she brought him unto Pharaoh’s daughter.”', 'Exodus 2:10', 'The Nile is a real river from the story of baby Moses in Exodus 2.'],
  israel: ['“And Jesus went about all Galilee.”', 'Matthew 4:23', 'The lands and waters we read about in the Bible are real places on our maps.'],
