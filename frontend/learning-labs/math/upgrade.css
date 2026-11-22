@@ -1,513 +1,149 @@
-body{background:radial-gradient(ellipse at top right,#e1ebd3,transparent 60%),#f4f2e7;color:#294b43}main{max-width:1040px}header{border-radius:22px;overflow:hidden}header h1{letter-spacing:-1.5px}.journal-page{border:1px solid #ced5c3;box-shadow:0 14px 35px #30482a0b;border-radius:20px}.journal-eyebrow{font-size:10px!important;letter-spacing:2px!important}h2{font:normal 30px/1.2 Georgia,serif!important}.home-players>div{border:1px solid #d8ddca!important;background:#f4f5e9!important;border-radius:14px!important}.home-actions .main-cta{padding:16px 28px;font-size:16px;border-radius:12px}.adventure-path{display:flex;gap:12px;justify-content:center;margin:24px 0;color:#67805c;font-size:10px;letter-spacing:1px}.adventure-path>span{background:#f0f2e4;padding:9px 14px;border-radius:30px}.answer-style{display:grid;gap:8px;font-size:12px;color:#546b52;max-width:440px;margin:18px auto 24px;text-align:left}.answer-style select{font:inherit;border:1px solid #b5c5ae;border-radius:10px;background:#fffdf5;padding:12px;min-height:46px;color:#294b43;width:100%}#adventureProgress{width:100%;height:5px;accent-color:#b18e43;margin:12px 0 24px}.question{border:1px solid #d2dcc9!important;background:linear-gradient(130deg,#f6f6e9,#fbf7e9)!important;border-radius:18px!important}#typedPractice{max-width:500px;margin:18px auto 24px}#typedPractice label{font-size:12px;display:block;margin-bottom:8px}#typedPractice>div{display:flex;gap:10px}#typedAnswer{font:26px Georgia,serif;min-width:0;width:100%;border:1px solid #92aa8b;background:#fffdf7;color:#294b43;border-radius:12px;padding:12px}#typedAnswer:focus-visible{outline:3px solid #b18e43;outline-offset:3px}.actions button{box-shadow:none!important;border-radius:10px!important;font-size:14px!important}.score{border-width:1px!important;border-radius:12px!important}.score.active{border:2px solid #50744c!important}.math{letter-spacing:-2px}.home-options summary{font-size:13px;padding:12px}.utility{line-height:1.6}@media(max-width:600px){.adventure-path{gap:4px}.adventure-path>span{padding:8px;font-size:9px}#typedPractice>div{flex-wrap:wrap}#typedPractice button{width:100%}.math{font-size:clamp(32px,9vw,68px)!important;overflow-wrap:anywhere;letter-spacing:-1px}}
-#home .home-options{text-align:left}#home .labs-quick{padding-top:0;text-align:center}#home .labs-quick h2{font-size:30px}.math-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0}.math-choices button{font:28px Georgia,serif;background:#f4f4e6;border:1px solid #a7baa0;border-radius:12px;min-height:64px;color:#294b43}.math-choices button:disabled{opacity:.6}.math-choices button:focus-visible{outline:3px solid #b28a3e;outline-offset:3px}#turn,#who,#adventureProgress{display:none}#game .question:has(#math:empty){display:none}.home-secondary{justify-content:flex-start}#homePlayers{margin-top:20px}
-main{--green:#34745e;--ink:#294b43;--paper:#fffcf5}#home .labs-quick,#math-summary .labs-summary{border:0;box-shadow:none;background:transparent;border-radius:0;padding-inline:0;margin:0}#math-summary .labs-summary{padding-top:12px;padding-bottom:12px}
-#math.story-question{font:500 clamp(24px,3.5vw,36px)/1.5 Georgia,serif!important;letter-spacing:0;max-width:820px;margin:auto;overflow-wrap:anywhere}#math.story-question~.small{margin-top:12px}
-
-/* Discovery Journal — nature notebook extension, masthead unchanged */
-body{background:radial-gradient(ellipse at 5% 25%,#d3e5cb,transparent 44%),radial-gradient(ellipse at 95% 75%,#f0deb6,transparent 38%),#f7f2e5}
-.journal-page{background:linear-gradient(#fffcf4e8,#faf7eaea),repeating-linear-gradient(0deg,transparent 0 32px,#93b09020 33px 34px);border:1px solid #b8c9a6!important;border-top:5px solid #c9a765!important;box-shadow:0 5px 0 #ddd8bd,0 14px 30px #45624a1b!important}
-.journal-page h2{font-family:Georgia,serif!important;color:#365f51!important;letter-spacing:-.02em}
-#home .home-players>div,.person,.report-item,.completion-card{background:linear-gradient(150deg,#f7f8ef,#fff7e5)!important;border:1px solid #c4d2b9!important;box-shadow:0 3px #e1dfc5}
-#home .home-players>div{border-left:5px solid #8caf8d!important}
-.person{border-top:4px solid #b5c5a1!important}.person:nth-child(even){border-top-color:#d5b27a!important}
-#game .question{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(165deg,#fffefa,#f1f3e3)!important;border:1px solid #b2c6a7!important;box-shadow:inset 0 0 0 6px #ffffff9e,0 4px #d9d8be!important}
-#game .question:before{content:"✎ FIELD NOTE · NUMBER DISCOVERY";display:block;color:#83977a;font-size:.64rem;font-weight:800;letter-spacing:.17em;margin:0 0 8px}
-#game .math{color:#2b6259!important;position:relative;z-index:1}
-.nature-ornament{position:absolute;right:8px;bottom:2px;width:82px;height:130px;opacity:.24;z-index:-1;pointer-events:none}.nature-fern{width:100%;height:100%}
-.score{background:linear-gradient(#f3f6e9,#e9efdd)!important;border-color:#acbe9f!important}
-.score.active{background:linear-gradient(#fff1d0,#f5e8bd)!important;border-color:#c09c5d!important}
-#hint{background:#edf4e6!important;border-left:4px solid #88a98a!important}
-#report .report-item{border-left:5px solid #88a98a!important}
-.pill{background:#f5e8c6;border:1px solid #dfc78f}
-.nature-subtitle{font-family:Georgia,serif;font-size:.93rem;font-style:italic;color:#718573;line-height:1.5;margin:0 0 16px}
-.nature-gallery{position:relative;max-width:790px;margin:22px auto 2px;padding:15px 12px;background:linear-gradient(145deg,#fff9e9,#f5f3e3);border:1px solid #d7c8a7;border-radius:14px;box-shadow:inset 0 0 0 3px #ffffff91;text-align:center}
-.nature-heading{font-size:.7rem;letter-spacing:.15em;font-weight:850;color:#708565}
-.nature-heading span{display:block;margin:4px 0 12px;font-family:Georgia,serif;font-style:italic;font-size:.94rem;font-weight:400;letter-spacing:0;color:#5c7a6a}
-.nature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
-.nature-grid article{min-width:0;background:linear-gradient(#fffcf4,#f0efd9);border:1px solid #d6d2b7;border-radius:11px;padding:9px;box-shadow:0 2px #d8d3b9}
-.nature-grid article:nth-child(2){background:linear-gradient(#f8faef,#e7efde)}
-.nature-grid svg{display:block;width:100%;height:93px;margin:0 auto 5px;filter:drop-shadow(0 4px 3px #3e655323)}
-.nature-grid small{font-size:.6rem;letter-spacing:.13em;color:#917b55;display:block;font-weight:800}
-.nature-grid strong{display:block;color:#476f56;font:600 clamp(.83rem,1.6vw,1rem)/1.25 Georgia,serif;margin:5px 0}
-.nature-grid p{font-size:.74rem;color:#617565;line-height:1.35;margin:0}
-@media(max-width:600px){.nature-grid svg{height:68px}.nature-grid{gap:5px}.nature-grid article{padding:7px 4px}.nature-grid small{font-size:.53rem}.nature-grid p{font-size:.66rem}}
-@media(max-width:420px){.nature-grid{grid-template-columns:1fr}.nature-grid article{display:flex;text-align:left;align-items:center;gap:12px;padding:9px 12px}.nature-grid svg{width:76px;min-width:76px;height:56px;margin:0}.nature-grid strong{font-size:.91rem}.nature-grid p{font-size:.73rem}.nature-ornament{width:58px;height:92px}}
-@media(prefers-reduced-motion:reduce){.nature-grid svg{filter:none}}
-
-/* Discovery Journal watercolor buttons: styles only; no event handlers or behavior changes */
-main button{
- font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,sans-serif!important;
- font-weight:800!important;letter-spacing:.01em;border-radius:12px!important;
- background:linear-gradient(160deg,#fffdf2,#e9eddc)!important;color:#365c4e!important;
- border:1px solid #91a58a!important;border-bottom:3px solid #728a70!important;
- box-shadow:inset 0 1px #ffffffd9,0 2px 4px #52684a22!important;
- text-shadow:none!important;touch-action:manipulation;
- transition:transform .15s ease,filter .15s ease,box-shadow .15s ease
-}
-main button.green,#quickFive.main-cta,#math-quick button,#correct,#start,#next,#checkTyped{
- background:linear-gradient(155deg,#4f9379,#2c6b51)!important;color:#fffdf3!important;
- border-color:#316c56!important;border-bottom-color:#20513e!important;
- text-shadow:0 1px #245240!important
-}
-main button.yellow,#reveal{
- background:linear-gradient(155deg,#f9e9b1,#e5bd69)!important;color:#4b3c24!important;
- border-color:#bd9a57!important;border-bottom-color:#987844!important
-}
-main button.orange,#incorrect,#clearProgress{
- background:linear-gradient(155deg,#bd7e65,#985541)!important;color:#fffdf4!important;
- border-color:#915b45!important;border-bottom-color:#723e30!important
-}
-main button.gray,#hintBtn,#assisted,#undo,#restart,#homePlay,#homeEdit,#homeReport,#reportBack{
- background:linear-gradient(155deg,#75988a,#4c7268)!important;color:#fffdf3!important;
- border-color:#4b7064!important;border-bottom-color:#34564c!important
-}
-#mathChoices button{
- background:linear-gradient(165deg,#fffdf5,#ebeedc)!important;color:#365d51!important;
- border-color:#9eb496!important;border-bottom-color:#829d7f!important;
- font-family:Georgia,serif!important;font-size:clamp(1.2rem,3vw,1.75rem)!important;
- font-variant-numeric:tabular-nums
-}
-main button:hover:not(:disabled){filter:brightness(1.05);transform:translateY(-1px)}
-main button:active:not(:disabled){filter:brightness(.97);transform:translateY(1px);box-shadow:inset 0 2px 5px #36524140!important}
-main button:focus-visible{outline:3px solid #aa783d!important;outline-offset:3px!important}
-main button:disabled{opacity:.55!important;filter:saturate(.55);cursor:default}
-@media(prefers-reduced-motion:reduce){main button{transition:none!important}main button:hover:not(:disabled),main button:active:not(:disabled){transform:none!important}}
-
-
-/* Discovery journal: pressed leaf tabs and field-note answer cards. The masthead is unchanged. */
-.journal-page{border:2px solid #b7955b;box-shadow:0 7px 0 #b7955b22,0 12px 30px #355b3c18}
-.math-choices button{border:2px solid #67825a;border-radius:8px 22px 8px 22px;background:linear-gradient(135deg,#fffce9,#e1edca);box-shadow:0 4px 0 #66815955;font-family:Georgia,serif;transition:transform .15s}
-.math-choices button:hover:not(:disabled){transform:translateY(-3px)}
-.op-choice:has(input:checked){background:linear-gradient(135deg,#c5dbad,#f1edcc);outline:2px solid #6e895a}
-.question{background:repeating-linear-gradient(0deg,transparent 0 35px,#b99d5a10 35px 36px),linear-gradient(125deg,#fffbee,#f8edce);border:2px solid #bda56e;border-radius:20px;padding:24px 16px}
-#mathHintVoice,#mathAnswerVoice{font-size:14px;margin:8px}
-.question:has(#hint.hidden) #mathHintVoice{display:none}
-.question:has(#next.hidden) #mathAnswerVoice{display:none}
-#game:has(#next.hidden) #mathAnswerVoice{display:none}
-#mathVoice{font-size:15px;border-radius:24px;margin-bottom:10px}
-.labs-voice-status{display:block;font:12px/1.4 system-ui;color:#52684b;min-height:1em}
-
-
-/* Biblical Math in Creation — source-of-truth for each Vite/Docker build.
-   The existing masthead and gameplay styles are deliberately untouched. */
-.creation-note{display:grid;grid-template-columns:minmax(125px,34%) minmax(0,1fr);align-items:center;gap:clamp(10px,2.4vw,22px);position:relative;margin:clamp(18px,3vw,26px) auto;padding:clamp(12px,2.4vw,20px);max-width:760px;background:radial-gradient(ellipse at 7% 0%,#dbe9d2,transparent 60%),linear-gradient(155deg,#f9f2dc,#fffaf0 70%,#e9efde);border:1px solid #c7bb99;border-radius:17px;box-shadow:0 3px 0 #ded4b6,0 10px 24px #50705017;pointer-events:none}
-.creation-note:before{content:"";position:absolute;inset:7px;border:1px dashed #d0c4a0;border-radius:11px;opacity:.72}
-.creation-illustration,.creation-copy{position:relative;min-width:0}
-.creation-illustration svg{width:100%;max-height:135px;display:block;filter:drop-shadow(0 4px 5px #496e5220)}
-.creation-copy{text-align:left}
-.creation-kicker{display:block;font-size:.65rem;letter-spacing:.14em;font-weight:850;color:#907c58;margin-bottom:6px}
-.creation-copy strong{display:block;font:600 clamp(1rem,2.5vw,1.35rem)/1.2 Georgia,serif;color:#326454}
-.creation-copy p{font-size:clamp(.78rem,1.4vw,.92rem);color:#526f63;line-height:1.5;margin:7px 0}
-.creation-copy small{font-size:.75rem;color:#856f4d;font-style:italic;font-weight:650}
-.creation-setup,.creation-report{grid-template-columns:minmax(92px,23%) minmax(0,1fr);padding-block:10px}
-.creation-game{grid-template-columns:minmax(88px,22%) minmax(0,1fr);margin:14px auto 18px;padding:10px 16px;max-width:690px}
-.creation-game .creation-illustration svg{max-height:92px}
-.creation-game .creation-copy p{font-size:.79rem;margin:4px 0}
-.creation-game .creation-copy strong{font-size:1.04rem}
-.creation-game .creation-kicker{font-size:.59rem;margin-bottom:4px}
-#game .question{position:relative;isolation:isolate}
-#game .question:after{content:"❧";position:absolute;bottom:9px;left:14px;color:#799b82;font-size:24px;opacity:.22;pointer-events:none}
-#setup .person,#report .report-item{position:relative}
-#setup .person:before{content:"✽";position:absolute;right:11px;top:9px;color:#89aa86;font-size:20px;opacity:.4;pointer-events:none}
-#report .report-item:before{content:"✧";position:absolute;right:12px;top:9px;color:#b99d6a;font-size:21px;opacity:.5;pointer-events:none}
-@media(max-width:560px){.creation-note{grid-template-columns:minmax(84px,29%) minmax(0,1fr);gap:11px;padding:11px}.creation-illustration svg{max-height:96px}.creation-copy strong{font-size:1rem}.creation-copy p{font-size:.75rem;margin:5px 0}.creation-copy small{font-size:.67rem}.creation-kicker{font-size:.58rem;letter-spacing:.1em}}
-@media(max-width:345px){.creation-note{grid-template-columns:1fr}.creation-illustration svg{max-height:85px}.creation-copy{text-align:center}}
-
-/* Discovery Journal visual release. Original masthead is untouched. */
-:root{--expedition-ink:#214e4a;--expedition-green:#3d7264;--expedition-copper:#ac7450;--expedition-gold:#dcaf5f;--expedition-blue:#456f80}
-html{background:#ecebdc}
-body{color:var(--expedition-ink);background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%221240%22%20height%3D%221000%22%20viewBox%3D%220%200%201240%201000%22%3E%0A%3Cg%20fill%3D%22none%22%20stroke%3D%22%23668a77%22%20opacity%3D%22.28%22%20stroke-width%3D%222%22%3E%0A%3Cpath%20d%3D%22M55%2078L150%2065l-2%2015-95%2013z%22%2F%3E%3Cpath%20d%3D%22M66%2075v12M83%2071v9M100%2071v12M118%2069v9M136%2067v12%22%2F%3E%0A%3Cpath%20d%3D%22M970%20143a75%2075%200%200%201%20150%200z%22%2F%3E%3Cpath%20d%3D%22M991%20137l22-28M1039%20143v-75M1090%20143l-20-30%22%2F%3E%3Cpath%20d%3D%22M995%20143h110%22%2F%3E%0A%3Cpath%20d%3D%22M87%20310L144%20207l55%20103zM144%20207v103M104%20310l41-75%22%2F%3E%0A%3Cpath%20d%3D%22M1023%20309h96v65h-96zM1030%20321h82M1030%20335h82M1030%20349h82M1030%20363h82%22%2F%3E%0A%3Cpath%20d%3D%22M85%20778q52-85%20123-32M85%20778q60-18%2095%2045M85%20778q-4-54-35-72%22%2F%3E%0A%3Cpath%20d%3D%22M1180%20765a49%2049%200%201%201-98%200a49%2049%200%201%201%2098%200zM1180%20765h-98M1131%20716v98%22%2F%3E%0A%3Cpath%20d%3D%22M1045%20566v58M1015%20595h60%22%2F%3E%0A%3C%2Fg%3E%0A%3Cg%20fill%3D%22%2363867c%22%20opacity%3D%22.32%22%20font-family%3D%22Georgia%2Cserif%22%20font-size%3D%2244%22%3E%0A%3Ctext%20x%3D%2237%22%20y%3D%22190%22%3E%2B%20%E2%88%92%20%C3%97%20%C3%B7%3C%2Ftext%3E%3Ctext%20x%3D%221000%22%20y%3D%22515%22%3E7%20%C3%97%206%20%3D%2042%3C%2Ftext%3E%3Ctext%20x%3D%2248%22%20y%3D%22575%22%3Ea%C2%B2%20%2B%20b%C2%B2%20%3D%20c%C2%B2%3C%2Ftext%3E%3Ctext%20x%3D%221012%22%20y%3D%22900%22%3EA%20%3D%20l%20%C3%97%20w%3C%2Ftext%3E%0A%3C%2Fg%3E%0A%3Cg%20stroke%3D%22%2377999b%22%20stroke-width%3D%221%22%20opacity%3D%22.15%22%3E%0A%3Cpath%20d%3D%22M12%20410h190M12%20430h190M12%20450h190M12%20470h190M36%20394v94M57%20394v94M78%20394v94M99%20394v94M120%20394v94M141%20394v94M162%20394v94%22%2F%3E%0A%3Cpath%20d%3D%22M990%2020h220M990%2040h220M990%2060h220M990%2080h220M1020%205v92M1045%205v92M1070%205v92M1095%205v92M1120%205v92M1145%205v92M1170%205v92%22%2F%3E%0A%3C%2Fg%3E%3Cg%20stroke%3D%22%23bd9763%22%20fill%3D%22none%22%20opacity%3D%22.28%22%3E%3Cpath%20d%3D%22M90%20894q32-54%200-100q-27-21-32-4q-3%2018%2031%2028q-40-13-50%2010q9%2021%2053%2020q-43%202-43%2026q16%2017%2042%202%22%2F%3E%3Cpath%20d%3D%22M1121%20644q-31-51%200-100q25-17%2030%200q2%2018-29%2028q39-7%2047%2012q-5%2019-45%2022%22%2F%3E%3C%2Fg%3E%0A%3C%2Fsvg%3E"),radial-gradient(ellipse at 8% 18%,#e2eadf 0,transparent 40%),radial-gradient(ellipse at 95% 68%,#dfe9df 0,transparent 38%),linear-gradient(180deg,#f5f1e4,#f5eddc 66%,#e4eddd);background-size:min(100%,1240px) auto,auto,auto,auto;background-position:center 200px,center,center,center;background-repeat:repeat-y,no-repeat,no-repeat,no-repeat}
-main{max-width:1130px}
-.journal-page{background:radial-gradient(circle at 50% 10%,#fffdf6 0%,#fbf4e5 100%)!important;border:2px solid #bca57c!important;border-radius:23px!important;box-shadow:0 4px 0 #d8c2a1,0 12px 24px #4c674e2a!important}
-#home{max-width:900px;margin:0 auto 21px;padding:clamp(18px,3vw,30px)}
-#home:before{content:"";display:block;position:absolute;inset:6px;border:1px solid #e7d1a4;border-radius:17px;pointer-events:none}
-#home .labs-quick h2{color:#24534b!important;font:700 clamp(1.5rem,3.8vw,2.15rem)/1.15 Georgia,serif!important}
-#home .labs-quick h2:before,#home .labs-quick h2:after{content:"✦";font-size:.65em;color:#c3a05f;margin:0 .33em}
-#home .labs-quick{border-radius:18px}
-#home .home-players>div{background:linear-gradient(105deg,#eaf0e5,#fff9e8)!important;border:1px solid #95b49a!important;border-left:5px solid #658f74!important;box-shadow:0 2px 0 #d0d7c6!important}
-#home .home-players strong{font-family:Georgia,serif;font-size:1.07rem}
-#homeOptions{border-radius:12px}
-#home .labs-quick button,#home button,.adventure-field-guide button,#gradeActions button,#game button,#setup button,#report button{border-radius:11px!important;border:1px solid #6a7b69!important;border-bottom:4px solid #4e6855!important;font-weight:800!important;box-shadow:inset 0 1px #ffffff60,0 3px 0 #715f4d1d!important}
-#home .labs-quick button,.green,#correct,#next,#start{background:linear-gradient(155deg,#4e8871,#2e6855)!important;border-color:#316e57!important;border-bottom-color:#1d503e!important;color:#fffaf1!important}
-#home button.gray,#game button.gray,#setup button.gray,#report button.gray{background:linear-gradient(160deg,#668b91,#406876)!important;border-color:#416873!important;border-bottom-color:#32545c!important;color:#fffaf4!important}
-#home button.yellow,#game button.yellow,#setup button.yellow{background:linear-gradient(145deg,#f4d991,#dbae55)!important;border-color:#b78b4e!important;border-bottom-color:#956f3c!important;color:#4c3a27!important}
-#home button.orange,#game button.orange,#setup button.orange{background:linear-gradient(145deg,#bb8465,#a65c46)!important;border-color:#995b43!important;border-bottom-color:#774534!important;color:#fff8ed!important}
-#home button:hover:not(:disabled),#game button:hover:not(:disabled),#setup button:hover:not(:disabled),#report button:hover:not(:disabled){filter:brightness(1.065)}
-#home button:focus-visible,#game button:focus-visible,#setup button:focus-visible,#report button:focus-visible{outline:3px solid #aa743a!important;outline-offset:3px}
-#home.hidden+.adventure-field-guide{display:none!important}
-.adventure-field-guide{max-width:900px;margin:0 auto 27px;padding:18px 25px;display:grid;grid-template-columns:36% 1fr;gap:clamp(14px,3vw,30px);align-items:center;position:relative;background:linear-gradient(165deg,#fcf4df,#fff9ef 52%,#f2e8ce);border:2px solid #bca27a;border-left:9px double #a3774d;border-radius:16px;box-shadow:0 5px 0 #d3bc94,0 13px 24px #4d5c3e20}
-.adventure-field-guide:before{content:"";position:absolute;inset:7px;border:1px dashed #d7be8d;border-radius:9px;pointer-events:none}
-.guide-art{position:relative;z-index:1;display:grid;place-items:center}
-.guide-art svg{width:min(100%,280px);height:auto;filter:drop-shadow(0 4px 4px #76634821)}
-.guide-steps{position:relative;z-index:1}
-.guide-steps h2{font:700 clamp(1.25rem,3vw,1.85rem)/1.15 Georgia,serif!important;color:#254f45!important;border-bottom:2px solid #af9b6d;padding:0 0 12px;margin:0 0 15px}
-.guide-steps ol{padding:0;margin:0;list-style:none;counter-reset:guide}
-.guide-steps li{counter-increment:guide;display:grid;grid-template-columns:30px 1fr;gap:11px;align-items:start;margin:11px 0;font-size:clamp(.82rem,1.5vw,.99rem);line-height:1.45;color:#3c5047}
-.guide-steps li:before{content:counter(guide);display:grid;place-items:center;background:#b9ba79;color:#fffdf2;font-family:Georgia,serif;font-weight:bold;border-radius:50%;width:28px;height:28px;border:1px solid #9a9b62}
-.guide-steps li:nth-child(2n):before{background:#d5aa5d;border-color:#ba9552}
-#game{max-width:1060px;margin:0 auto 22px;min-height:370px}
-#game>.journal-eyebrow{display:inline-block;border:0;color:#315f54;background:linear-gradient(170deg,#e8dbb6,#faf0d5);font:700 clamp(1.3rem,3.4vw,2.05rem)/1.2 Georgia,serif!important;letter-spacing:.02em!important;padding:9px 30px;border-radius:8px 8px 18px 18px;box-shadow:0 3px 0 #d8c09e;margin-bottom:18px}
-#game>.journal-eyebrow:before{content:"⛰  ";color:#538275}
-.expedition-layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(230px,1fr);align-items:stretch;gap:16px;margin:14px 0}
-.expedition-main{position:relative;min-width:0;padding:15px 13px 13px;border:2px solid #9bb69b;border-radius:20px;background:linear-gradient(180deg,#acd6df,#e5ece0 31%,#c8d9c0 78%,#86a99a);box-shadow:0 4px 0 #adc0a4;overflow:hidden}
-.expedition-main:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 35% 9%,#ffffff99,transparent 45%),linear-gradient(155deg,transparent 60%,#537f7042 61% 64%,transparent 65%),linear-gradient(22deg,#467d7140 11%,transparent 12%);opacity:.75}
-.expedition-ribbon{position:relative;z-index:1;text-align:center;color:#fffdf0;background:linear-gradient(150deg,#618d74,#386e5b);border:1px solid #326b56;border-radius:12px 12px 25px 25px;box-shadow:0 3px 0 #325d4d;padding:9px 14px;font:700 clamp(1.1rem,2.2vw,1.6rem)/1.2 Georgia,serif;max-width:85%;margin:-8px auto 13px}
-#game .expedition-main .question{position:relative;z-index:1;max-width:none;margin:0;min-height:245px;padding:17px 14px;background:radial-gradient(ellipse at center,#fffbef,#f5e8cb)!important;border:2px solid #bda076!important;border-radius:15px!important;box-shadow:0 4px 0 #ceb48c!important}
-#game .expedition-main .question:before{display:none}
-#game .expedition-main .math{font:700 clamp(2.6rem,7vw,5.3rem)/1.2 Georgia,serif!important;letter-spacing:-.035em!important;color:#174c50!important;margin:13px auto}
-#game .expedition-main .math.story-question{font-size:clamp(1.25rem,2.6vw,1.8rem)!important;line-height:1.4!important;letter-spacing:0!important}
-.expedition-layout .creation-game{display:grid;grid-template-columns:1fr;align-content:center;justify-items:center;gap:2px;max-width:none;margin:0;padding:16px 14px;border-radius:15px;background:linear-gradient(175deg,#fff8e7,#efe7cd);border:2px solid #c3aa7f;box-shadow:0 4px 0 #d4bd95;pointer-events:none}
-.expedition-layout .creation-game .creation-illustration{order:2}
-.expedition-layout .creation-game .creation-illustration svg{max-height:100px}
-.expedition-layout .creation-game .creation-copy{text-align:center}
-.expedition-layout .creation-game .creation-copy strong{font:700 clamp(1.03rem,2vw,1.35rem)/1.25 Georgia,serif}
-.expedition-layout .creation-game .creation-copy small{font-size:.72rem}
-.expedition-layout .creation-game .creation-kicker{font-size:.72rem;color:#8c6d46;letter-spacing:.08em}
-#gradeActions{margin:20px auto!important;max-width:840px!important}
-#gradeActions button{flex:1 1 150px;min-height:56px;font-size:clamp(.88rem,1.4vw,1.05rem)!important}
-#game .scoreboard{margin-bottom:15px}
-#game .score{border-radius:11px!important}
-#game #mathChoices button{background:linear-gradient(145deg,#fbf4df,#e1e8d4)!important;color:#26574d!important;border:1px solid #a9b59a!important}
-#game #typedAnswer{border:2px solid #aab99c;background:#fffdf4}
-#report .report-item,#setup .person{border:1px solid #b1c3a8!important;border-top:4px solid #9aaa86!important;border-radius:13px;box-shadow:0 3px #dfdfc7}
-#setup .creation-setup,#report .creation-report{max-width:720px}
-@media(max-width:820px){.expedition-layout{grid-template-columns:minmax(0,1.5fr) minmax(205px,1fr)}.adventure-field-guide{grid-template-columns:29% 1fr}}
-@media(max-width:650px){body{background-size:930px auto,auto,auto,auto;background-position:center 180px,center,center,center}.adventure-field-guide{grid-template-columns:1fr;padding:17px}.guide-art svg{max-height:115px}.expedition-layout{grid-template-columns:1fr}.expedition-layout .creation-game{grid-template-columns:minmax(85px,25%) 1fr;padding:10px}.expedition-layout .creation-game .creation-copy{text-align:left}.expedition-layout .creation-game .creation-illustration{order:0}.expedition-layout .creation-game .creation-illustration svg{max-height:88px}#game .expedition-main .math{font-size:clamp(2.6rem,10vw,4.6rem)!important}}
-@media(max-width:390px){#game>.journal-eyebrow{padding:8px 14px}.guide-steps li{font-size:.85rem}.adventure-field-guide{padding:14px}.expedition-layout .creation-game{grid-template-columns:1fr;text-align:center}.expedition-layout .creation-game .creation-copy{text-align:center}}
-@media(prefers-reduced-motion:reduce){#home button,#game button,#setup button,#report button{transition:none!important}}
-
-
-/* Discovery Journal final visual integration: original illustrated assets.
-   Applies ONLY to styling. Existing masthead art, JS, controls, events unchanged. */
-body{background:#ebeee2 url('./art/ambient-math-watercolor.svg') center top / min(100%,1260px) auto repeat-y!important}
-main{isolation:isolate}
-header.journal-banner{position:relative;z-index:2} /* no size, asset or art changes */
-#home.journal-page{position:relative;z-index:1;background:linear-gradient(145deg,#fffaf0e8,#fbf0dbee)!important;border:3px double #be9865!important;border-radius:22px!important;box-shadow:0 8px 0 #ddcfaa,0 20px 35px #455c4522!important}
-#home.journal-page::after{content:"";position:absolute;inset:9px;border:1px dashed #cbaa7a;opacity:.42;border-radius:13px;pointer-events:none}
-#home .labs-quick{position:relative;z-index:1}
-#home .labs-quick h2{font:italic 700 clamp(1.65rem,4vw,2.45rem)/1.2 Georgia,serif!important;color:#184d4c!important;margin-bottom:15px}
-#home .home-players>div{position:relative;z-index:1;background:linear-gradient(160deg,#f5f5e9,#e6ecd6)!important;border:2px solid #9ab19a!important;border-radius:12px!important;padding:15px 20px!important}
-#home .home-players strong{font-family:Georgia,serif!important;font-size:1.1rem}
-#home #math-quick,#home .home-secondary,#home #resumeInfo,#home #homeOptions{position:relative;z-index:1}
-#home button,#gradeActions button,#game button,#setup button,#report button{font-family:Georgia,ui-serif,serif!important;font-size:clamp(.91rem,1.5vw,1.08rem)!important;font-weight:750!important;border-radius:13px!important;border:2px solid #8d987c!important;border-bottom:5px solid #5c785d!important;box-shadow:inset 0 2px #ffffff78,0 3px 0 #66704e18!important;text-shadow:none;transition:filter .15s,transform .15s}
-#home button:focus-visible,#game button:focus-visible,#setup button:focus-visible,#report button:focus-visible{outline:3px solid #b47a35!important;outline-offset:3px}
-#home button.green,#home #quickFive,.green,#correct,#start,#next{background:linear-gradient(155deg,#4e8c76,#2e745e)!important;color:#fff8ee!important;border-color:#3b795f!important;border-bottom-color:#20513f!important}
-#home button.yellow,#game button.yellow,#reveal{background:linear-gradient(160deg,#f9e6a4,#e8b95b)!important;color:#4c391b!important;border-color:#c39745!important;border-bottom-color:#98712e!important}
-#home button.gray,#game button.gray,#setup button.gray,#report button.gray,#assisted{background:linear-gradient(155deg,#628ca0,#416e81)!important;color:#fef9ed!important;border-color:#4c788d!important;border-bottom-color:#2b5668!important}
-#home button.orange,#game button.orange,#setup button.orange,#incorrect{background:linear-gradient(155deg,#c38863,#a65c43)!important;color:#fffaf2!important;border-color:#a66648!important;border-bottom-color:#81472e!important}
-#gradeActions button{min-height:62px!important}
-#home .home-secondary button,#gradeActions button{min-width:0}
-.adventure-field-guide{position:relative;background:radial-gradient(ellipse at top left,#fffaf0,#faecd2 80%)!important;border:3px solid #bf9d72!important;border-left:10px double #ae8651!important;border-radius:19px!important;box-shadow:0 7px 0 #d7c09b,0 16px 28px #5063482c!important}
-.adventure-field-guide::after{content:"";position:absolute;bottom:-14px;left:0;right:0;height:23px;pointer-events:none;background:repeating-linear-gradient(90deg,#739b791b 0 14px,#bbd3b21b 14px 23px);border-radius:0 0 20px 20px}
-.guide-steps h2{color:#234f48!important;font:italic 700 clamp(1.4rem,3vw,1.9rem)/1.2 Georgia,serif!important}
-.guide-art svg{filter:drop-shadow(0 6px 7px #6b65472b)}
-#game.journal-page{position:relative;background:linear-gradient(#fffaeced,#f6ead7ee)!important;border:3px solid #bfa078!important;border-radius:24px!important;box-shadow:0 7px 0 #d6c09a,0 18px 32px #47625024!important}
-#game .expedition-main{background:linear-gradient(180deg,#93cadd7d,#bad9cb20) , url('./art/practice-valley-watercolor.svg') center / cover no-repeat!important;border:3px solid #9dad97!important;border-radius:23px!important;box-shadow:0 5px 0 #c7cfaf,0 8px 19px #3f645226!important;min-height:335px;padding:18px 16px}
-#game .expedition-main::before{display:none}
-#game .expedition-ribbon{font:italic 700 clamp(1.18rem,2.6vw,1.7rem)/1.2 Georgia,serif!important;padding:10px 15px!important;background:linear-gradient(155deg,#5b9277,#316952)!important;box-shadow:0 4px 0 #265b46!important;border:2px solid #3b7258!important;border-radius:10px 10px 18px 18px!important}
-#game .expedition-main .question{background:radial-gradient(ellipse at center,#fffaf0f8,#f9edccf6)!important;border:3px solid #c4a17b!important;box-shadow:0 5px 0 #d7bd92, inset 0 0 0 7px #fffcf178!important;min-height:230px}
-#game .expedition-main .math{color:#174b4d!important;text-shadow:0 2px 0 #fff9e5}
-#game .expedition-layout .creation-note.creation-game{background:linear-gradient(160deg,#fff7e7ee,#f3e5c6ef)!important;border:3px solid #c4a27d!important;border-radius:17px!important;box-shadow:0 6px 0 #d9be96,0 9px 24px #586c5522!important;min-height:280px}
-#game .expedition-layout .creation-game .creation-copy strong{color:#214b43}
-#game .expedition-layout .creation-game .creation-copy p{font-family:Georgia,serif;font-style:italic;font-size:clamp(.85rem,1.4vw,1rem);line-height:1.5}
-#game .expedition-layout .creation-game .creation-illustration svg{max-height:130px}
-#game .expedition-layout .creation-game::before{border-color:#d6ba89}
-#game #mathChoices button{font-family:Georgia,serif!important;background:linear-gradient(#fff9e8,#e9efd8)!important;border:2px solid #91ae92!important;border-bottom:4px solid #719776!important;color:#244e48!important;font-size:clamp(1.2rem,3vw,1.65rem)!important}
-#setup.journal-page,#report.journal-page{background:linear-gradient(170deg,#fff9ebee,#f1ead8ed)!important;border:2px solid #bca179!important}
-@media(max-width:680px){body{background-size:950px auto!important;background-position:center top!important}#game .expedition-main{min-height:290px}#game .expedition-layout .creation-note.creation-game{min-height:unset}.adventure-field-guide{padding:13px!important}}
-@media(prefers-reduced-motion:reduce){#home button,#game button,#setup button,#report button{transition:none!important}}
-
-
-/* Landing-page watercolor illustration release — 2026-11-19.
-   Narrow home/guide styles: no game engine or masthead changes. */
-#home.journal-page{position:relative;max-width:1000px!important;padding:clamp(20px,3.3vw,38px)!important;border:3px solid #af905b!important;border-radius:26px!important;background:
-radial-gradient(ellipse at 50% 0%,#fff8eacb 0,#fffaf2 68%),repeating-linear-gradient(4deg,#c9b28c13 0 2px,transparent 2px 8px)!important;box-shadow:0 6px 0 #c7ab78,0 15px 30px #314e4130!important}
-#home.journal-page::before{content:"";position:absolute;inset:9px;border:2px solid #e4c590;border-radius:19px;opacity:.7;pointer-events:none}
-#home.journal-page::after{content:"";position:absolute;inset:16px;border:1px dashed #bda174;border-radius:15px;opacity:.65;pointer-events:none}
-#home .landing-title{position:relative;z-index:1;display:grid;justify-items:center;gap:8px;text-align:center;margin:0 auto 25px;padding:0 14px 23px;border-bottom:1px solid #ba98655f}
-#home .landing-title-mountain{display:grid;place-items:center;width:94px;height:38px;border-radius:40% 40% 10% 10%;font-size:28px;color:#3e7564;text-shadow:0 2px #fff9ea;background:radial-gradient(ellipse,#d5e0ce80,transparent);margin-top:-8px}
-#home .landing-title h2{font:italic 700 clamp(1.7rem,4.2vw,3rem)/1.15 Georgia,serif!important;color:#174c48!important;letter-spacing:-.025em;margin:0!important;text-shadow:0 2px #f9ebce}
-#home .landing-title h2:before,#home .landing-title h2:after{content:"❧";color:#708e68;font:normal 27px Georgia,serif;display:inline-block;vertical-align:middle;margin:0 .35em}
-#home .landing-title h2:after{transform:scaleX(-1)}
-#home .landing-title p{font:italic clamp(.91rem,1.8vw,1.18rem)/1.5 Georgia,serif;color:#4b6155;margin:3px 0 0}
-#home #math-players,#home #homePlayers,#home #math-quick,#home .home-secondary,#home #resumeInfo,#home #homeOptions{position:relative;z-index:1}
-#home #math-players{margin:7px auto 18px;max-width:820px}
-#home #homePlayers.home-players{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px!important;margin:13px auto 16px!important;max-width:775px}
-#home #homePlayers>div{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:5px!important;min-height:125px;padding:47px 13px 13px!important;text-align:center;position:relative;border:2px solid #a88e61!important;border-radius:14px!important;box-shadow:0 4px 0 #c8a76b,0 8px 15px #7d6a4530!important;background:linear-gradient(160deg,#ebf0df,#f6eac6 65%,#d7e3d3)!important}
-#home #homePlayers>div:before{content:"";position:absolute;top:10px;left:50%;transform:translateX(-50%);width:63px;height:45px;border-radius:50% 50% 37% 37%;border:2px solid #b98f4c;background:
-linear-gradient(138deg,transparent 40%,#ecf0d7 40% 53%,transparent 54%) center 14px/58px 23px no-repeat,
-linear-gradient(35deg,transparent 36%,#6d998f 37% 63%,transparent 64%) center 14px/58px 24px no-repeat,
-linear-gradient(160deg,#91c3d0,#d7e2ba 66%,#62916d);box-shadow:0 1px 0 3px #e7cf98,0 4px 8px #5f68482a}
-#home #homePlayers strong{font:700 clamp(1.05rem,2.3vw,1.4rem)/1.2 Georgia,serif!important;color:#2e4e44}
-#home #homePlayers small{font-size:.8rem;color:#4d6656;max-width:220px;line-height:1.35;text-align:center}
-#home #math-quick{margin:16px auto!important;max-width:820px}
-#home #math-quick .labs-quick{background:transparent!important;box-shadow:none!important;border:0!important;padding:8px!important}
-#home #math-quick .labs-quick h2{font:700 1.08rem Georgia,serif!important;color:#386455!important}
-#home .home-secondary{display:flex;justify-content:center!important;gap:12px!important;flex-wrap:wrap;margin:13px auto 17px!important;max-width:840px}
-#home .home-secondary button{min-height:57px;padding:13px 23px!important;flex:1 1 155px;max-width:270px;font:700 clamp(.9rem,1.55vw,1.05rem) Georgia,serif!important;border:2px solid #547c6f!important;border-bottom:5px solid #346251!important;border-radius:15px!important}
-#home #homePlay{flex:2 1 210px;max-width:360px;background:linear-gradient(155deg,#45836c,#2b614b)!important;border-color:#356d54!important;border-bottom-color:#234b39!important;color:#fffbf0!important;font-size:clamp(1.05rem,2vw,1.3rem)!important}
-#home #homeEdit{background:linear-gradient(155deg,#edd7a0,#d7b067)!important;border-color:#bb945a!important;border-bottom-color:#936c3c!important;color:#3c3f2e!important}
-#home #homeReport{background:linear-gradient(155deg,#66899a,#386b80)!important;border-color:#497285!important;border-bottom-color:#2b5369!important;color:#fff6e8!important}
-#home #resumeInfo{font-size:.83rem;max-width:720px;margin:10px auto 12px;color:#5b6c5e}
-#home #homeOptions{margin:13px auto 0;max-width:780px;padding:5px 10px;border-top:1px solid #c9b48e}
-#home #homeOptions summary{color:#2d6359!important;font:700 .95rem Georgia,serif;padding:10px!important}
-#home #homeOptions[open]{padding-bottom:12px;background:#fffdf489}
-.adventure-field-guide{max-width:1000px!important;min-height:260px;grid-template-columns:minmax(180px,38%) minmax(0,1fr)!important;align-items:center!important;gap:24px!important;padding:22px 30px!important;border:3px solid #bd975d!important;border-left:12px double #a57842!important;border-radius:24px!important;background:
-radial-gradient(ellipse at 44% 0%,#fff7e7,#f7e5c5 85%)!important;box-shadow:0 7px 0 #d6b989,0 18px 27px #4d63472a!important}
-.adventure-field-guide .guide-art{min-width:0;align-self:stretch;display:grid;place-items:center}
-.adventure-field-guide .guide-art img{display:block;max-width:100%;width:100%;height:auto;max-height:258px;object-fit:contain;filter:drop-shadow(0 6px 7px #75603f3d)}
-.adventure-field-guide .guide-steps h2{font:italic 700 clamp(1.4rem,3vw,2.05rem)/1.2 Georgia,serif!important;color:#23483d!important;border-bottom:2px solid #b5935c!important;margin-bottom:17px}
-.adventure-field-guide .guide-steps ol{display:grid;gap:11px;counter-reset:guide;list-style:none}
-.adventure-field-guide .guide-steps li{font:italic clamp(.9rem,1.7vw,1.12rem)/1.4 Georgia,serif!important;margin:0!important;color:#324d44}
-.adventure-field-guide .guide-steps li::before{background:linear-gradient(#cf9b66,#a86838)!important;border:2px solid #915930!important;color:#fff8e5!important;box-shadow:0 2px 0 #e6c99e}
-#home.hidden+.adventure-field-guide{display:none!important}
-@media(max-width:720px){#home .landing-title h2:before,#home .landing-title h2:after{display:none}.adventure-field-guide{grid-template-columns:1fr!important;gap:8px!important;padding:17px 20px!important}.adventure-field-guide .guide-art img{max-height:180px}.adventure-field-guide .guide-steps h2{text-align:center}#home #homePlayers.home-players{grid-template-columns:repeat(2,minmax(0,1fr))}#home .home-secondary button{max-width:none}}
-@media(max-width:400px){#home #homePlayers.home-players{grid-template-columns:1fr 1fr;gap:8px!important}#home #homePlayers>div{padding:44px 6px 10px!important;min-height:115px}#home .landing-title{padding-inline:0}#home .landing-title h2{font-size:1.65rem!important}}
-
-
-
-/* Geo Detectives quality benchmark, Math Fact Adventure identity.
-   Authored responsive layout, no painted UI mockup or absolute button hotspots.
-   Preserve the original journal-1.webp masthead and all engine-owned controls. */
-:root{--exp-paper:#fff5df;--exp-ink:#1f4c54;--exp-gold:#c5a061;--exp-border:#b69252}
-body{background:#dcebcf url('./art/ambient-math-watercolor.svg') center top/cover fixed no-repeat!important;color:var(--exp-ink)}
-body:has(.approved-math-landing:not(:has(#home.hidden))){background:#dcebcf url('./art/ambient-math-watercolor.svg') center top/cover fixed no-repeat!important}
-main{width:min(1060px,100%);max-width:1060px!important;padding:clamp(12px,2.3vw,24px) clamp(10px,2vw,22px) 36px}
-main>header.journal-banner{margin:0 auto 16px!important;padding:0!important;border-radius:17px!important;overflow:hidden;box-shadow:0 5px 0 #6f9b8540,0 10px 22px #233d4933}
-main>header.journal-banner img{width:100%;display:block;height:auto}
-.approved-math-landing{position:relative!important;inset:auto!important;transform:none!important;isolation:auto;display:grid!important;gap:18px;width:100%!important;max-width:100%!important;min-height:0!important;aspect-ratio:auto!important;margin:0 auto 24px!important;padding:0!important;background:none!important;border:0!important;box-shadow:none!important;overflow:visible}
+/* Math Fact Adventure — The Discovery Journal
+   Single-source visual system. Original HTML masthead asset is immutable.
+   Geo Detectives supplies the watercolor backdrop; all interactive controls
+   remain real HTML, not painted hotspots. */
+:root{--ink:#194b62;--leaf:#346450;--navy:#1d4b6b;--gold:#be9149;--edge:#af864a;--paper:#fff5dc;--paper-deep:#eed6a7;--shadow:#6a583a75;font-synthesis:none}
+html{scroll-behavior:smooth}body{color:var(--ink)!important;background:#afcfb8 url('../geo/art/expedition-page-background.webp') center top/cover fixed no-repeat!important}
+body:before{content:"";position:fixed;inset:0;background:url('./art/math-instruments-overlay.svg') center top/cover no-repeat;opacity:.64;pointer-events:none;z-index:0}
+main{position:relative;z-index:1;width:min(1080px,100%)!important;max-width:1080px!important;margin:0 auto;padding:clamp(10px,2.3vw,23px) clamp(10px,2vw,22px) 36px}
+main>header.journal-banner{padding:0!important;margin:0 auto 16px!important;line-height:0;overflow:hidden;border:2px solid #d7bd89!important;border-radius:17px!important;background:#d4e7d3;box-shadow:0 4px 0 #a39163,0 11px 25px #1d40495c!important}
+main>header.journal-banner img{display:block;width:100%;height:auto;aspect-ratio:3/1;object-fit:contain}
+button,select,input{font:inherit}button{transition:transform .15s ease,filter .15s ease}button:not(:disabled):hover{transform:translateY(-1px);filter:brightness(1.04)}button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid #bf8f36!important;outline-offset:3px}
+button:disabled{opacity:.52;cursor:default;transform:none!important}
+.hidden{display:none!important}
+.journal-page,.adventure-field-guide{position:relative;isolation:isolate;background:radial-gradient(ellipse at 50% 10%,#fff9ecf9,#f7e9caf7 77%),repeating-linear-gradient(0deg,#9e82500a 0 2px,transparent 2px 10px)!important;border:3px solid var(--edge)!important;border-radius:20px!important;box-shadow:0 5px 0 #896f459e,0 13px 30px #2141424a!important;overflow:visible}
+.journal-page:before,.adventure-field-guide:before{content:"";position:absolute;inset:9px;border:1px solid #c9aa74;border-radius:13px;opacity:.7;pointer-events:none}
+.journal-page:after{display:none!important}
+.journal-page h2,.adventure-field-guide h2{font-family:Georgia,serif!important;color:var(--ink)!important}
+.approved-math-landing{position:relative!important;inset:auto!important;transform:none!important;display:grid!important;gap:17px;isolation:auto;width:100%!important;max-width:100%!important;min-height:0!important;aspect-ratio:auto!important;margin:0 0 25px!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;overflow:visible!important}
 .approved-math-landing:before,.approved-math-landing:after{display:none!important}
 main:has(#home.hidden)>.approved-math-landing{display:none!important}
-.approved-math-landing #home.journal-page{position:relative!important;inset:auto!important;display:block!important;width:100%!important;height:auto!important;min-height:0!important;max-width:none!important;overflow:visible!important;margin:0!important;padding:clamp(20px,3vw,36px)!important;border:2px solid var(--exp-border)!important;border-top:5px solid #c3a16b!important;border-radius:21px!important;background:linear-gradient(150deg,#fff8e8f5,#f5e4c8f4),repeating-linear-gradient(0deg,#e8d8bb10 0 3px,transparent 3px 12px)!important;box-shadow:0 5px 0 #97784b60,0 14px 28px #263e4233!important;text-align:center}
-.approved-math-landing #home:before{content:"";display:block!important;position:absolute;inset:8px;border:1px solid #d8bc8b;border-radius:14px;pointer-events:none;opacity:.75}
-.approved-math-landing #home:after{display:none!important}
-.approved-math-landing #home .landing-title{position:relative!important;inset:auto!important;z-index:auto!important;display:grid!important;justify-items:center!important;gap:5px!important;width:100%!important;height:auto!important;max-width:none!important;margin:0 auto 21px!important;padding:0 0 16px!important;overflow:visible!important;clip:auto!important;white-space:normal!important;background:transparent!important;border:0!important;border-bottom:1px dashed #c7a87a!important;text-align:center!important}
-.approved-math-landing #home .landing-title .field-label{display:inline-block;font:800 .67rem/1.5 Georgia,serif;letter-spacing:.15em;color:#8b7049;padding:5px 15px;border:1px solid #d1b57c;border-radius:20px;background:#ffedc9}
-.approved-math-landing #home .landing-title h2{display:block!important;font:italic 700 clamp(1.6rem,3.7vw,2.55rem)/1.16 Georgia,serif!important;letter-spacing:-.02em!important;color:#174d58!important;text-shadow:none!important;margin:7px 0 2px!important}
+.approved-math-landing #home.journal-page{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;max-width:none!important;min-height:0!important;margin:0!important;padding:clamp(18px,3vw,30px)!important;text-align:center;overflow:visible!important}
+.approved-math-landing #home .landing-title{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;display:grid!important;place-items:center!important;gap:4px!important;margin:0 auto 17px!important;padding:0 0 16px!important;background:transparent!important;border:0!important;border-bottom:1px dashed #c4a16b!important;clip:auto!important;overflow:visible!important;white-space:normal!important}
+.approved-math-landing #home .landing-title .field-label{display:block;padding:5px 14px;border:1px solid #d0ad6e;border-radius:22px;background:#f9ebc4;color:#906e3a;font:700 .72rem Georgia,serif;letter-spacing:.09em}
+.approved-math-landing #home .landing-title h2{display:block!important;margin:7px auto 2px!important;font:italic 700 clamp(1.65rem,3.6vw,2.5rem)/1.1 Georgia,serif!important;letter-spacing:-.025em;color:#174d61!important;text-shadow:0 2px #fff7e4}
 .approved-math-landing #home .landing-title h2:before,.approved-math-landing #home .landing-title h2:after{display:none!important}
-.approved-math-landing #home .landing-title p{display:block!important;font:italic clamp(.86rem,1.5vw,1rem)/1.5 Georgia,serif;color:#647363;margin:0!important}
-.approved-math-landing #home #math-players{position:relative;width:100%!important;max-width:none!important;margin:0 auto 16px!important}
-.approved-math-landing #home #math-players fieldset{display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-items:center!important;gap:12px!important;padding:12px!important;margin:0!important;border:1px solid #d6be8f!important;border-radius:15px;background:#fff9edbd!important}
-.approved-math-landing #home #math-players legend{position:static!important;width:auto!important;height:auto!important;clip:auto!important;overflow:visible!important;margin:0 auto!important;padding:0 10px!important;white-space:normal!important;color:#335c59!important;font:italic 700 .94rem Georgia,serif}
-.approved-math-landing #home .labs-player-choices{display:flex!important;flex-wrap:wrap!important;align-items:center;justify-content:center;gap:11px!important;max-width:100%!important;min-width:0!important}
-.approved-math-landing #home .labs-player-choices label{position:relative!important;inset:auto!important;flex-direction:column!important;align-items:center!important;justify-content:flex-end!important;width:clamp(105px,13vw,145px)!important;height:142px!important;min-width:0!important;padding:0 5px 7px!important;border:2px solid #ad915f!important;border-radius:14px!important;background:#f0e3c8!important;box-shadow:0 3px 0 #b4a178!important;overflow:hidden!important}
-.approved-math-landing #home .labs-player-choices label::before{inset:2px 2px 28px!important;background-image:url('./art/approved-explorer-paintings.avif')!important;background-size:300% 100%!important;opacity:1}
-.approved-math-landing #home .labs-player-choices label:nth-child(3n + 2)::before{background-position:50% 50%!important}
-.approved-math-landing #home .labs-player-choices label:nth-child(3n + 3)::before{background-position:100% 50%!important}
-.approved-math-landing #home .labs-player-choices label span{display:block!important;position:relative!important;z-index:1;padding:4px 9px!important;width:calc(100% - 8px)!important;max-width:none!important;min-width:0!important;background:#fff1cf!important;border:1px solid #d0b47e;border-radius:9px;font:700 .95rem Georgia,serif!important;color:#274d50;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.approved-math-landing #home .labs-player-choices input{position:absolute!important;top:5px!important;right:5px!important;z-index:2}
-.approved-math-landing #home .labs-player-choices label:has(input:checked){outline:3px solid #4c806b;outline-offset:2px}
-.approved-math-landing #home #math-players details{position:relative!important;flex:0 0 130px!important;width:130px!important;z-index:5}
-.approved-math-landing #home #math-players details summary{display:grid!important;place-content:center;justify-items:center;box-sizing:border-box;width:100%!important;height:142px!important;padding:10px!important;border:2px dashed #9db18e;border-radius:13px;background:#fff9e9cc;color:#315c58;font:700 .9rem Georgia,serif;cursor:pointer}
-.approved-math-landing #home #math-players details summary::before{content:"+";font:700 2.3rem Georgia,serif;color:#4b8069}
-.approved-math-landing #home #math-players details[open] form{position:absolute;top:calc(100% + 8px);right:0;z-index:12;min-width:min(275px,85vw);padding:16px;background:#fffae9;border:2px solid #bd9968;border-radius:13px;box-shadow:0 11px 25px #263e4242;text-align:left}
+.approved-math-landing #home .landing-title p{display:block!important;margin:0!important;font:italic clamp(.9rem,1.5vw,1.02rem) Georgia,serif!important;color:#556f63!important}
+.approved-math-landing #home #math-players{position:relative;width:100%!important;max-width:100%!important;margin:0 auto 13px!important}
+.approved-math-landing #home #math-players fieldset{display:flex!important;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px;min-width:0;padding:11px 12px!important;background:#fff9eae5!important;border:1px solid #cbb489!important;border-radius:13px!important}
+.approved-math-landing #home #math-players legend{position:static!important;clip:auto!important;overflow:visible!important;width:auto!important;height:auto!important;margin:0 auto!important;padding:0 8px!important;white-space:normal!important;font:italic 700 .92rem Georgia,serif!important;color:#365f55!important}
+.approved-math-landing #home .labs-player-choices{display:flex!important;flex-wrap:wrap!important;justify-content:center;align-items:center;gap:10px!important;width:auto;max-width:100%!important;min-width:0}
+.approved-math-landing #home .labs-player-choices label{display:flex!important;position:relative!important;flex-direction:column!important;justify-content:flex-end!important;align-items:center!important;width:clamp(100px,13vw,132px)!important;height:125px!important;min-width:0!important;padding:0 4px 6px!important;overflow:hidden;background:#eee4c8!important;border:2px solid #b29560!important;border-radius:12px!important;box-shadow:0 3px 0 #9a815c90!important;cursor:pointer}
+.approved-math-landing #home .labs-player-choices label:before{content:"";position:absolute;inset:2px 2px 26px;z-index:0;pointer-events:none;background:url('./art/approved-explorer-paintings.avif') 0 50%/300% 100% no-repeat!important}
+.approved-math-landing #home .labs-player-choices label:nth-child(3n + 2):before{background-position:50% 50%!important}.approved-math-landing #home .labs-player-choices label:nth-child(3n + 3):before{background-position:100% 50%!important}
+.approved-math-landing #home .labs-player-choices label span{position:relative;z-index:1;display:block;max-width:100%;min-width:0;margin:0;padding:3px 7px;background:#fff0ce;border:1px solid #c4a26b;border-radius:7px;color:#285060;font:700 .92rem Georgia,serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.approved-math-landing #home .labs-player-choices label input{position:absolute!important;right:5px;top:5px;z-index:2;width:18px;height:18px;accent-color:#2c7050}
+.approved-math-landing #home .labs-player-choices label:has(input:checked){outline:3px solid #558f70;outline-offset:2px}
+.approved-math-landing #home #math-players details{position:relative!important;flex:0 0 116px!important;width:116px!important;z-index:4;margin:0!important}
+.approved-math-landing #home #math-players details summary{display:grid;place-content:center;justify-items:center;width:100%;height:125px;padding:8px;border:2px dashed #8aa580;border-radius:12px;background:#fff8eccc;color:#335b56;font:700 .87rem Georgia,serif;cursor:pointer}
+.approved-math-landing #home #math-players details summary:before{content:"+";font:700 2rem Georgia,serif;color:#3d7868}
+.approved-math-landing #home #math-players details[open] form{position:absolute;right:0;top:calc(100% + 8px);z-index:20;display:grid;gap:8px;min-width:min(285px,90vw);padding:15px;border:2px solid #ac8c56;border-radius:12px;background:#fff9ea;box-shadow:0 10px 26px #29473d55;text-align:left}
+.approved-math-landing #home #math-players details[open] form label{display:grid;gap:6px}
 .approved-math-landing #home #math-players details[open] form input,.approved-math-landing #home #math-players details[open] form select{width:100%;max-width:100%;min-height:42px}
 .approved-math-landing #home #homePlayers{display:none!important}
-.approved-math-landing #home .home-secondary{position:relative!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;align-items:stretch!important;gap:12px!important;max-width:none!important;margin:16px auto 0!important}
-.approved-math-landing #home .home-secondary button{position:relative!important;flex:0 1 250px!important;width:auto!important;max-width:none!important;min-height:56px!important;padding:10px 21px!important;font:700 clamp(.97rem,1.5vw,1.15rem)/1.2 Georgia,serif!important;border:2px solid #b28a4c!important;border-bottom-width:5px!important;border-radius:14px!important;box-shadow:0 4px 0 #896d4660!important}
-.approved-math-landing #home #homePlay{background:linear-gradient(#4a896c,#225b49)!important;color:#fff8dc!important;font-size:1.13rem!important}
-.approved-math-landing #home #homePlay::before{display:none!important;content:none!important}
-.approved-math-landing #home #homeEdit{background:linear-gradient(#f7eacb,#e3c98d)!important;color:#29484f!important}
-.approved-math-landing #home .landing-utilities{position:relative!important;inset:auto!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;justify-content:center!important;gap:11px!important;width:100%!important;max-width:none!important;min-height:0!important;margin:18px auto 0!important;padding:10px 0 0!important;border-top:1px dashed #ccb58e}
+.math-expedition-choices{margin:16px auto 14px;max-width:920px}
+.math-expedition-heading{display:flex;align-items:center;justify-content:center;gap:12px;margin:0 auto 5px}
+.math-expedition-heading h3{margin:0;color:#22536a;font:italic 700 clamp(1.22rem,2.5vw,1.78rem)/1.2 Georgia,serif}
+.math-expedition-heading .trail-heading-line{color:#b4935b;font-size:1.1rem}
+.trail-instructions{font:italic .83rem/1.45 Georgia,serif;color:#6e7664;margin:5px auto 10px;max-width:670px}
+.math-trail-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;max-width:860px;margin:0 auto}
+.math-trail-card{display:grid!important;align-content:start;gap:3px;justify-items:center;min-width:0;min-height:146px!important;padding:5px 5px 9px!important;background:linear-gradient(#fffaf0,#f0deb6)!important;border:2px solid #b4935c!important;border-bottom:5px solid #a7834c!important;border-radius:13px!important;box-shadow:0 3px 0 #8b794d59!important;color:#234e61!important}
+.math-trail-card .math-trail-art{position:relative;display:grid;place-items:center;width:100%;height:86px;overflow:hidden;border-radius:8px 8px 4px 4px;background:linear-gradient(0deg,#bdd6b337,#fff4c94a),url('../geo/art/expedition-page-background.webp') center/360% auto}
+.math-trail-card.trail-addition .math-trail-art{background-position:center,14% 70%}
+.math-trail-card.trail-subtraction .math-trail-art{background-position:center,36% 64%}
+.math-trail-card.trail-multiplication .math-trail-art{background-position:center,55% 84%}
+.math-trail-card.trail-division .math-trail-art{background-position:center,81% 72%}
+.math-trail-card.trail-exponents .math-trail-art{background-position:center,70% 20%}
+.math-trail-symbol{display:grid;place-items:center;width:42px;height:42px;background:#fff6dce6;border:2px solid #ba955d;border-radius:50%;box-shadow:0 2px 0 #92734690;color:#195b69;font:700 1.8rem Georgia,serif}
+.math-trail-card strong{font:700 .91rem/1.1 Georgia,serif;color:#1d5267}.math-trail-card small{font:italic .7rem/1.2 Georgia,serif;color:#526f59}
+.math-trail-card:focus-visible{outline:4px solid #c27e2b!important;outline-offset:3px}
+.approved-math-landing #home .home-secondary{position:relative!important;inset:auto!important;display:flex!important;flex-wrap:wrap!important;align-items:stretch;justify-content:center!important;gap:12px!important;max-width:none!important;margin:16px auto 0!important;padding:0!important;background:transparent!important;border:0!important}
+.approved-math-landing #home .home-secondary button{position:relative!important;flex:0 1 265px!important;width:auto!important;max-width:none!important;min-height:53px!important;padding:10px 18px!important;font:700 1.02rem Georgia,serif!important;border:2px solid #bb9658!important;border-bottom-width:5px!important;border-radius:13px!important;box-shadow:0 3px 0 #896f4888!important}
+.approved-math-landing #home #homePlay{font-size:1.02rem!important;color:#fff8e2!important;background:linear-gradient(#408763,#1b5f47)!important}
+.approved-math-landing #home #homePlay:before{content:none!important;display:none!important}
+.approved-math-landing #home #homeEdit{color:#285367!important;background:linear-gradient(#fbecd2,#e1c68c)!important}
+.approved-math-landing #home .landing-utilities{position:relative!important;inset:auto!important;display:flex!important;flex-wrap:wrap!important;align-items:center;justify-content:center;gap:10px!important;width:100%!important;max-width:none!important;min-height:0!important;margin:15px auto 0!important;padding:11px 0 0!important;border-top:1px dashed #cdb180}
 .approved-math-landing #home .landing-utilities>*{position:relative!important;inset:auto!important;display:block!important;flex:0 1 auto!important;width:auto!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important}
-.approved-math-landing #home .landing-utilities #math-quick{display:block!important;max-width:none!important}
-.approved-math-landing #home .landing-utilities #math-quick .labs-quick{display:flex!important;flex-wrap:wrap!important;align-items:center;gap:8px;margin:0!important;padding:0!important;background:none!important;border:0!important;box-shadow:none!important}
-.approved-math-landing #home .landing-utilities #math-quick .labs-quick>:not(button){display:none!important}
-.approved-math-landing #home .landing-utilities #math-quick button,.approved-math-landing #home .landing-utilities #homeReport,.approved-math-landing #home .landing-utilities #homeOptions summary,.approved-math-landing #home .landing-utilities .home-help-link{display:block!important;position:relative!important;width:auto!important;max-width:none!important;min-width:0!important;min-height:39px!important;margin:0!important;padding:9px 12px!important;border:1px solid #ac956c!important;border-radius:10px!important;background:linear-gradient(#fff7df,#f1e5c8)!important;color:#305860!important;font:700 .9rem Georgia,serif!important;text-decoration:none!important;white-space:normal!important;box-shadow:none!important;cursor:pointer}
-.approved-math-landing #home #homeOptions[open]{position:relative!important;inset:auto!important;width:min(430px,95vw)!important;max-width:100%!important;min-width:0!important;padding:13px!important;background:#fff9e9!important;border:2px solid #b69a68!important;border-radius:12px!important;box-shadow:0 6px 14px #46615c2d!important;z-index:8}
-.approved-math-landing #home #homeOptions[open] .answer-style{margin:9px auto}
-.approved-math-landing #home #resumeInfo{position:relative!important;inset:auto!important;width:100%!important;max-width:none!important;margin:12px 0 0!important;padding:0 10px!important;overflow:visible!important;white-space:normal!important;text-align:center;font-size:.81rem!important}
-.approved-math-landing .adventure-field-guide{position:relative!important;inset:auto!important;display:grid!important;grid-template-columns:minmax(160px,35%) minmax(0,1fr)!important;align-items:center!important;gap:clamp(15px,3vw,34px)!important;width:100%!important;height:auto!important;margin:0 auto!important;padding:clamp(15px,2.6vw,26px)!important;border:2px solid #bb955e!important;border-left:10px double #926d44!important;border-radius:19px!important;background:linear-gradient(155deg,#fff8e8f5,#f3dfbff2)!important;box-shadow:0 5px 0 #b18d5d80,0 14px 27px #243e4130!important;pointer-events:auto!important;overflow:visible}
-.approved-math-landing .adventure-field-guide::before,.approved-math-landing .adventure-field-guide::after{display:none!important}
-.approved-math-landing .adventure-field-guide .guide-art,.approved-math-landing .adventure-field-guide .guide-steps{position:relative!important;inset:auto!important;display:block!important;width:auto!important;height:auto!important;max-width:100%!important;margin:0!important;padding:0!important;overflow:visible!important;clip:auto!important;white-space:normal!important;border:0!important}
-.approved-math-landing .adventure-field-guide .guide-art img{display:block;width:100%;height:auto;max-height:245px;object-fit:contain;filter:drop-shadow(0 8px 9px #70583925)}
-.approved-math-landing .adventure-field-guide .guide-steps h2{font:italic 700 clamp(1.35rem,2.5vw,1.9rem)/1.25 Georgia,serif!important;color:#194b55!important;margin:0 0 13px!important;border-bottom:2px solid #b99a67;padding-bottom:10px}
-.approved-math-landing .adventure-field-guide .guide-steps ol{display:grid;gap:11px;padding-left:28px;margin:0}
-.approved-math-landing .adventure-field-guide .guide-steps li{font:500 clamp(.91rem,1.3vw,1.02rem)/1.45 Georgia,serif;color:#304d50;padding-left:5px}
-.approved-math-landing .adventure-field-guide .guide-steps li::marker{font-weight:900;color:#527958}
-#game.journal-page,#setup.journal-page,#report.journal-page{max-width:100%!important;margin:0 auto 25px!important;padding:clamp(14px,2.6vw,28px)!important;background:linear-gradient(150deg,#fff5dfef,#f8e9cdef)!important;border:2px solid #b59661!important;border-top:5px solid #bc985d!important;border-radius:21px!important;box-shadow:0 5px 0 #ab875b7d,0 14px 25px #29454d30!important}
-#game .journal-eyebrow{display:block;text-align:center;font:800 .75rem Georgia,serif;letter-spacing:.18em;color:#a07d48}
-#game .expedition-layout{display:grid!important;grid-template-columns:minmax(0,1.75fr) minmax(220px,.86fr)!important;gap:15px!important;align-items:stretch}
-#game .expedition-main{min-width:0;background:linear-gradient(#fff9edc9,#f7e3c3dc),url('./art/ambient-math-watercolor.svg') center/cover;border:2px solid #b99963;border-radius:16px;box-shadow:0 4px 0 #c7b48e;overflow:hidden}
-#game .expedition-ribbon{position:relative;display:block!important;margin:0!important;padding:12px!important;background:linear-gradient(145deg,#22566f,#28748b)!important;color:#fff6d8!important;font:italic 700 clamp(1.15rem,2.4vw,1.55rem) Georgia,serif;text-align:center;letter-spacing:.02em;border-bottom:3px solid #bfa05e}
-#game .question{min-height:245px!important;margin:14px!important;padding:17px!important;border:2px solid #c29f69!important;border-radius:13px!important;background:linear-gradient(160deg,#fffcf2ee,#f6e4c9ef)!important;box-shadow:0 3px 0 #d4b78a!important}
-#game .question:before{content:"✦ NUMBER DISCOVERY ✦"!important;color:#9a7c52!important}
-#game #math{color:#154e63!important;font:700 clamp(2.7rem,6.3vw,5rem)/1.2 Georgia,serif!important;letter-spacing:-.035em!important}
-#game #mathVoice,#game #mathHintVoice,#game #mathAnswerVoice{border:1px solid #ad956a!important;border-radius:22px!important;background:linear-gradient(#fff7d9,#f1dfb2)!important;color:#264f59!important;box-shadow:none!important}
-#game .creation-note.creation-game{display:grid!important;grid-template-columns:1fr!important;gap:8px!important;align-content:center;justify-items:center;min-width:0;max-width:none!important;min-height:0!important;margin:0!important;padding:19px!important;border:2px solid #c7a878!important;border-radius:16px!important;background:linear-gradient(145deg,#fff9e6f5,#f1dfc6f5)!important;box-shadow:0 4px 0 #ccad7f!important;text-align:center}
-#game .creation-game .creation-illustration{width:min(140px,100%);height:auto}
-#game .creation-game .creation-copy{text-align:center!important}
-#game .creation-game .creation-copy strong{font:italic 700 1.18rem Georgia,serif!important;color:#284f54!important}
-#game .creation-game .creation-copy p{font-size:.9rem;line-height:1.45}
-#game .math-choices{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px auto}
-#game .math-choices button{min-height:72px!important;border:2px solid #b49764!important;border-bottom:5px solid #ac8a5e!important;background:linear-gradient(#fff9eb,#f4dfb3)!important;color:#184b61!important;font:700 clamp(1.4rem,3vw,2.1rem) Georgia,serif!important;box-shadow:0 3px 0 #b7a58a4f!important}
-#game .actions button{border:2px solid #ad8e64!important;border-bottom:4px solid #9d7b50!important;border-radius:12px!important;min-height:53px!important;font:700 .98rem Georgia,serif!important;box-shadow:0 3px 0 #b3997466!important}
-#game .actions button.green{background:linear-gradient(#4f966b,#216443)!important;color:white!important}
-#game .actions button.orange{background:linear-gradient(#c86b51,#9c3927)!important;color:#fff8e4!important}
-#game .actions button.gray{background:linear-gradient(#f2e5c7,#d8c69f)!important;color:#305166!important}
-#game .actions button.yellow{background:linear-gradient(#f9da80,#e9b843)!important;color:#51421e!important}
-#setup .person,#report .report-item{border:1px solid #c5a879!important;background:#fff9e8e8!important}
-@media(max-width:840px){#game .expedition-layout{grid-template-columns:1fr!important}#game .creation-note.creation-game{grid-template-columns:minmax(90px,24%) minmax(0,1fr)!important;text-align:left!important}#game .creation-game .creation-copy{text-align:left!important}}
-@media(max-width:620px){body{background-attachment:scroll!important}main{padding:10px 10px 30px}.approved-math-landing{gap:12px!important}.approved-math-landing #home.journal-page{padding:18px 13px!important}.approved-math-landing #home .labs-player-choices{gap:9px!important}.approved-math-landing #home .labs-player-choices label{width:clamp(105px,37vw,140px)!important;height:132px!important}.approved-math-landing #home #math-players details{flex-basis:120px!important;width:120px!important}.approved-math-landing #home #math-players details summary{height:132px!important}.approved-math-landing #home .home-secondary{flex-direction:column;align-items:stretch!important}.approved-math-landing #home .home-secondary button{flex:auto!important;max-width:none!important;width:100%!important}.approved-math-landing .adventure-field-guide{grid-template-columns:1fr!important;gap:9px!important}.approved-math-landing .adventure-field-guide .guide-art img{max-height:155px!important}.approved-math-landing .adventure-field-guide .guide-steps h2{text-align:center}#game .expedition-layout{gap:11px!important}#game .creation-note.creation-game{grid-template-columns:minmax(80px,25%) minmax(0,1fr)!important;padding:12px!important}#game .math-choices{gap:7px}#game .math-choices button{min-height:60px!important}#game .question{min-height:205px!important;margin:9px!important}#game .actions button{flex:1 1 44%!important}}
-@media(prefers-reduced-motion:reduce){#home button,#game button{transition:none!important}}
-
-/* Math Fact Adventure · watercolor expedition release.
-   Use FaithSparks' original painted Geo landscape as the visual substrate,
-   but retain Math's own mountain masthead, field notebook and mathematical sketches.
-   Source art paths are bundled by Vite; never modify original header asset. */
-body,
-body:has(.approved-math-landing:not(:has(#home.hidden))){
-  background-color:#afcfb8!important;
-  background-image:url('./art/math-instruments-overlay.svg'),linear-gradient(90deg,#dfe8d530,#eef0d324 48%,#bed6cb28),url('../geo/art/expedition-page-background.webp')!important;
-  background-position:center top,center top,center center!important;
-  background-size:cover,cover,cover!important;
-  background-repeat:no-repeat!important;
-  background-attachment:fixed,fixed,fixed!important;
-}
-main{width:min(1072px,100%)!important;max-width:1072px!important}
-main>header.journal-banner{border:3px solid #d5b177!important;border-radius:16px!important;box-shadow:0 4px 0 #8d734c94,0 10px 22px #22423a52!important}
-.approved-math-landing #home.journal-page,
-#game.journal-page,#setup.journal-page,#report.journal-page{
-  background:radial-gradient(ellipse at 50% 8%,#fff9e9f8,#faedcff7 72%),repeating-linear-gradient(2deg,#c9a66d12 0 1px,transparent 1px 8px)!important;
-  border:3px solid #bc9150!important;border-top:5px solid #bc9150!important;
-  border-radius:19px!important;
-  box-shadow:0 5px 0 #7d6846a6,0 11px 26px #23403740!important;
-}
-.approved-math-landing #home .landing-title{
-  margin:0 auto 17px!important;padding:0 0 14px!important;
-  background:radial-gradient(ellipse at center,#fff8e59c,transparent 80%)!important;
-  border-bottom:1px dashed #c8a36a!important;
-}
-.approved-math-landing #home .landing-title h2{color:#174a59!important;font-weight:700!important;text-shadow:0 2px 0 #fff8e4!important}
-.approved-math-landing #home .landing-title .field-label{
-  background:linear-gradient(#faedc9,#efd59b)!important;border:1px solid #ae8d53!important;
-  color:#795c35!important;box-shadow:0 2px 0 #d5b77e!important;
-}
-.approved-math-landing #home #math-players fieldset{
-  background:linear-gradient(150deg,#fffaf0ef,#e9eacfe3)!important;
-  border:2px solid #b6aa7c!important;box-shadow:inset 0 0 0 5px #fff7e45c!important;
-  padding:14px 12px!important;
-}
-.approved-math-landing #home .labs-player-choices label,
-.approved-math-landing #home #math-players details summary{
-  box-shadow:0 3px 0 #80623b95,0 6px 12px #284a3633!important;
-}
-.approved-math-landing #home #homePlay,
-.approved-math-landing #home #homeEdit,
-.approved-math-landing #home .landing-utilities button{
-  box-shadow:0 3px 0 #785c3b95,0 5px 10px #233d3a24!important;
-}
-.approved-math-landing .adventure-field-guide{
-  position:relative;isolation:isolate;
-  background:radial-gradient(ellipse at 20% 20%,#fffcf0f7,#f1ddaff5 85%),repeating-linear-gradient(0deg,#bfa07417 0 1px,transparent 1px 11px)!important;
-  border:3px solid #b9965b!important;border-left:11px double #926a38!important;
-  box-shadow:0 5px 0 #7f603fa8,0 14px 26px #28433746!important;
-}
-.approved-math-landing .adventure-field-guide:after{
-  content:"";position:absolute;inset:8px;border:1px dashed #bb9e6a!important;border-radius:12px;
-  display:block!important;pointer-events:none;opacity:.56;
-}
-.approved-math-landing .adventure-field-guide .guide-art img{
-  filter:drop-shadow(0 8px 6px #765c3a2f) saturate(1.13)!important;
-}
-.approved-math-landing .adventure-field-guide .guide-steps{position:relative;z-index:2}
-.approved-math-landing .adventure-field-guide .guide-steps h2{
-  font:italic 700 clamp(1.4rem,2.75vw,2.05rem)/1.23 Georgia,serif!important;
-  color:#184d59!important;border-bottom:2px solid #a7844a!important;
-}
-.approved-math-landing .adventure-field-guide .guide-steps li{
-  font:500 clamp(.94rem,1.5vw,1.07rem)/1.48 Georgia,serif!important;color:#234653!important;
-}
-#game.journal-page{padding:clamp(14px,2.2vw,24px)!important}
-#game .journal-eyebrow{
-  margin:0 0 9px!important;padding:4px 2px!important;color:#9d7740!important;
-  font:italic 700 clamp(.9rem,1.7vw,1.18rem)/1.2 Georgia,serif!important;
-  letter-spacing:.02em!important;
-}
-#game #math-status{margin:3px auto 6px!important}
-#game #math-status>*{margin-block:3px!important}
-#game .scoreboard{gap:8px!important;margin:5px 0 12px!important}
-#game .score{padding:5px 12px!important;display:flex!important;align-items:center;justify-content:space-between;gap:10px;min-height:56px;border:1px solid #b9a175!important;border-radius:11px!important;background:#f9edc9e6!important;box-shadow:0 2px 0 #c3a774a3!important}
-#game .score strong{font:700 clamp(1.25rem,2.5vw,1.7rem) Georgia,serif!important;display:inline-block!important;margin:0!important}
-#game .score.active{border:2px solid #648267!important;background:#eaf0cf!important}
-#game .expedition-layout{grid-template-columns:minmax(0,1.7fr) minmax(200px,.8fr)!important;gap:14px!important}
-#game .expedition-main{
-  background:linear-gradient(#eaf0d026,#e2e9d152),url('../geo/art/expedition-page-background.webp') center/cover!important;
-  border:3px solid #b4945c!important;border-radius:17px!important;
-  box-shadow:0 4px 0 #9f7d4f8f,0 6px 14px #46635235!important;
-  padding:10px!important;
-}
-#game .expedition-ribbon{
-  margin:0 0 11px!important;padding:10px 14px!important;
-  background:linear-gradient(155deg,#2d6475,#164b67)!important;
-  border:2px solid #d4ad64!important;border-bottom:4px solid #a88241!important;
-  border-radius:12px!important;box-shadow:0 3px 0 #33565e67!important;
-  font:italic 700 clamp(1.18rem,2.7vw,1.65rem)/1.2 Georgia,serif!important;
-  text-shadow:0 1px #1d475b!important;
-}
-#game .question{
-  margin:0!important;padding:17px 12px 20px!important;min-height:230px!important;
-  background:radial-gradient(ellipse at 50% 42%,#fffef8f7,#fbe9c6ef)!important;
-  border:3px solid #b99a64!important;border-radius:15px!important;
-  box-shadow:inset 0 0 0 6px #fffbec99,0 4px 0 #9d825a66!important;
-}
-#game .question:before{content:"✦  NUMBER DISCOVERY  ✦"!important;font:700 .67rem Georgia,serif;letter-spacing:.13em;color:#a48454!important}
-#game #math{color:#124c61!important;font:700 clamp(3.4rem,7vw,5.8rem)/1.12 Georgia,serif!important;margin:17px 0 8px!important}
-#game #math.story-question{font-size:clamp(1.4rem,3vw,2.15rem)!important;line-height:1.35!important}
-#game #mathVoice{margin:4px auto 9px!important;min-height:38px!important;padding:7px 18px!important}
-#game #answer{font-family:Georgia,serif!important;color:#1c546c!important}
-#game .creation-note.creation-game{
-  align-content:start!important;justify-items:center!important;
-  gap:4px!important;padding:14px 12px 16px!important;
-  background:linear-gradient(145deg,#fff9eaf9,#f3deb9f7)!important;
-  border:3px solid #b89461!important;border-radius:16px!important;
-  box-shadow:0 4px 0 #9d794a9c,0 6px 12px #344c3e26!important;
-}
-#game .creation-note.creation-game:before{
-  inset:7px!important;border:1px dashed #c4a778!important;border-radius:10px!important;
-}
-#game .creation-game .creation-note-heading{
-  position:relative;display:block!important;width:100%;font:italic 700 clamp(1rem,1.8vw,1.22rem)/1.3 Georgia,serif;
-  color:#1c5360;text-align:center;border-bottom:2px solid #b99861;padding:4px 2px 10px;margin-bottom:7px;
-}
-#game .creation-game .creation-illustration{display:block!important;width:min(100%,190px)!important;max-width:190px!important;margin:0 auto 4px!important}
-#game .creation-game .creation-illustration img{
-  display:block!important;width:100%!important;height:auto!important;max-height:190px!important;object-fit:contain;
-  filter:drop-shadow(0 5px 6px #876e432a)!important;
-}
-#game .creation-game .creation-copy{display:grid;gap:6px;text-align:center!important}
-#game .creation-game .creation-copy strong{font:italic 700 clamp(1rem,1.75vw,1.18rem)/1.18 Georgia,serif!important;color:#214c59!important}
-#game .creation-game .creation-copy p{font:italic 500 clamp(.83rem,1.24vw,.95rem)/1.42 Georgia,serif!important;color:#3b514e!important;margin:0!important}
-#game .creation-game .creation-copy small{font:italic 700 .72rem/1.4 Georgia,serif!important;color:#89673b!important;margin:4px auto 0!important}
-#game .math-choices{max-width:790px;margin:15px auto 6px!important}
-#game .math-choices button{
-  min-height:65px!important;background:linear-gradient(160deg,#fff9e5,#dceab8)!important;
-  border:2px solid #9bad67!important;border-bottom:5px solid #859b54!important;
-  color:#194d65!important;border-radius:14px!important;font:700 clamp(1.3rem,3vw,2rem) Georgia,serif!important;
-  box-shadow:0 3px 0 #83945265!important;
-}
-#game #gradeActions{margin-top:15px!important;gap:8px!important}
-#game .actions button{flex:1 1 145px!important;padding:10px 13px!important}
-#game .actions button.green{background:linear-gradient(#52936f,#1c6048)!important}
-#game .actions button.orange{background:linear-gradient(#c87558,#a1442d)!important}
-#game .actions button.yellow{background:linear-gradient(#ffe6a4,#eaba47)!important}
-#game .actions button.gray{background:linear-gradient(#fff5dd,#e7d3a9)!important}
-#game .help{margin:10px 0 0!important;color:#5b6557!important;font:italic .86rem/1.4 Georgia,serif!important}
-@media(max-width:900px){
-  #game .expedition-layout{grid-template-columns:minmax(0,1fr)!important}
-  #game .creation-note.creation-game{display:grid!important;grid-template-columns:minmax(85px,26%) minmax(0,1fr)!important;align-content:center!important;align-items:center!important;column-gap:14px!important}
-  #game .creation-note-heading{grid-column:1/-1}
-  #game .creation-game .creation-illustration{width:100%!important}
-  #game .creation-game .creation-copy{text-align:left!important}
-}
-@media(max-width:620px){
-  body,body:has(.approved-math-landing:not(:has(#home.hidden))){background-attachment:scroll!important;background-size:auto 1100px!important}
-  #game .expedition-main{padding:7px!important}
-  #game .question{padding:14px 9px!important;min-height:185px!important}
-  #game #math{font-size:clamp(2.65rem,9vw,4rem)!important}
-  #game .creation-note.creation-game{padding:12px!important;gap:9px!important}
-  #game .creation-game .creation-illustration img{max-height:130px!important}
-  #game .creation-game .creation-note-heading{font-size:1rem}
-  #game #gradeActions button{flex:1 1 43%!important;font-size:.88rem!important}
-  .approved-math-landing .adventure-field-guide .guide-art img{max-height:180px!important}
-}
+.approved-math-landing #home #math-quick{display:block!important}
+.approved-math-landing #home #math-quick .labs-quick{display:flex!important;flex-wrap:wrap!important;gap:8px!important;align-items:center;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:transparent!important}
+.approved-math-landing #home #math-quick .labs-quick>:not(button){display:none!important}
+.approved-math-landing #home .landing-utilities button,.approved-math-landing #home .landing-utilities summary,.approved-math-landing #home .landing-utilities .home-help-link{display:block!important;width:auto!important;max-width:100%!important;min-width:0!important;min-height:38px!important;margin:0!important;padding:7px 12px!important;background:linear-gradient(#fff9e8,#e9d9b7)!important;border:1px solid #b49c6e!important;border-radius:10px!important;box-shadow:none!important;color:#35566a!important;font:700 .85rem Georgia,serif!important;text-decoration:none!important;cursor:pointer}
+.approved-math-landing #home #homeOptions[open]{position:relative!important;inset:auto!important;z-index:10;min-width:min(350px,90vw)!important;max-width:100%!important;width:min(430px,94vw)!important;padding:13px!important;background:#fff8e7!important;border:2px solid #bfa16e!important;border-radius:12px!important;box-shadow:0 8px 20px #1f47373e!important}
+.approved-math-landing #home #homeOptions[open] .answer-style{display:grid;gap:7px;margin:9px 0;font:700 .83rem Georgia,serif;color:#42605c;text-align:left}
+.approved-math-landing #home #homeOptions select{display:block;width:100%;padding:9px;border:1px solid #b7a079;border-radius:8px;background:#fffdf5;color:#264e60}
+.approved-math-landing #home #resumeInfo{position:relative!important;inset:auto!important;overflow:visible!important;white-space:normal!important;width:100%!important;margin:11px auto 0!important;padding:0 8px!important;color:#5d6b61;font:italic .79rem/1.4 Georgia,serif}
+.approved-math-landing .adventure-field-guide{position:relative!important;inset:auto!important;display:grid!important;grid-template-columns:minmax(180px,36%) minmax(0,1fr)!important;align-items:center;gap:clamp(14px,3vw,32px);width:100%!important;height:auto!important;max-width:100%!important;margin:0!important;padding:clamp(16px,2.5vw,25px)!important;border-left:10px double #9d7642!important;overflow:visible!important;pointer-events:auto!important}
+.approved-math-landing .adventure-field-guide .guide-art,.approved-math-landing .adventure-field-guide .guide-steps{position:relative!important;inset:auto!important;display:block!important;clip:auto!important;overflow:visible!important;white-space:normal!important;width:auto!important;height:auto!important;max-width:100%!important;margin:0!important;padding:0!important}
+.approved-math-landing .adventure-field-guide .guide-art img{width:100%!important;max-height:260px;height:auto;object-fit:contain;filter:drop-shadow(0 8px 7px #6a523925)}
+.approved-math-landing .adventure-field-guide .guide-steps h2{margin:0 0 13px!important;padding:0 0 9px;border-bottom:2px solid #b89d64;font:italic 700 clamp(1.25rem,2.6vw,2rem)/1.15 Georgia,serif!important}
+.approved-math-landing .adventure-field-guide ol{display:grid;gap:12px;margin:0;padding-left:30px}.approved-math-landing .adventure-field-guide li{color:#284d59;font:500 clamp(.94rem,1.5vw,1.1rem)/1.45 Georgia,serif;padding-left:4px}.approved-math-landing .adventure-field-guide li::marker{color:#64824f;font-weight:900}
+#game.journal-page,#setup.journal-page,#report.journal-page{margin:0 0 25px!important;max-width:100%!important;padding:clamp(15px,2.5vw,25px)!important}
+.journal-eyebrow{display:block;width:max-content;max-width:100%;margin:0 auto 10px!important;padding:5px 14px;color:#87663d!important;font:italic 700 .88rem Georgia,serif!important;letter-spacing:.04em!important;background:#ffedc6;border:1px solid #d2b06f;border-radius:20px}
+#setup>h2,#report>h2{font:italic 700 clamp(1.5rem,3vw,2.1rem) Georgia,serif!important;text-align:center;margin:8px 0 20px}
+#game #math-status{margin:3px 0 6px!important}
+#game #adventureProgress{display:block!important;width:100%!important;height:7px!important;margin:7px 0 10px!important;border:0;accent-color:#40806b}
+#game .scoreboard{display:flex!important;flex-wrap:wrap;gap:8px!important;align-items:stretch;margin:5px 0 12px!important}
+#game .score{display:flex!important;align-items:center;justify-content:space-between;gap:10px;flex:1 1 170px;min-width:0;padding:6px 11px!important;border:1px solid #bba16f!important;border-radius:12px!important;background:linear-gradient(#fff7e5,#eedcaf)!important;box-shadow:0 2px 0 #b79a6c!important;font:700 .91rem Georgia,serif}
+#game .score strong{display:inline-block!important;font:700 1.55rem Georgia,serif!important;color:#194e64}
+#game .score.active{border:2px solid #668c64!important;background:linear-gradient(#e9f0d0,#d8e7b4)!important}
+#game #turn{display:block!important;margin:0 0 5px!important;color:#8b6d3d;font:italic 700 .84rem Georgia,serif}
+#game #who{display:block!important;margin:0 0 5px!important;color:#375e63;font:700 .87rem Georgia,serif}
+#game .expedition-layout{display:grid!important;grid-template-columns:minmax(0,1.72fr) minmax(220px,.83fr)!important;gap:14px!important;align-items:stretch}
+#game .expedition-main{display:flex;flex-direction:column;min-width:0;overflow:hidden;border:3px solid #b89a65;border-radius:18px;padding:10px;background:linear-gradient(#d4ead233,#eaf4d13a),url('../geo/art/expedition-page-background.webp') center/cover;box-shadow:0 4px 0 #8e7d5599,0 9px 18px #24464a2a}
+#game .expedition-ribbon{margin:0 0 10px!important;padding:10px 15px!important;border:2px solid #d4b177!important;border-bottom:4px solid #9e7f45!important;border-radius:12px!important;background:linear-gradient(160deg,#296c81,#194c6b)!important;color:#fff8e7!important;font:italic 700 clamp(1.12rem,2.45vw,1.6rem)/1.2 Georgia,serif!important;text-shadow:0 1px #285167;box-shadow:0 3px 0 #36566b55}
+#game .question{position:relative;isolation:isolate;flex:1 1 auto;min-height:235px!important;margin:0!important;padding:18px 14px!important;text-align:center;background:radial-gradient(ellipse at 50% 40%,#fffdf4fc,#f9e5c4f5)!important;border:3px solid #ba985f!important;border-radius:15px!important;box-shadow:inset 0 0 0 5px #fff5e3b0,0 4px 0 #9779507c!important}
+#game .question:before{content:"✦ NUMBER DISCOVERY ✦";display:block;color:#99764b;font:700 .67rem Georgia,serif;letter-spacing:.12em;margin:0 0 8px}
+#game .question:after{display:none}
+#game .nature-ornament{position:absolute;right:10px;bottom:4px;z-index:-1;width:78px;opacity:.15;pointer-events:none}#game .nature-fern{width:100%}
+#game #math{color:#104a64!important;font:700 clamp(3.25rem,6.6vw,5.5rem)/1.08 Georgia,serif!important;letter-spacing:-.03em;margin:11px 0 8px!important;overflow-wrap:anywhere}
+#game #math.story-question{font:500 clamp(1.4rem,2.6vw,2.05rem)/1.45 Georgia,serif!important;letter-spacing:0!important}
+#game #mathVoice,#game #mathHintVoice,#game #mathAnswerVoice{min-height:38px!important;padding:7px 14px!important;margin:5px auto!important;border:1px solid #b29a69!important;border-radius:22px!important;background:linear-gradient(#fffcf2,#efddaf)!important;color:#275b69!important;font:700 .81rem Georgia,serif!important;box-shadow:0 2px 0 #c3a6777a!important}
+#game #questionCode{font:italic .77rem Georgia,serif!important;color:#6c7b72!important;margin:9px auto 4px}
+#game #answer{font:700 clamp(1rem,2vw,1.25rem) Georgia,serif!important;color:#215b75!important}
+#game #message{font:italic .84rem/1.45 Georgia,serif!important;color:#496368!important;margin:5px auto!important}
+#game #hint{max-width:95%;margin:9px auto;padding:10px;border:1px dashed #9cb586;border-radius:10px;background:#f3f8e3;color:#3e665c}
+#game .math-choices{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px!important;max-width:none!important;margin:10px 0 0!important}
+#game .math-choices.hidden{display:none!important}
+#game .math-choices button{min-height:63px!important;padding:10px 6px!important;border:2px solid #a4b66d!important;border-bottom:5px solid #7d9b58!important;border-radius:13px!important;background:linear-gradient(#fffbea,#e4edc3)!important;color:#1c5069!important;font:700 clamp(1.3rem,2.65vw,1.95rem) Georgia,serif!important;box-shadow:0 2px 0 #7e985b6b!important}
+#game #typedPractice{max-width:none!important;width:100%;margin:11px 0 0!important;padding:12px;background:#fff7e6e8;border:1px solid #b99a66;border-radius:11px}
+#game #typedPractice label{display:block;font:italic 700 .9rem Georgia,serif;color:#335c5d;margin-bottom:7px}
+#game #typedPractice>div{display:flex;gap:9px}
+#game #typedAnswer{min-width:0;width:100%;font:700 1.5rem Georgia,serif;color:#1b4d64;border:1px solid #bba36f;border-radius:9px;background:#fffdf7;padding:9px}
+#game #checkTyped{min-height:49px;background:#276d51;color:#fff7dd}
+#game .creation-note.creation-game{position:relative;display:grid!important;grid-template-columns:1fr!important;align-content:center;justify-items:center;gap:5px;min-width:0;max-width:none!important;min-height:0!important;margin:0!important;padding:14px 13px!important;border:3px solid #b59463!important;border-radius:17px!important;background:radial-gradient(ellipse at 40% 10%,#fffaf0fb,#f1dbb4f7)!important;box-shadow:0 4px 0 #95784e88,0 9px 20px #3b4d422d!important}
+#game .creation-note.creation-game:before{content:"";position:absolute;inset:8px;border:1px dashed #bc9b64;border-radius:11px;opacity:.65;pointer-events:none}
+#game .creation-note-heading{width:100%;padding:3px 0 8px;margin-bottom:2px;border-bottom:2px solid #ba9a62;color:#21576b;text-align:center;font:italic 700 clamp(1rem,2vw,1.2rem)/1.2 Georgia,serif}
+#game .creation-illustration{position:relative;display:block;width:min(175px,100%);margin:0 auto}
+#game .creation-illustration img{width:100%;height:auto;display:block;max-height:175px;object-fit:contain;filter:drop-shadow(0 5px 5px #614c302d)}
+#game .creation-copy{position:relative;display:grid;gap:7px;text-align:center}
+#game .creation-copy strong{font:italic 700 clamp(1rem,1.8vw,1.22rem)/1.15 Georgia,serif!important;color:#285669!important}
+#game .creation-copy p{font:italic .9rem/1.4 Georgia,serif;color:#3c5557;margin:0!important}
+#game .creation-copy small{font:italic 700 .75rem/1.4 Georgia,serif;color:#84623c}
+#game .help{color:#5f6b66;font:italic .84rem/1.4 Georgia,serif!important;margin:13px auto 5px!important}
+#game .actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px!important;margin:13px 0 0!important}
+#game .actions button{flex:1 1 135px;max-width:250px;min-height:51px!important;padding:9px 11px!important;border:2px solid #a88755!important;border-bottom:4px solid #8a7145!important;border-radius:12px!important;box-shadow:0 3px 0 #a089616e!important;color:#2b5162;font:700 .95rem Georgia,serif!important}
+#game .actions .green{background:linear-gradient(#49966e,#206947)!important;color:#fffbe7!important}
+#game .actions .orange{background:linear-gradient(#d17856,#aa442f)!important;color:#fffbe7!important}
+#game .actions .yellow{background:linear-gradient(#ffe39e,#e7b64c)!important;color:#5a4724!important}
+#game .actions .gray{background:linear-gradient(#fcf4df,#e3cda6)!important;color:#315567!important}
+#game #gradeActions{max-width:none!important}
+#game #results{max-width:100%;margin:15px auto}
+#game .completion-card,#report .report-item,#setup .person{border:1px solid #c1a472!important;background:linear-gradient(#fffaf0,#f1e5c5)!important;box-shadow:0 3px 0 #ccb2898a!important}
+#setup .person-head{border-bottom:1px dashed #c1ad87}
+#setup .operations{background:#fff8e9;border:1px solid #c5b28c}
+#setup .op-choice{border:1px solid #cdbb95;background:#fffaf0}
+#setup .op-choice:has(input:checked){background:#e5edce;border-color:#7d9f73}
+#setup .op-choice input{accent-color:#367a5d}
+#setup .field select,#setup .field input{border:1px solid #bda578;background:#fffcf4;color:#264f60}
+#report .report-list{margin:17px 0}#report .pill{background:#f8e3b2;color:#624b2c}
+#report .creation-note,#setup .creation-note{display:grid;grid-template-columns:minmax(95px,23%) minmax(0,1fr);gap:16px;align-items:center;max-width:760px;margin:12px auto 22px;padding:15px;background:#fffaf0;border:1px dashed #c7aa78;border-radius:14px}
+#report .creation-illustration svg,#setup .creation-illustration svg{width:100%;max-height:125px}
+#report .creation-copy strong,#setup .creation-copy strong{display:block;font:italic 700 1.2rem Georgia,serif;color:#275665}
+#report .creation-copy p,#setup .creation-copy p{font:italic .88rem/1.45 Georgia,serif;margin:5px 0}
+#report .creation-copy small,#setup .creation-copy small{font:italic .76rem Georgia,serif;color:#926f41}
+#report .creation-kicker,#setup .creation-kicker{font:700 .67rem Georgia,serif;letter-spacing:.1em;color:#897044}
+#report .actions button,#setup button{border:2px solid #a48750;border-radius:11px}
+@media(max-width:980px){.math-trail-grid{grid-template-columns:repeat(3,minmax(0,1fr))}#game .expedition-layout{grid-template-columns:minmax(0,1fr)!important}#game .creation-note.creation-game{grid-template-columns:minmax(100px,27%) minmax(0,1fr)!important;align-items:center;gap:12px!important;max-width:none!important}#game .creation-note-heading{grid-column:1/-1}#game .creation-copy{text-align:left!important}#game .creation-illustration{width:min(145px,100%)}}
+@media(max-width:650px){html{scroll-behavior:auto}body{background-size:auto 1050px!important;background-attachment:scroll!important}body:before{position:absolute;inset:0;background-size:auto 1050px;opacity:.4}main{padding:10px 10px 30px}.approved-math-landing{gap:13px}.approved-math-landing #home.journal-page{padding:16px 12px!important}.approved-math-landing #home .labs-player-choices label{width:clamp(98px,32vw,126px)!important;height:115px!important}.approved-math-landing #home #math-players details{width:110px!important;flex-basis:110px!important}.approved-math-landing #home #math-players details summary{height:115px}.math-trail-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.math-trail-card{min-height:133px!important}.math-trail-card .math-trail-art{height:76px}.approved-math-landing #home .home-secondary{flex-direction:column;align-items:stretch}.approved-math-landing #home .home-secondary button{flex:auto!important;max-width:none!important;width:100%!important}.approved-math-landing .adventure-field-guide{grid-template-columns:1fr!important;text-align:left;gap:8px;padding:16px!important}.approved-math-landing .adventure-field-guide .guide-art img{max-width:240px;max-height:160px;margin:auto}.approved-math-landing .adventure-field-guide .guide-steps h2{text-align:center}#game .journal-eyebrow{font-size:.76rem}#game #math{font-size:clamp(2.65rem,9vw,4rem)!important}#game .question{min-height:190px!important;padding:12px 9px!important}#game .expedition-main{padding:7px}#game .creation-note.creation-game{grid-template-columns:minmax(83px,30%) minmax(0,1fr)!important;padding:11px!important}#game .creation-illustration img{max-height:125px!important}#game .creation-copy p{font-size:.8rem!important}#game .math-choices{gap:6px!important}#game .math-choices button{min-height:57px!important}#game #gradeActions button{flex:1 1 43%;max-width:none;font-size:.85rem!important}#game #typedPractice>div{flex-wrap:wrap}#game #checkTyped{width:100%}#game .scoreboard{gap:6px!important}.creation-note-heading{font-size:.87rem!important}#setup .players{grid-template-columns:1fr!important}}
+@media(max-width:390px){.math-trail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.math-trail-card strong{font-size:.83rem}.math-trail-card small{font-size:.65rem}.approved-math-landing #home #math-players details[open] form{right:auto;left:50%;transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
