@@ -129,29 +129,26 @@
  .atlas .map-mystery .mystery-scene{order:0!important;margin-top:0}
 }
 
-
-/* Integrated atlas and one overlapping magnifier (not a four-column panel grid). */
-.location-atlas-layout{display:block;overflow:hidden;background:#fff1d2}
-.location-atlas-scene{position:relative;min-height:275px;aspect-ratio:1.9;overflow:hidden;background:#b7dfe0}
-.location-region-map{position:absolute;inset:0;background:#b7dfe0}
-.location-region-map>svg{width:100%;height:100%;display:block}
-.location-region-heading{position:absolute;z-index:1;left:1rem;top:.65rem;margin:0;padding:.22rem .55rem;background:#fff5d8d9;border-radius:100px;color:#214557;font:700 .84rem Georgia,serif}
-.location-atlas-pin{cursor:pointer;outline:none}
-.location-atlas-pin:hover circle:first-child,.location-atlas-pin:focus-visible circle:first-child{stroke:#173e58;stroke-width:7}
-.location-magnifier{position:absolute;z-index:2;width:52%;aspect-ratio:1;right:1.6%;top:3%;filter:drop-shadow(3px 6px 3px #5b4c3270)}
-.location-magnifier-glass{display:flex;align-items:center;justify-content:center;gap:0;width:100%;height:100%;overflow:hidden;box-sizing:border-box;border:11px ridge #c79d4b;border-radius:50%;background:radial-gradient(circle at 40% 35%,#c5e5ce,#76c5d1);box-shadow:inset 0 0 0 3px #7e612c,inset 0 0 16px #1d647855}
-.location-magnifier-part{min-width:0;width:33.333%;height:65%;display:flex;align-items:center;justify-content:center}
-.location-magnifier-part .location-sheet{width:100%;min-width:0;position:relative;z-index:2}
-.location-magnifier-part .location-map{width:100%;height:auto;max-height:none!important;overflow:visible}
-.location-magnifier-part .location-scale{display:none}
-.location-magnifier-handle{position:absolute;z-index:-1;width:45%;height:12%;right:-29%;bottom:1%;border-radius:9px;border:3px solid #8a662f;background:linear-gradient(#f7d188,#b07b36,#edba66);transform:rotate(46deg);transform-origin:left center;box-shadow:0 3px 2px #67502c55}
-.location-lens-note{position:absolute;z-index:1;left:.9rem;bottom:.65rem;max-width:42%;margin:0;padding:.3rem .4rem;border-radius:7px;background:#ffefd4ec;color:#244c61;font:600 .72rem/1.3 system-ui,sans-serif}
-.location-atlas-layout .location-inset-label{background:#f7e9c6}
-.location-dialog .location-atlas-scene{max-height:65vh}
+/* The geographic atlas remains visible behind the three true-to-scale island lenses. */
+.location-overview{grid-column:1/-1;min-width:0}
+.location-locator{background:#f7edcf;padding:.55rem .65rem .4rem;border-bottom:1px dashed #bb975a}
+.location-locator-heading{margin:0 0 .35rem;text-align:center;color:#214557;font:700 .95rem Georgia,serif}
+.location-locator>svg{display:block;width:100%;height:auto;max-height:245px;border:1px solid #a5b7a0;border-radius:10px;background:#b8dfe0}
+.location-locator-help{margin:.35rem 0 0;text-align:center;color:#365347;font:600 .72rem/1.4 system-ui,sans-serif}
+.location-locator-pin{cursor:pointer;outline:none}
+.location-locator-pin:hover circle:first-child,.location-locator-pin:focus-visible circle:first-child{stroke:#174d78;stroke-width:8}
+.location-lens-card{min-width:0;padding:.45rem .38rem 1.1rem;position:relative;background:#f7edcf}
+.location-lens-title{margin:0 0 .3rem;color:#214557;text-align:center;font:700 .76rem Georgia,serif}
+.location-lens-card .location-sheet{position:relative;max-width:270px;margin:0 auto}
+.location-lens-card .location-map{border:5px solid #c69b47;border-radius:50%;box-shadow:0 2px 0 #815e2d,0 4px 10px #624b302e;background:#b8dfe0;aspect-ratio:1;object-fit:cover}
+.location-lens-card .location-sheet:after{content:'';position:absolute;z-index:0;right:1%;bottom:2rem;width:33%;height:11px;border:2px solid #9b7134;border-radius:10px;background:linear-gradient(90deg,#e7bd67,#a37733);transform:rotate(45deg) translate(40%,25%);transform-origin:left center;pointer-events:none}
+.location-lens-card .location-scale{position:relative;z-index:1;margin-top:.25rem}
 @media(max-width:650px){
- .location-atlas-scene{aspect-ratio:1.35;min-height:235px}
- .location-magnifier{width:66%;top:13%;right:2%}
- .location-magnifier-glass{border-width:7px}
- .location-region-heading{font-size:.69rem;left:.4rem;top:.4rem}
- .location-lens-note{max-width:33%;font-size:.6rem}
+ .location-locator>svg{max-height:210px}
+ .location-panel-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .location-lens-card{padding:.35rem .12rem 1rem}
+ .location-lens-title{font-size:.62rem}
+ .location-lens-card .location-map{border-width:3px}
+ .location-lens-card .location-sheet:after{height:6px;bottom:2.4rem}
+ .location-lens-card .location-scale{font-size:.55rem}
 }
