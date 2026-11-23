@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Admin · {{ product.title }}{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('admin_printables') }}">All printable drafts</a></p>
+<h1 class="page-title">{{ product.title }}</h1>
+<p><strong>{{ product.translation|upper }}</strong> edition. This draft is not public. Changing translation means creating another edition so the verse text is not relabeled.</p>
+<p class="small"><strong>Notice in the PDF ({{ notice_code }}):</strong> {{ notice_text }}</p>
+{% if export_problems %}
+<div role="status">
+  <strong>Not ready to export</strong>
+  <ul>{% for problem in export_problems %}<li>{{ problem }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<p>
+  <a class="button" href="{{ url_for('admin_printable_preview', slug=product.id) }}">Preview PDF</a>
+  <a class="button ghost" href="{{ url_for('admin_printable_export_pdf', slug=product.id) }}">Download PDF</a>
+  <a class="button ghost" href="{{ url_for('admin_printable_export_json', slug=product.id) }}">Export JSON</a>
+  <a class="button ghost" href="{{ url_for('admin_printable_listing', slug=product.id) }}">Export listing copy</a>
+</p>
+
+<form method="post" style="display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="button ghost" name="action" value="fill_scripture" type="submit">Fill empty full verses from {{ product.translation|upper }} only</button>
+  <button class="button ghost" name="action" value="store_pdf" type="submit">Save private PDF to storage</button>
+</form>
+<p class="small muted">Excerpts are skipped. If this translation has no configured source, paste the exact text instead. Nothing is copied from another translation.</p>
+
+<form method="post" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-bottom: 12px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>New edition
+    <select name="edition_translation">
+      {% for edition in editions if edition.id != product.translation %}
+      <option value="{{ edition.id }}">{{ edition.code }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Slug <input name="edition_slug" placeholder="{{ product.id }}-esv" maxlength="80"></label>
+  <button class="button ghost" name="action" value="create_edition" type="submit">Create edition with Scripture cleared</button>
+</form>
+
+<form method="post" enctype="multipart/form-data" style="display: grid; gap: 8px; max-width: 640px; margin-bottom: 16px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Import JSON or Advent content markdown <input type="file" name="import_file" accept=".json,.md,text/markdown,application/json"></label>
+  <button class="button ghost" name="action" value="import_content" type="submit">Import content</button>
+  <button class="button ghost" name="action" value="import_listing" type="submit">Import listing markdown</button>
+</form>
+
+{% if product.id == advent_slug %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="confirm" value="replace">
+  <button class="button ghost" name="action" value="reload_advent" type="submit">Replace this draft from the packaged Advent file</button>
+</form>
+{% endif %}
+
+<form method="post" style="display: grid; gap: 10px; max-width: 820px; margin-top: 16px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Title <input name="title" value="{{ product.title }}" required maxlength="180"></label>
+  <label>Subtitle <input name="subtitle" value="{{ product.subtitle }}" maxlength="500"></label>
+  <label>Audience <input name="audience" value="{{ product.audience }}" maxlength="240"></label>
+  <label>Story arc <input name="story_arc" value="{{ product.story_arc }}" maxlength="500"></label>
+  <label>Kind
+    <select name="product_kind">
+      {% for kind in ['advent', 'memory', 'game'] %}
+      <option value="{{ kind }}" {% if product.product_kind == kind %}selected{% endif %}>{{ kind }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Status
+    <select name="status">
+      <option value="draft" {% if product.status != 'archived' %}selected{% endif %}>Draft</option>
+      <option value="archived" {% if product.status == 'archived' %}selected{% endif %}>Archived</option>
+    </select>
+  </label>
+  <label>Instructions, one step per line
+    <textarea name="instructions" rows="6">{{ product.instructions|join('\n') }}</textarea>
+  </label>
+  <label>Listing title <input name="listing_title" value="{{ product.listing.title }}" maxlength="180"></label>
+  <label>Listing tags, comma separated <input name="listing_tags" value="{{ product.listing.tags|join(', ') }}"></label>
+  <label>Draft price note (not checkout) <input name="draft_price_text" value="{{ product.listing.draft_price_text }}" maxlength="40"></label>
+  <label>Listing description <textarea name="listing_description" rows="6">{{ product.listing.description }}</textarea></label>
+
+  <h2>Cards</h2>
+  <p class="small">Scripture cards need the exact {{ product.translation|upper }} text. Mark excerpts and say which portion was omitted. Do not type a verse from memory into the wrong edition.</p>
+  {% for card in product.cards %}
+  <details {% if loop.first %}open{% endif %} style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px">
+    <summary>{{ card.number or loop.index }}. {{ card.title or card.kind }} {% if card.partial %}· Excerpt{% endif %}</summary>
+    <input type="hidden" name="card-{{ loop.index0 }}-scripture_source" value="{{ card.scripture_source }}">
+    <div style="display: grid; gap: 8px; margin-top: 8px">
+      <label>Kind
+        <select name="card-{{ loop.index0 }}-kind">
+          {% for kind in ['scripture', 'title', 'memory', 'blank'] %}
+          <option value="{{ kind }}" {% if card.kind == kind %}selected{% endif %}>{{ kind }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Number <input name="card-{{ loop.index0 }}-number" value="{{ card.number }}" maxlength="12"></label>
+      <label>Day or label <input name="card-{{ loop.index0 }}-label" value="{{ card.label }}" maxlength="40"></label>
+      <label>Title <input name="card-{{ loop.index0 }}-title" value="{{ card.title }}" maxlength="180"></label>
+      <label>Scripture reference <input name="card-{{ loop.index0 }}-reference" value="{{ card.reference }}" maxlength="80"></label>
+      <label><input type="checkbox" name="card-{{ loop.index0 }}-partial" {% if card.partial %}checked{% endif %}> Excerpt</label>
+      <label>Excerpt note <input name="card-{{ loop.index0 }}-partial_note" value="{{ card.partial_note }}" maxlength="180" placeholder="middle portion of the verse"></label>
+      <label>Exact {{ product.translation|upper }} text <textarea name="card-{{ loop.index0 }}-scripture_text" rows="4">{{ card.scripture_text }}</textarea></label>
+      <label>Little ones <textarea name="card-{{ loop.index0 }}-younger_prompt" rows="2">{{ card.younger_prompt }}</textarea></label>
+      <label>Big kids <textarea name="card-{{ loop.index0 }}-older_prompt" rows="2">{{ card.older_prompt }}</textarea></label>
+      <label>Prayer <textarea name="card-{{ loop.index0 }}-prayer" rows="2">{{ card.prayer }}</textarea></label>
+      <label>Optional activity <textarea name="card-{{ loop.index0 }}-activity" rows="2">{{ card.activity }}</textarea></label>
+      <div style="display: flex; gap: 8px">
+        <button class="button ghost" formaction="{{ url_for('admin_printable_edit', slug=product.id) }}" name="action" value="move_card" type="submit" onclick="this.form.card_index.value='{{ loop.index0 }}'; this.form.direction.value='up'">Move up</button>
+        <button class="button ghost" name="action" value="move_card" type="submit" onclick="this.form.card_index.value='{{ loop.index0 }}'; this.form.direction.value='down'">Move down</button>
+        <button class="button ghost" name="action" value="delete_card" type="submit" onclick="this.form.card_index.value='{{ loop.index0 }}'">Remove card</button>
+      </div>
+    </div>
+  </details>
+  {% endfor %}
+  <input type="hidden" name="card_index" value="">
+  <input type="hidden" name="direction" value="">
+  <button class="button primary" name="action" value="save" type="submit">Save draft</button>
+</form>
+
+<form method="post" style="margin-top: 12px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="button ghost" name="action" value="add_card" type="submit">Add Scripture card</button>
+</form>
+<form method="post" style="margin-top: 12px" onsubmit="return confirm('Delete this private draft?')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="button ghost" name="action" value="delete" type="submit">Delete draft</button>
+</form>
+{% endblock %}
