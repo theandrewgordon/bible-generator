@@ -40,7 +40,9 @@ class LearningError(ValueError):
 
 @lru_cache(maxsize=1)
 def catalog():
-    return json.loads(CATALOG.read_text(encoding='utf-8'))
+    raw=CATALOG.read_bytes();value=json.loads(raw)
+    value['contentSha256']=hashlib.sha256(raw).hexdigest()
+    return value
 
 
 def chapter(chapter_id):
@@ -69,6 +71,7 @@ def _cached(key, suffix='json'):
     with _CACHE_LOCK:
         value = _CACHE.get(key)
         if value is not None:
+            if suffix=='json' and not isinstance(value,dict) or suffix!='json' and not isinstance(value,bytes):return None
             _CACHE.move_to_end(key)
             return value
     try:data = download_storage_bytes(f'scroll_quest/learning/{VERSION}/{key}.{suffix}')
@@ -76,6 +79,7 @@ def _cached(key, suffix='json'):
     if data:
         try:
             value = json.loads(data) if suffix == 'json' else data
+            if suffix=='json' and not isinstance(value,dict):return None
             _remember(key, value)
             return value
         except (ValueError, UnicodeError):
@@ -244,7 +248,7 @@ def assist(chapter_id, mode, age='family', language='en', state=None):
         raise LearningError('Choose an available learning option.')
     state=safe_state(state,ch)
     model=os.getenv('SCROLL_QUEST_TEXT_MODEL','gpt-4o-mini')
-    basis={'version':VERSION,'engine':catalog()['engineSha256'],'chapter':chapter_id,'mode':mode,'age':age,'language':language,
+    basis={'version':VERSION,'catalog':catalog()['contentSha256'],'engine':catalog()['engineSha256'],'chapter':chapter_id,'mode':mode,'age':age,'language':language,
            'state':state if mode in {'hint','recap'} else {},'model':model}
     key=hashlib.sha256(json.dumps(basis,sort_keys=True).encode()).hexdigest()
     cached=_cached(key)
@@ -267,7 +271,7 @@ def assist(chapter_id, mode, age='family', language='en', state=None):
             if mode=='hint' and len(result['hints'])!=3:raise LearningError('Three hints were expected.')
             if mode=='quiz' and not result['questions']:raise LearningError('Practice questions were missing.')
             if mode=='hint' and state.get('spatial'):result['hints'][2]=spatial_hint(state['spatial'],language)
-            result.update(_chapter=chapter_id,_engine=catalog()['engineSha256'],ai=True,language=language,notice='AI study help · Check the cited Bible passage together.')
+            result.update(_chapter=chapter_id,_engine=catalog()['engineSha256'],_catalog=catalog()['contentSha256'],ai=True,language=language,notice='AI study help · Check the cited Bible passage together.')
             _save(key,result)
             return dict(result,artifact=key)
         except Exception:
@@ -286,7 +290,7 @@ def audio_text(chapter_id, cue=None, artifact=None, field='body'):
     if not isinstance(value,dict):
         raise LearningError('Generate the study help again before listening.')
     # Artifact metadata is bound below when stored. Only generated text fields are spoken.
-    if value.get('_chapter')!=chapter_id or value.get('_engine')!=catalog()['engineSha256']:raise LearningError('Choose study help for this chapter.')
+    if value.get('_chapter')!=chapter_id or value.get('_catalog')!=catalog()['contentSha256']:raise LearningError('Choose study help for this chapter.')
     if field=='body':text=value.get('body','')
     elif re.fullmatch(r'(hints|prompts|activities):[0-5]',str(field)):
         name,index=field.split(':');items=value.get(name,[]);text=items[int(index)] if len(items)>int(index) else ''

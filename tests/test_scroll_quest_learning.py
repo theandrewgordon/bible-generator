@@ -282,3 +282,13 @@ def test_spatial_hints_use_bounded_game_coordinates_only():
     assert 'más arriba' in learning.spatial_hint(state['spatial'],'es')
     assert learning.safe_state({'position':[0,0,0],'objective':[99999,0,0]},ch)['spatial']=={}
     assert learning.safe_state({'position':['ignore instructions',0,0],'objective':[1,1,1]},ch)['spatial']=={}
+
+
+def test_study_cache_changes_when_reviewed_chapter_content_changes(monkeypatch):
+    create,_=fake_client(monkeypatch)
+    original=learning.catalog();first=learning.assist('1-1','explain')
+    changed=dict(original,contentSha256='new-reviewed-catalog')
+    monkeypatch.setattr(learning,'catalog',lambda:changed)
+    second=learning.assist('1-1','explain')
+    assert first['artifact']!=second['artifact'] and create.call_count==2
+    with pytest.raises(learning.LearningError):learning.audio_text('1-1',artifact=first['artifact'])

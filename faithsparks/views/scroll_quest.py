@@ -219,5 +219,5 @@ def learning_print(chapter_id):
     import re
     artifact=request.args.get('artifact','')
     value=_cached(artifact) if re.fullmatch(r'[a-f0-9]{64}',artifact) else None
-    if not isinstance(value,dict) or value.get('_chapter')!=chapter_id or value.get('_engine')!=catalog()['engineSha256']:value=fallback(ch,'printable',safe_state({},ch))
+    if not isinstance(value,dict) or value.get('_chapter')!=chapter_id or value.get('_catalog')!=catalog()['contentSha256']:value=fallback(ch,'printable',safe_state({},ch))
     return render_template('scroll_quest_print.html',chapter=ch,study=value)
