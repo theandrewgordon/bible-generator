@@ -1,0 +1,73 @@
+'use strict';
+const assert=require('node:assert/strict'),path=require('node:path'),{spawn}=require('node:child_process');
+const {chromium}=require(process.env.SCROLL_QUEST_PLAYWRIGHT||'../frontend/node_modules/playwright');
+function wav(){const b=Buffer.alloc(4844);b.write('RIFF');b.writeUInt32LE(4836,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(24000,24);b.writeUInt32LE(48000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(4800,40);return b;}
+(async()=>{
+ const root=path.resolve(__dirname,'..'),server=spawn(process.env.BROWSER_TEST_PYTHON||'python3',[path.join(__dirname,'scroll_quest_server.py')],{cwd:root,env:process.env});let logs='',browser;
+ server.stderr.on('data',b=>logs+=b);
+ try{
+  const base=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Fixture did not start: '+logs)),20000);let out='';server.stdout.on('data',b=>{out+=b;const m=out.match(/SCROLL_QUEST_URL=(http:\/\/127\.0\.0\.1:\d+)/);if(m){clearTimeout(timer);resolve(m[1]);}});server.on('exit',code=>{clearTimeout(timer);reject(Error('Fixture exited '+code+': '+logs));});});
+  browser=await chromium.launch({headless:true,executablePath:process.env.BROWSER_EXECUTABLE});
+  const context=await browser.newContext({viewport:{width:1280,height:900}}),page=await context.newPage(),errors=[],assistCalls=[],narrationCalls=[],transcriptions=[];
+  context.setDefaultTimeout(60000);context.setDefaultNavigationTimeout(30000);page.setDefaultTimeout(60000);page.setDefaultNavigationTimeout(30000);
+  page.on('pageerror',error=>{errors.push(error.message);console.log('Browser error:',error.message);});
+  await context.addInitScript(()=>{
+   window.__micStarts=0;window.__tracksStopped=0;
+   const devices={getUserMedia:async()=>{window.__micStarts++;return {getTracks:()=>[{stop(){window.__tracksStopped++;}}]};}};
+   Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:devices});
+   window.OfflineAudioContext=class{async decodeAudioData(){return {duration:.1,sampleRate:16000,length:1600,numberOfChannels:1,getChannelData:()=>new Float32Array(1600)};}};
+   window.MediaRecorder=class{static isTypeSupported(value){return value.startsWith('audio/webm');}constructor(){this.state='inactive';this.mimeType='audio/webm';}start(){this.state='recording';}stop(){if(this.state==='inactive')return;this.state='inactive';queueMicrotask(()=>{this.ondataavailable?.({data:new Blob([new Uint8Array(300)],{type:'audio/webm'})});this.onstop?.();});}};
+  });
+  await page.route('**/*',route=>route.request().url().startsWith(base)?route.continue():route.abort());
+  let chapter=null,transcribed='';
+  await page.route('**/learning/assist',async route=>{
+   const body=route.request().postDataJSON();assistCalls.push(body);
+   const ch=(await context.request.get(base+'/labs/scroll-quest/learning/chapter/'+body.chapter));const data=await ch.json();
+   const questions=data.quiz.slice(0,2).map((q,source)=>{q={...q,source,explanation:'Read '+q.ref+' together.'};if(body.age==='young'){const indices=[q.answer,...q.options.map((_,i)=>i).filter(i=>i!==q.answer).slice(0,1)].sort();q.options=indices.map(i=>q.options[i]);q.answer=indices.indexOf(q.answer);}return q;});
+   await route.fulfill({json:{title:'Read together',body:body.language==='fr'?'Dieu a donné à Adam un jardin à cultiver.':'God gave Adam work in the garden.',hints:['Look at the garden.','Look for a plant to tend.','Check the tending task.'],prompts:['What work did God give Adam?'],activities:['Draw the garden.'],vocabulary:[{word:'dress',meaning:'Care for or tend.'}],questions,ai:true,language:body.language,artifact:'a'.repeat(64),notice:'AI study help · Read the passage together.'}});
+  });
+  await page.route('**/learning/narrate',route=>{narrationCalls.push(route.request().postDataJSON());return route.fulfill({status:200,contentType:'audio/wav',body:wav()});});
+  await page.route('**/learning/transcribe',route=>{transcriptions.push(route.request().postDataBuffer().length);return route.fulfill({json:{text:transcribed}});});
+  await page.goto(base+'/labs/scroll-quest/play');await page.waitForFunction(()=>document.querySelector('#chapter')?.options.length===54);
+  chapter=await (await context.request.get(base+'/labs/scroll-quest/learning/chapter/1-1')).json();
+  await page.waitForFunction(()=>document.querySelector('iframe')?.contentWindow?.SQSave);
+  const frame=page.frames().find(f=>f.url().includes('/bundle/'));
+  await frame.goto(base+'/labs/scroll-quest/bundle/world-1-1-eden.html');await frame.waitForFunction(()=>window.SQ?.state?.players?.length>0);
+  await frame.evaluate(()=>{SQSave.write({levels:{'1-1':{done:true,stars:2}},last:'1-1'});SQ._startPlay();let n=0;while(SQ.state.phase==='story'&&n++<20)SQ._nextStory();});
+  await frame.waitForFunction(()=>SQ.state.phase==='play');
+  console.log('Opening learning panel');await page.click('#open-learning');await frame.waitForFunction(()=>SQ.state.phase==='paused');await page.waitForFunction(()=>document.getElementById('memory-verse').textContent.length>10);
+  assert.equal(await page.locator('#memory-verse').textContent(),chapter.memoryVerse.text);
+  assert.equal(await page.evaluate(()=>window.__micStarts),0);
+  console.log('Testing narration');await page.click('#read-verse');await page.waitForTimeout(200);assert.equal(narrationCalls.length,1);assert.equal(narrationCalls[0].chapter,'1-1');assert(chapter.cues[narrationCalls[0].cue]);
+  console.log('Testing hints');await page.click('#tab-help');await page.click('#next-hint');await page.waitForFunction(()=>document.getElementById('help-result').textContent.includes('Look at the garden.'));
+  assert.equal(assistCalls.at(-1).state.role,'shepherd');assert.deepEqual(Object.keys(assistCalls.at(-1).state.tasks).sort(),['name','tend']);
+  await page.click('#next-hint');await page.waitForFunction(()=>document.getElementById('help-result').textContent.includes('Look for a plant'));
+  await page.click('#explain');await page.waitForFunction(()=>document.getElementById('help-result').textContent.includes('God gave Adam'));
+  assert((await page.locator('#help-result').textContent()).includes('Care for or tend'));
+  await page.selectOption('#study-language','fr');assert.equal(await page.locator('#tab-help').textContent(),'Aide');await page.click('#translate-help');await page.waitForFunction(()=>document.getElementById('language-result').textContent.includes('Dieu a donné'));
+  assert.equal(await page.locator('#memory-verse').textContent(),chapter.memoryVerse.text);
+  await page.selectOption('#study-language','en');await page.selectOption('#reading-level','young');
+  console.log('Testing practice');await page.click('#tab-practice');const blanks=page.locator('#fill-verse input');assert(await blanks.count()>0);
+  for(const input of await blanks.all())await input.fill(await input.getAttribute('data-expected'));
+  await page.click('#check-blanks');assert((await page.locator('#verse-feedback').textContent()).includes('Every missing word'));
+  await page.fill('#recitation',chapter.memoryVerse.text);await page.click('#check-recitation');await page.waitForFunction(()=>document.getElementById('verse-feedback').textContent.includes('All the verse words'));
+  transcribed=chapter.memoryVerse.text;await page.click('#record-verse');await page.waitForFunction(()=>document.getElementById('record-verse').textContent==='Stop recording');await page.click('#record-verse');await page.waitForFunction(()=>document.getElementById('learning-status').textContent.includes('Recording read.'));
+  assert.equal(transcriptions.length,1);assert(await page.evaluate(()=>window.__tracksStopped)>0);
+  await page.click('#start-quiz');await page.waitForFunction(()=>document.querySelectorAll('#quiz-area [data-answer]').length===2);
+  await page.locator('#quiz-area [data-answer]').nth(1).click();assert((await page.locator('#quiz-feedback').textContent()).includes('matches the passage'));
+  await page.click('#quiz-next');transcribed='B';await page.click('#record-quiz');await page.waitForFunction(()=>document.getElementById('record-quiz').textContent==='Stop recording');await page.click('#record-quiz');await page.waitForFunction(()=>document.getElementById('learning-status').textContent.includes('Recording read.'));assert.equal(transcriptions.length,2);
+  console.log('Testing family tools');await page.click('#tab-family');await page.click('#discuss');await page.waitForFunction(()=>document.getElementById('family-result').textContent.includes('What work did God give Adam?'));
+  await page.click('#make-printable');await page.waitForSelector('#family-result a');console.log('Opening printable worksheet');const popupPromise=context.waitForEvent('page',{timeout:60000});await page.locator('#family-result a[href*="/learning/print/"]').click();const printable=await popupPromise;await printable.waitForLoadState();assert((await printable.locator('body').textContent()).includes(chapter.memoryVerse.text));await printable.close();console.log('Printable worksheet verified');
+  await page.click('#make-recap');await page.waitForFunction(()=>document.getElementById('family-result').textContent.includes('God gave Adam'));
+  await page.click('#show-journal');assert((await page.locator('#journal-result').textContent()).includes('memory-verse practice'));
+  assert(!await page.evaluate(verse=>FaithSparksLabsStorage.labsStorage.getItem('scrollquest.learning.journal.v1').includes(verse),chapter.memoryVerse.text));
+  if(process.env.SCROLL_QUEST_SCREENSHOT)await page.screenshot({path:process.env.SCROLL_QUEST_SCREENSHOT+'-learning.png'});
+  await page.setViewportSize({width:390,height:844});assert((await page.locator('#learning').boundingBox()).width<=390);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  if(process.env.SCROLL_QUEST_SCREENSHOT)await page.screenshot({path:process.env.SCROLL_QUEST_SCREENSHOT+'-learning-phone.png'});
+  await page.click('#tab-practice');await page.click('#record-verse');await page.waitForFunction(()=>document.getElementById('record-verse').textContent==='Stop recording');await page.click('#close-learning');await page.waitForTimeout(150);assert.equal(transcriptions.length,2);await frame.waitForFunction(()=>SQ.state.phase==='play');
+  assert.equal(await frame.evaluate(()=>SQSave.read().levels['1-1'].stars),2);
+  assert.deepEqual(errors,[]);
+  console.log('PASS narration, state-aware hints, vocabulary, translated help, exact KJV, missing words, typed/recorded practice, adaptive quizzes, printables, recaps and private summaries');
+  console.log('PASS opening learning pauses gameplay; closing resumes it and stops microphone capture; narrow layout and adventure saves are preserved');
+ }finally{if(browser)await browser.close();server.kill('SIGTERM');}
+})().catch(error=>{console.error(error);process.exitCode=1;});

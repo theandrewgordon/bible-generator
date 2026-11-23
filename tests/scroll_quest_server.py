@@ -7,6 +7,7 @@ from werkzeug.serving import make_server
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 os.environ.setdefault('OPENAI_API_KEY', 'test-key')
+os.environ['SCROLL_QUEST_AI_DISABLED']='1'
 import app as website
 from flask import g, request, session
 

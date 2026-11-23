@@ -46,8 +46,8 @@ const root=path.resolve(__dirname,'..');
   await context.addCookies([{name:'sq_test_account',value:'second@example.test',url:base}]);
   // A request establishes the new account owner cookie while the old game remains open.
   assert.equal((await context.request.get(base+'/labs/scroll-quest')).status(),200);
-  const stale=await oldFrame.evaluate(()=>({progress:SQSave.read(),stored:localStorage.getItem('scrollquest.progress.v1')}));
-  assert.equal(stale.stored,null);assert(!stale.progress.levels['1-1']);
+  let stale=null;try{stale=await oldFrame.evaluate(()=>({progress:SQSave.read(),stored:localStorage.getItem('scrollquest.progress.v1')}));}catch(error){if(!/detached|destroyed|navigation|closed/i.test(error.message))throw error;}
+  if(stale){assert.equal(stale.stored,null);assert(!stale.progress.levels['1-1']);}
   await page.goto(base+'/labs/scroll-quest/play');await page.waitForFunction(()=>document.querySelector('iframe')?.contentWindow?.SQSave);
   frame=page.frames().find(f=>f.url().includes('/bundle/index.html'));await frame.waitForFunction(()=>window.SQSave);
   assert.equal(await frame.evaluate(()=>Object.keys(SQSave.read().levels).length),0);

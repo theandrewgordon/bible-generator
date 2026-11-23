@@ -1,21 +1,37 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="robots" content="noindex,nofollow">
-  <title>Play Scroll Quest | Faith Sparks Labs</title>
-  <style>
-    html,body{height:100%;margin:0;background:#20190f;color:#fff1ce;font-family:system-ui,sans-serif}
-    body{display:flex;flex-direction:column;height:100dvh}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 14px;flex:none;flex-wrap:wrap}
-    header a{color:#fff1ce;text-underline-offset:3px}header small{color:#e2cea8}
-    iframe{display:block;border:0;flex:1;width:100%;min-height:0;background:#20190f}
-    @media(max-width:600px){header small{display:none}}
-  </style>
-</head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow"><title>Play Scroll Quest | Faith Sparks Labs</title><link rel="stylesheet" href="/static/labs/scroll-quest/learning.css"></head>
 <body>
-  <header><a href="{{ url_for('scroll_quest.index') }}">← Scroll Quest</a><small>Beta · Progress saves in this browser</small><a href="/labs">Back to Labs</a></header>
-  <iframe title="Scroll Quest Bible adventure" src="{{ url_for('scroll_quest.bundle_file', filename='index.html') }}" allow="fullscreen; gamepad" allowfullscreen></iframe>
-</body>
-</html>
+<header class="game-bar"><a href="{{ url_for('scroll_quest.index') }}">← Scroll Quest</a><small>Beta · Progress saves in this browser</small><button id="open-learning" type="button">Learning together ✦</button><a href="/labs">Back to Labs</a></header>
+<iframe id="sq-game" title="Scroll Quest Bible adventure" src="{{ url_for('scroll_quest.bundle_file', filename='index.html') }}" allow="fullscreen; gamepad" allowfullscreen></iframe>
+<dialog id="learning" aria-labelledby="learning-title">
+ <header class="panel-head"><div class="row"><p class="kicker">Faith Sparks · Scroll Quest</p><button id="close-learning" class="icon" aria-label="Return to game" type="button">×</button></div><h1 id="learning-title">Learning together</h1><p>The game pauses while you explore together.</p>
+ <label for="chapter">Chapter</label><select id="chapter" aria-label="Choose a chapter"></select>
+ <nav class="tabs" role="tablist" aria-label="Learning activities"><button role="tab" id="tab-listen" data-tab="listen" aria-controls="pane-listen" aria-selected="true">Listen</button><button role="tab" id="tab-help" data-tab="help" aria-controls="pane-help" aria-selected="false">Help</button><button role="tab" id="tab-practice" data-tab="practice" aria-controls="pane-practice" aria-selected="false">Practice</button><button role="tab" id="tab-family" data-tab="family" aria-controls="pane-family" aria-selected="false">Family</button></nav>
+ </header>
+ <div class="panel-body">
+  <div class="settings"><div><label for="reading-level">Reading level</label><select id="reading-level"><option value="young">Younger readers</option><option value="middle">Older children</option><option value="family" selected>Family</option></select></div><div><label for="study-language">Study language</label><select id="study-language"><option value="en">English</option><option value="es">Español</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="pt">Português</option></select></div></div>
+  <p id="learning-status" class="status" role="status" aria-live="polite"></p>
+  <section id="pane-listen" role="tabpanel" aria-labelledby="tab-listen">
+   <h2 data-label="listenTitle">Hear the story</h2><p class="quiet" data-label="listenCopy">Use the game’s speaker buttons or choose a reading here.</p>
+   <div class="card"><p class="kicker" id="verse-reference"></p><p class="verse" id="memory-verse"></p><div class="row"><button class="primary" id="read-verse">Read verse aloud</button><button id="stop-voice">Stop</button></div></div>
+   <label for="reading-cue">More readings</label><select id="reading-cue"></select><p id="cue-preview" class="quiet"></p><p><button id="read-cue">Read selected passage</button></p>
+   <div class="settings"><div><label for="voice-mode">Reading voice</label><select id="voice-mode"><option value="openai">AI-generated voice</option><option value="device">Device voice</option><option value="off">Reading voice off</option></select></div><div><label for="voice-persona">Voice style</label><select id="voice-persona"><option value="narrator">Warm narrator</option><option value="guide">Calm guide</option><option value="companion">Friendly companion</option></select></div></div>
+   <label class="check"><input type="checkbox" id="slow-voice">Slower playback</label><label class="check"><input type="checkbox" id="auto-read">Read story cards automatically</label><label class="check"><input type="checkbox" id="npc-voice">Read reviewed character conversations</label>
+   <p class="disclosure">AI narration uses a synthetic adult voice. Scripture readings use the game’s exact KJV text; a device voice is available if AI audio is unavailable.</p>
+  </section>
+  <section id="pane-help" role="tabpanel" aria-labelledby="tab-help" hidden>
+   <h2 data-label="helpTitle">A little help</h2><div id="task-summary" class="notice"></div><div class="row"><button id="next-hint" class="primary">Give me a nudge</button><button id="explain">Explain the passage</button></div><p class="quiet">Hints use the chapter’s tasks and your family’s current role. They do not complete tasks for you.</p><div id="help-result"></div>
+   <div class="divider"><h3>Study in another language</h3><p class="quiet">Choose a study language above, then translate the story explanation and task instructions. The original Scripture remains in English (KJV).</p><button id="translate-help">Translate study help</button><div id="language-result"></div></div>
+  </section>
+  <section id="pane-practice" role="tabpanel" aria-labelledby="tab-practice" hidden>
+   <h2 data-label="practiceTitle">Remember and discover</h2><h3>Memory verse</h3><div id="fill-verse" class="card"></div><div class="row"><button id="check-blanks">Check missing words</button><button id="show-verse">Show the verse</button></div><p class="quiet">Or type the verse from memory. A grown-up can help with optional voice input.</p><label for="recitation" class="sr-only">Your memory verse</label><textarea id="recitation" maxlength="1800" placeholder="Type or record the verse…"></textarea><p class="row"><button id="check-recitation" class="primary">Check my practice</button><button id="record-verse">Record verse</button></p><p id="verse-feedback" class="feedback" aria-live="polite"></p>
+   <div class="divider"><h3>Chapter questions</h3><button id="start-quiz" class="primary">Start practice questions</button><div id="quiz-area"></div><p class="quiet">Practice questions use the game’s reviewed question bank. These activities do not change your adventure score.</p></div>
+   <p class="disclosure">Recording starts only when you press Record and allow microphone access. Recordings are sent to OpenAI for transcription. Faith Sparks does not save recordings or recognized words in your progress.</p>
+  </section>
+  <section id="pane-family" role="tabpanel" aria-labelledby="tab-family" hidden>
+   <h2 data-label="familyTitle">Bring the story home</h2><div class="mode-grid"><button id="discuss">Talk together</button><button id="make-printable">Make a printable</button><button id="make-recap">Chapter recap</button><button id="show-journal">Our practice summary</button></div><div id="family-result"></div><div id="journal-result" class="card" hidden></div><p class="quiet">Practice summaries stay in this browser and are separate for each Faith Sparks account. They record chapters and practice counts, not a child’s name or spiritual progress.</p>
+  </section>
+  <p class="disclosure">AI study help is commentary. Read the cited passage together; the original Bible text is shown separately.</p>
+ </div>
+</dialog>
+<script src="/static/js/labs-storage-runtime.js"></script><script src="/static/labs/scroll-quest/learning.js"></script>
+</body></html>
