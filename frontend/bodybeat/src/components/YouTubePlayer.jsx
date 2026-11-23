@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { canSkipBlockedTrack } from "../engine/playerHelp";
 import { parseYouTubeInput } from "../utils/youtubeUrl";
 
 let ytApiPromise = null;
@@ -242,15 +243,9 @@ export function YouTubePlayer({
               });
 
               // Bounded skip (max 5 items) when an individual song inside a valid playlist is restricted (100/101/150)
-              const isItemRestricted = errCode === 100 || errCode === 101 || errCode === 150;
-              if (
-                isPlaylist &&
-                isItemRestricted &&
-                Array.isArray(list) &&
-                idx >= 0 &&
-                idx < list.length - 1 &&
-                skippedItemsRef.current < 5
-              ) {
+              if (isPlaylist && canSkipBlockedTrack({
+                code: errCode, playlist: list, index: idx, attempts: skippedItemsRef.current
+              })) {
                 skippedItemsRef.current += 1;
                 console.info(
                   `[YouTubePlayer] Skipping restricted track (${idx + 1}/${list.length}), attempt ${skippedItemsRef.current}/5`

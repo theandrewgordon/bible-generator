@@ -21,12 +21,20 @@ export function HudOverlay({
   onTogglePause,
   onSyncBeatOne,
   onQuitToLobby,
-  banner
+  banner,
+  guidedCue,
+  practice
 }) {
   const theme = THEMES[themeId] || THEMES.volcano;
 
   return (
     <>
+      {guidedCue && !isPaused && (
+        <div className="guided-cue">
+          <span aria-hidden="true">{guidedCue.icon}</span>
+          {guidedCue.next ? "Next: " : ""}{guidedCue.text}
+        </div>
+      )}
       <div id="hud">
         {/* Player 1 Stars / Points */}
         <div className="player-hud p1">
@@ -53,7 +61,7 @@ export function HudOverlay({
                   ? currentTrackInfo?.playlistTotal > 0
                     ? `🎵 SONG ${currentTrackInfo.playlistIndex + 1} OF ${currentTrackInfo.playlistTotal}`
                     : "🎵 CONTINUOUS DANCE"
-                  : theme.missionLabel}
+                  : practice ? "PRACTICE ROUND" : theme.missionLabel}
               </span>
               <div className="mission-track">
                 <div

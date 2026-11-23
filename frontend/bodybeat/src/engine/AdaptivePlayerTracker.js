@@ -133,6 +133,7 @@ export class AdaptivePlayerTracker {
   }
 
   updateBodyMode({ requestedMode, feetVisible, nowMs }) {
+    if (requestedMode === "seated") requestedMode = "hands";
     if (requestedMode === "hands" || requestedMode === "full") {
       this.effectiveBodyMode = requestedMode;
       this.candidateBodyMode = requestedMode;

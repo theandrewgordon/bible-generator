@@ -39,22 +39,24 @@ export class SoundEngine {
     this.customBuffer = null;
   }
 
-  startLoop({ bpm, trackId = "volcano-dash", muteSynthDrums = false, latencyOffsetSec, onVisualBeat }) {
+  startLoop({ bpm, trackId = "volcano-dash", muteSynthDrums = false, latencyOffsetSec, onVisualBeat, firstBeat = 0, useCustomAudio = true }) {
     this.stopLoop();
     const beatSec = 60 / bpm;
     const startOffset = this.ctx.currentTime + 0.25;
     const track = SAMPLE_TRACKS.find((t) => t.id === trackId) || SAMPLE_TRACKS[0];
 
-    if (this.customBuffer && !muteSynthDrums) {
+    const customBuffer = useCustomAudio ? this.customBuffer : null;
+    const run = this.loopGeneration;
+    if (customBuffer && !muteSynthDrums) {
       this.activeSource = this.ctx.createBufferSource();
-      this.activeSource.buffer = this.customBuffer;
+      this.activeSource.buffer = customBuffer;
       this.activeSource.loop = true;
       this.activeSource.connect(this.ctx.destination);
       this.activeSource.start(startOffset);
     }
 
     this.nextNoteTime = startOffset;
-    this.currentBeat = 0;
+    this.currentBeat = firstBeat;
     this.isRunning = true;
 
     const tick = () => {
@@ -63,7 +65,7 @@ export class SoundEngine {
         const beatNum = this.currentBeat;
         const time = this.nextNoteTime;
 
-        if (!this.customBuffer && !muteSynthDrums) {
+        if (!customBuffer && !muteSynthDrums) {
           this.playKick(time);
           if (beatNum % 2 === 1) this.playSnare(time);
           this.playHiHat(time + beatSec * 0.5);
@@ -77,7 +79,7 @@ export class SoundEngine {
 
         const delayMs = Math.max(0, (time + latencyOffsetSec - this.ctx.currentTime) * 1000);
         setTimeout(() => {
-          if (this.isRunning) onVisualBeat(beatNum);
+          if (this.isRunning && this.loopGeneration === run) onVisualBeat(beatNum);
         }, delayMs);
 
         this.nextNoteTime += beatSec;
@@ -91,6 +93,7 @@ export class SoundEngine {
   }
 
   stopLoop() {
+    this.loopGeneration = (this.loopGeneration ?? 0) + 1;
     this.isRunning = false;
     if (this.schedulerTimer) {
       clearTimeout(this.schedulerTimer);

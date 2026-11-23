@@ -889,3 +889,40 @@ html, body, #root, #game-container {
   background: #000;
   pointer-events: auto;
 }
+
+.guided-cue {
+  position: absolute;
+  z-index: 12;
+  inset: auto auto max(1.5rem, env(safe-area-inset-bottom)) 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  padding: 0.5rem 1.25rem;
+  border: 2px solid #fde047;
+  border-radius: 1rem;
+  background: #0f172a;
+  color: #fff;
+  font-size: clamp(1.05rem, 4vw, 2rem);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.guided-cue span {
+  color: #fde047;
+  margin-right: 0.55em;
+}
+
+.bodybeat-parent-tools {
+  display: grid;
+  justify-items: start;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
+
+.bodybeat-parent-tools input {
+  width: 100%;
+}
+
+.bodybeat-parent-tools p {
+  margin: 0.5rem 0;
+}

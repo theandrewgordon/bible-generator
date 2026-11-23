@@ -302,6 +302,12 @@ def bodybeat_lab():
     return response
 
 
+@bp.post("/labs/bodybeat/coach")
+def bodybeat_coach():
+    from faithsparks.services.bodybeat_coach import coach_request
+    return coach_request()
+
+
 @bp.get('/labs')
 def labs():
     return render_template(

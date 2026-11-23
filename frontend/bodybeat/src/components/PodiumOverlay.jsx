@@ -1,21 +1,21 @@
-export function PodiumOverlay({ results, highScoreInfo, onPlayAgain, onChangeSettings }) {
+export function PodiumOverlay({ results, highScoreInfo, practice, tip, onPlayAgain, onTryTip, onChangeSettings }) {
   const isSolo = results.length === 1;
   const p1 = results[0];
   const p2 = results[1];
 
-  let headline = "ADVENTURE COMPLETE!";
-  if (!isSolo && p1 && p2) {
+  let headline = practice ? "PRACTICE COMPLETE!" : "ADVENTURE COMPLETE!";
+  if (!practice && !isSolo && p1 && p2) {
     if (p1.score === p2.score) headline = "AMAZING TEAM TIE!";
     else headline = p1.score > p2.score ? "PLAYER 1 WINS!" : "PLAYER 2 WINS!";
   }
 
   return (
     <div className="fullscreen-overlay" style={{ zIndex: 25 }}>
-      <div className="subtitle">
+      {!practice && <div className="subtitle">
         {highScoreInfo?.isNewRecord
           ? "🎉 NEW HIGH SCORE! 🎉"
           : `Best Score: ${highScoreInfo?.best || 0}`}
-      </div>
+      </div>}
       <h1>{headline}</h1>
 
       <div className="podium-grid">
@@ -43,12 +43,14 @@ export function PodiumOverlay({ results, highScoreInfo, onPlayAgain, onChangeSet
         })}
       </div>
 
+      {tip && <p>{tip.text}</p>}
       <div className="podium-actions">
+        {tip?.patch && <button className="secondary-btn" onClick={onTryTip}>Try it</button>}
         <button className="primary-btn" onClick={onPlayAgain}>
           PLAY AGAIN
         </button>
         <button className="secondary-btn" onClick={onChangeSettings}>
-          NEW ADVENTURE
+          {practice ? "CHOOSE A SONG" : "NEW ADVENTURE"}
         </button>
       </div>
     </div>

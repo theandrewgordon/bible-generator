@@ -17,6 +17,7 @@ VERSION = 'v1'
 INSTRUCTIONS = ('Read only the supplied educational text in a warm, clear American English voice. '
                 'Speak calmly for children. Read mathematical symbols and missing boxes naturally. '
                 'Do not solve questions, add answers, or add any commentary.')
+BODYBEAT_CUES = frozenset({"Reach left", "Reach right", "Reach up", "Duck", "Freeze"})
 _LOCKS = [threading.Lock() for _ in range(32)]
 
 def reply(body, status=200, **headers):
@@ -42,10 +43,12 @@ def speak():
         return reply({'error': 'csrf'}, 403)
     payload = request.get_json(silent=True)
     if (not isinstance(payload, dict) or set(payload) != {'game', 'text'} or
-        payload['game'] not in ['geo', 'math', 'grammar'] or
+        payload['game'] not in ['geo', 'math', 'grammar', 'bodybeat'] or
         not isinstance(payload['text'], str) or not 1 <= len(payload['text'].strip()) <= 1800):
         return reply({'error': 'invalid'}, 400)
     text = ' '.join(payload['text'].split())
+    if payload['game'] == 'bodybeat' and text not in BODYBEAT_CUES:
+        return reply({'error': 'invalid'}, 400)
     ip = hmac.new(str(current_app.secret_key).encode(), get_client_ip().encode(), hashlib.sha256).hexdigest()
     limited = check_rate_limit('learning_voice_requests', ip, limit=200, window_seconds=60, fail_closed=True)
     if not limited.allowed:

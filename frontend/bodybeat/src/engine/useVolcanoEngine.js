@@ -14,6 +14,9 @@ import { THEMES } from "../constants/themes";
 import { SoundEngine } from "../audio/SoundEngine";
 import { MicBeatDetector } from "../audio/MicBeatDetector";
 import { speakCoach } from "../audio/voiceCoach";
+import { createGuidedChart, MOVE_CUES, moveForMode, moveTargets, replayTip } from "./guidedRoutine";
+import { countPlaytestEvent } from "../storage/playtestStats";
+import { playCoachCue } from "../audio/guidedVoice";
 import { GameClock } from "./GameClock";
 import { AdaptivePlayerTracker } from "./AdaptivePlayerTracker";
 import { ChallengeScheduler } from "./ChallengeScheduler";
@@ -86,6 +89,8 @@ export function useVolcanoEngine({
   const [effectivePlayersCount, setEffectivePlayersCount] = useState(1);
   const [recoveryError, setRecoveryError] = useState(null);
   const [screen, setScreen] = useState("lobby"); // "lobby" | "preparing_media" | "countdown" | "playing" | "podium"
+  const [guidedCue, setGuidedCue] = useState(null);
+  const [nextRoundTip, setNextRoundTip] = useState(null);
   const [countdownNumber, setCountdownNumber] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
   const [banner, setBanner] = useState({ visible: false, text: "", gradient: "" });
@@ -477,7 +482,7 @@ export function useVolcanoEngine({
     });
   }, [getEffectiveBpm]);
 
-  const triggerChallenge = useCallback((type, beatNum) => {
+  const triggerChallenge = useCallback((type, beatNum, announce = true) => {
     const g = gameRef.current;
     const { audioSource, themeId, voiceCoach } = settingsRef.current;
     const bodyMode = g.activeBodyMode;
@@ -511,7 +516,7 @@ export function useVolcanoEngine({
         text: theme.overheadBanner,
         gradient: "linear-gradient(90deg, #dc2626, #991b1b)"
       });
-      speakCoach(theme.overheadVoice, voiceCoach);
+      speakCoach(theme.overheadVoice, voiceCoach && announce);
       if (playSfx && !theme.isChoreoMode) soundRef.current.playLaserSweep();
     } else if (type === "FREEZE") {
       g.targets = [];
@@ -526,7 +531,7 @@ export function useVolcanoEngine({
         text: theme.freezeBanner,
         gradient: "linear-gradient(90deg, #0891b2, #0284c7)"
       });
-      speakCoach(theme.freezeVoice, voiceCoach);
+      speakCoach(theme.freezeVoice, voiceCoach && announce);
       soundRef.current.playFreezeBell();
     } else if (type === "GATE") {
       g.targets = [];
@@ -617,16 +622,45 @@ export function useVolcanoEngine({
 
     if (isRecording) return;
 
+    if (g.guidedChart) {
+      const cueSettings = settingsRef.current;
+      const at = (beat) => moveForMode(g.guidedChart[beat], cueSettings.gameMode, cueSettings.difficulty);
+      const preview = at(beatNum + 4);
+      const reach = at(beatNum + APPROACH_BEATS);
+      const current = at(beatNum);
+      if (preview) {
+        setGuidedCue({ ...MOVE_CUES[preview], next: true });
+        if (cueSettings.voiceCoach) playCoachCue(MOVE_CUES[preview].text);
+      } else if (current) {
+        setGuidedCue({ ...MOVE_CUES[current], next: false });
+      } else if (at(beatNum - 2)) {
+        setGuidedCue(null);
+      }
+
+      for (const [limbId, x, y] of moveTargets(reach)) {
+        for (const pIdx of activeIndices) {
+          const laneX = isSplit ? (pIdx === 0 ? 0.06 : 0.54) + x * 0.40 : x;
+          spawnTarget(pIdx, limbId, laneX, y);
+        }
+      }
+      if (current === "duck" || current === "freeze") {
+        triggerChallenge(current === "duck" ? "DUCK" : "FREEZE", beatNum, false);
+      }
+      return;
+    }
+
     if (activeRoutine && Array.isArray(activeRoutine.events)) {
       const dueEvents = activeRoutine.events.filter((ev) => ev.beat === beatNum);
       for (const ev of dueEvents) {
         if (ev.kind === "challenge") {
+          if (settingsRef.current.gameMode === "seated" && ev.challengeType !== "FREEZE") continue;
           triggerChallenge(ev.challengeType, beatNum);
         } else if (ev.kind === "trace") {
           for (const pIdx of activeIndices) {
             spawnTracePattern(pIdx, ev.shapeIdx ?? 0);
           }
         } else if (ev.kind === "target") {
+          if (settingsRef.current.gameMode === "seated" && ev.limbId?.endsWith("_foot")) continue;
           if (!isSplit) {
             spawnTarget(activeIndices[0] ?? 0, ev.limbId, ev.x, ev.y);
           } else {
@@ -647,7 +681,9 @@ export function useVolcanoEngine({
     });
 
     if (action.type === "CHALLENGE") {
-      triggerChallenge(action.challengeType, beatNum);
+      if (settingsRef.current.gameMode !== "seated" || action.challengeType === "FREEZE") {
+        triggerChallenge(action.challengeType, beatNum);
+      }
       return;
     }
 
@@ -698,7 +734,7 @@ export function useVolcanoEngine({
     }
   }, [addScore, canvasRef, spawnChoreoStep, spawnRandomTargetForPlayer, spawnTarget, spawnTracePattern, triggerChallenge]);
 
-  const startLoopWithCurrentSettings = useCallback(() => {
+  const startLoopWithCurrentSettings = useCallback((firstBeat = 0) => {
     const { trackId, audioSource } = settingsRef.current;
     const bpm = getEffectiveBpm();
     const muteSynthDrums = audioSource === "youtube" || audioSource === "mic";
@@ -707,6 +743,8 @@ export function useVolcanoEngine({
       trackId,
       muteSynthDrums,
       latencyOffsetSec: latencySecRef.current,
+      firstBeat,
+      useCustomAudio: audioSource === "mp3",
       onVisualBeat: (beatNum) => {
         if (settingsRef.current.audioSource !== "mic") {
           handleVisualBeat(beatNum);
@@ -719,6 +757,10 @@ export function useVolcanoEngine({
     const g = gameRef.current;
     if (!g.isPlaying) return;
     if (!lifecycleRef.current.requestPause(reason)) return;
+    if (reason === "tracking") {
+      g.trackingPauses++;
+      countPlaytestEvent("tracking_pauses");
+    }
 
     const pausedAt = clockRef.current.pause();
     g.remainingAtPause = Math.max(0, g.roundEndTime - pausedAt);
@@ -797,7 +839,7 @@ export function useVolcanoEngine({
     setIsPaused(false);
     setBanner((b) => ({ ...b, visible: false }));
     if (settingsRef.current.audioSource !== "youtube") {
-      startLoopWithCurrentSettings();
+      startLoopWithCurrentSettings(g.guidedChart ? g.currentBeatNum + 1 : 0);
     }
   }, [startLoopWithCurrentSettings, ytPlayerRef]);
 
@@ -905,7 +947,13 @@ export function useVolcanoEngine({
     g.songsCompleted = 0;
     g.lastCountdownSec = -1;
     g.liveMicBeatCount = 0;
-    g.currentBeatNum = 0;
+    g.currentBeatNum = -1;
+    g.guidedChart = createGuidedChart(settingsRef.current);
+    g.trackingPauses = 0;
+    g.misses = 0;
+    setGuidedCue(null);
+    setNextRoundTip(null);
+    if (!isRecording) countPlaytestEvent("rounds_started");
     g.lastYtBeatIndex = -1;
     g.lastTickNow = null;
 
@@ -1110,6 +1158,15 @@ export function useVolcanoEngine({
     setBanner((b) => ({ ...b, visible: false }));
     setIsUrgentTime(false);
     setMissionProgress(100);
+    if (!settingsRef.current.isRecording) {
+      countPlaytestEvent("rounds_finished");
+      setNextRoundTip(replayTip({
+        misses: g.misses,
+        trackingPauses: g.trackingPauses,
+        difficulty: settingsRef.current.difficulty,
+        gameMode: settingsRef.current.gameMode
+      }));
+    }
 
     if (settingsRef.current.isRecording) {
       const s = settingsRef.current;
@@ -1140,7 +1197,7 @@ export function useVolcanoEngine({
       }));
 
     const topScore = Math.max(...activePlayers.map((p) => p.score));
-    setHighScoreInfo(recordHighScore(settingsRef.current, topScore));
+    if (!settingsRef.current.practice) setHighScoreInfo(recordHighScore(settingsRef.current, topScore));
     setPodiumResults(activePlayers);
     setScreen("podium");
   }, [onRoutineSaved, ytPlayerRef]);
@@ -1183,8 +1240,11 @@ export function useVolcanoEngine({
     }
   }, [videoRef]);
 
-  const startGame = useCallback(async () => {
-    if (lifecycleRef.current.phase !== "lobby") return;
+  const startingRef = useRef(false);
+  const startGame = useCallback(async (overrides) => {
+    if (lifecycleRef.current.phase !== "lobby" || startingRef.current) return;
+    startingRef.current = true;
+    if (overrides) settingsRef.current = { ...settingsRef.current, ...overrides };
     try {
       setRecoveryError(null);
       await soundRef.current.ensureContext();
@@ -1220,7 +1280,11 @@ export function useVolcanoEngine({
       }
 
       const camOk = await enableCameraPreview();
-      if (!camOk) return;
+      if (!camOk) {
+        countPlaytestEvent("camera_errors");
+        return;
+      }
+      countPlaytestEvent("camera_ready");
 
       const prep = lifecycleRef.current.beginPreparingMedia(settingsRef.current.audioSource);
       if (prep.phase === "preparing_media") {
@@ -1250,8 +1314,10 @@ export function useVolcanoEngine({
       setCountdownNumber(null);
       setRecoveryError({
         title: "Could Not Start Dance",
-        message: err.message
+        message: "Try again with Built-in Music."
       });
+    } finally {
+      startingRef.current = false;
     }
   }, [
     beginRound,
@@ -1777,6 +1843,7 @@ export function useVolcanoEngine({
             const p = g.players[t.playerIdx];
 
             if (!g.identityAmbiguous && visualNow > t.expireTime) {
+              g.misses++;
               g.targets.splice(i, 1);
               softenCombo(t.playerIdx);
               if (!isContinuousPlaylist) {
@@ -1987,6 +2054,8 @@ export function useVolcanoEngine({
     countdownNumber,
     isPaused,
     banner,
+    guidedCue,
+    nextRoundTip,
     timerDisplay,
     missionProgress,
     isUrgentTime,

@@ -1,3 +1,5 @@
+import { MOVE_CUES, GUIDED_BPM } from "../engine/guidedRoutine.js";
+
 const ROUTINES_KEY = "volcano_run_custom_routines_v1";
 const HIGHSCORES_KEY = "volcano_run_highscores_v1";
 
@@ -50,6 +52,23 @@ export async function importRoutineFile(file) {
     youtubeUrl: parsed.youtubeUrl || "",
     events: parsed.events
   };
+  if (parsed.guidedMoves !== undefined) {
+    const { duration, difficulty, gameMode, numPlayers, guidedMoves } = parsed;
+    const endBeat = Math.floor(duration * GUIDED_BPM / 60);
+    const entries = guidedMoves && Object.entries(guidedMoves);
+    if (![30, 60, 90].includes(duration)
+        || !["easy", "normal", "challenge"].includes(difficulty)
+        || !["auto", "hands", "seated"].includes(gameMode)
+        || ![1, 2].includes(numPlayers)
+        || !entries?.length
+        || !entries.every(([beat, move]) =>
+          /^\d+$/.test(beat) && Number(beat) >= 8 && Number(beat) % 8 === 0
+          && Number(beat) + 7 < endBeat && Object.hasOwn(MOVE_CUES, move)
+        )) {
+      throw new Error("Invalid guided routine.");
+    }
+    Object.assign(normalized, { duration, difficulty, gameMode, numPlayers, guidedMoves, bpm: GUIDED_BPM });
+  }
   return saveRoutine(normalized);
 }
 

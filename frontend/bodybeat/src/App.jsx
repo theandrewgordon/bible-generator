@@ -1,5 +1,9 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useVolcanoEngine } from "./engine/useVolcanoEngine";
+import { PRACTICE_SETTINGS } from "./engine/guidedRoutine";
+import { youtubeHelp } from "./engine/playerHelp";
+import { preloadCoachCues } from "./audio/guidedVoice";
+import { countPlaytestEvent } from "./storage/playtestStats";
 import { HudOverlay } from "./components/HudOverlay";
 import { LobbyOverlay } from "./components/LobbyOverlay";
 import { PodiumOverlay } from "./components/PodiumOverlay";
@@ -20,6 +24,7 @@ function loadSavedPrefs() {
 }
 
 export default function App() {
+  const [practice, setPractice] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const ytPlayerRef = useRef(null);
@@ -56,6 +61,10 @@ export default function App() {
       voiceCoach: prefs.voiceCoach !== undefined ? prefs.voiceCoach : false
     };
   });
+
+  useEffect(() => {
+    if (settings.voiceCoach) preloadCoachCues();
+  }, [settings.voiceCoach]);
 
   const [hasReturningPlaylist, setHasReturningPlaylist] = useState(() => {
     const prefs = loadSavedPrefs();
@@ -170,6 +179,8 @@ export default function App() {
     enableCameraPreview,
     screen,
     setScreen,
+    guidedCue,
+    nextRoundTip,
     countdownNumber,
     isPaused,
     banner,
@@ -205,21 +216,25 @@ export default function App() {
     canvasRef,
     ytPlayerRef,
     ytReadyRef,
-    settings,
+    settings: practice ? { ...settings, ...PRACTICE_SETTINGS } : settings,
     latencyMs,
     onBpmDetected: handleBpmDetected,
     onRoutineSaved: handleRoutineSaved,
     onFallbackToBuiltinMusic: handleFallbackToBuiltinMusic
   });
 
-  const isContinuousDance = settings.youtubeSource?.type === "playlist";
+  const isContinuousDance = !practice && settings.youtubeSource?.type === "playlist";
+  const startPractice = () => {
+    setPractice(true);
+    startGame(PRACTICE_SETTINGS);
+  };
 
   return (
     <div id="game-container">
       <video ref={videoRef} autoPlay playsInline />
       <canvas ref={canvasRef} />
 
-      {settings.audioSource === "youtube" && settings.youtubeSource && (
+      {!practice && settings.audioSource === "youtube" && settings.youtubeSource && (
         <YouTubePlayer
           youtubeSource={settings.youtubeSource}
           isPlayingScreen={screen === "playing"}
@@ -248,7 +263,8 @@ export default function App() {
           onPlayerError={(errInfo) => {
             ytReadyRef.current = false;
             const code = typeof errInfo === "object" ? errInfo?.code : errInfo;
-            const reason = typeof errInfo === "object" ? errInfo?.reason : `Error ${code}`;
+            const reason = youtubeHelp(code);
+            if (isContinuousDance) countPlaytestEvent("playlist_errors");
             setSettings((prev) => ({
               ...prev,
               ytLoadState: "error",
@@ -257,7 +273,7 @@ export default function App() {
             if (screen !== "lobby") {
               setRecoveryError({
                 title: isContinuousDance ? "Couldn't play this playlist." : "Having trouble playing this song.",
-                message: `${reason}. Try another song or use Built-In Music!`
+                message: reason
               });
               quitToLobby();
             }
@@ -293,8 +309,10 @@ export default function App() {
           onFinishEarly={finishRound}
           onTogglePause={isPaused ? resumeGame : pauseGame}
           onSyncBeatOne={syncBeatOne}
-          onQuitToLobby={quitToLobby}
+          onQuitToLobby={() => { quitToLobby(); setPractice(false); }}
           banner={banner}
+          guidedCue={guidedCue}
+          practice={practice}
         />
       )}
 
@@ -365,7 +383,11 @@ export default function App() {
           onStartAudioLearner={startAudioLearner}
           onStopAudioLearner={stopAudioLearner}
           hasReturningPlaylist={hasReturningPlaylist}
-          onStart={startGame}
+          onStart={() => {
+            setPractice(false);
+            startGame({ ...settings, practice: false });
+          }}
+          onStartPractice={startPractice}
         />
       )}
 
@@ -373,8 +395,17 @@ export default function App() {
         <PodiumOverlay
           results={podiumResults}
           highScoreInfo={highScoreInfo}
+          practice={practice}
+          tip={practice ? null : nextRoundTip}
           onPlayAgain={() => beginRound()}
-          onChangeSettings={() => setScreen("lobby")}
+          onTryTip={() => {
+            updateSettings(nextRoundTip.patch);
+            beginRound(nextRoundTip.patch);
+          }}
+          onChangeSettings={() => {
+            setPractice(false);
+            setScreen("lobby");
+          }}
         />
       )}
 
@@ -390,7 +421,10 @@ export default function App() {
                 <button
                   type="button"
                   className="toggle-btn active"
-                  onClick={recoveryError.kind === "vision" ? retryVision : clearRecoveryError}
+                  onClick={recoveryError.kind === "vision" ? retryVision : () => {
+                    setPractice(false);
+                    clearRecoveryError();
+                  }}
                 >
                   {recoveryError.kind === "vision" ? "Try again" : "Back to setup"}
                 </button>

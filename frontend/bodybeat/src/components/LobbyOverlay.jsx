@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { ParentTools } from "./ParentTools";
+import { draftToRoutine, GUIDED_TRACK } from "../engine/guidedRoutine";
 import { THEMES } from "../constants/themes";
 import { SAMPLE_TRACKS } from "../constants/sampleTracks";
 import { parseYouTubeInput } from "../utils/youtubeUrl";
@@ -6,7 +8,8 @@ import {
   deleteRoutine,
   exportRoutineJson,
   getHighScore,
-  importRoutineFile
+  importRoutineFile,
+  saveRoutine
 } from "../storage/routineStorage";
 import { resolveTrackRhythm, deriveSyncSummary } from "../audio/syncState";
 
@@ -27,7 +30,8 @@ export function LobbyOverlay({
   onStartAudioLearner,
   onStopAudioLearner,
   hasReturningPlaylist,
-  onStart
+  onStart,
+  onStartPractice
 }) {
   const [musicCategory, setMusicCategory] = useState(() => {
     if (settings.audioSource === "youtube") return "youtube";
@@ -209,6 +213,27 @@ export function LobbyOverlay({
     }
   };
 
+  const useGuidedRoutine = (routine) => {
+    setMusicCategory("mymusic");
+    onUpdateSettings({
+      activeRoutine: routine,
+      activeRoutineId: routine.id,
+      trackId: GUIDED_TRACK,
+      audioSource: "synth",
+      youtubeSource: null,
+      youtubeUrl: "",
+      bpm: routine.bpm,
+      duration: routine.duration,
+      difficulty: routine.difficulty,
+      numPlayers: routine.numPlayers,
+      gameMode: routine.gameMode,
+      isRecording: false,
+      hasPhaseLock: true,
+      hasTempoEstimate: true,
+      syncConfidence: 100
+    });
+  };
+
   const handleSelectRoutine = (routineId) => {
     if (!routineId) {
       onUpdateSettings({ activeRoutine: null, activeRoutineId: null });
@@ -216,6 +241,14 @@ export function LobbyOverlay({
     }
     const found = savedRoutines.find((r) => r.id === routineId);
     if (!found) return;
+    if (found.guidedMoves) {
+      useGuidedRoutine(found);
+      return;
+    }
+    applyRecordedRoutine(found);
+  };
+
+  const applyRecordedRoutine = (found) => {
     const ytParsed = found.youtubeUrl ? parseYouTubeInput(found.youtubeUrl) : null;
     if (found.youtubeUrl) setYtInput(found.youtubeUrl);
 
@@ -243,7 +276,8 @@ export function LobbyOverlay({
       onRoutinesChanged(updated);
       if (updated[0]) {
         setMusicCategory("mymusic");
-        handleSelectRoutine(updated[0].id);
+        if (updated[0].guidedMoves) useGuidedRoutine(updated[0]);
+        else applyRecordedRoutine(updated[0]);
       }
     } catch (err) {
       alert(`Import failed: ${err.message}`);
@@ -481,7 +515,8 @@ export function LobbyOverlay({
                     {[
                       { id: "auto", label: "AUTO" },
                       { id: "full", label: "FULL" },
-                      { id: "hands", label: "HANDS" }
+                      { id: "hands", label: "HANDS" },
+                      { id: "seated", label: "SEATED" }
                     ].map((m) => (
                       <button
                         key={m.id}
@@ -578,12 +613,19 @@ export function LobbyOverlay({
                     className={`mini-icon-btn ${settings.voiceCoach ? "frame-ready-btn" : ""}`}
                     onClick={() => onUpdateSettings({ voiceCoach: !settings.voiceCoach })}
                   >
-                    {settings.voiceCoach ? "🗣️ VOICE ON" : "🔇 VOICE OFF"}
+                    {settings.voiceCoach ? "Voice coach on" : "Voice coach off"}
                   </button>
                 </div>
+                {settings.voiceCoach && <small>Announcer clips use an AI-generated voice when available.</small>}
               </>
             ) : (
               <div className="routine-box" style={{ borderTop: "none", paddingTop: 0 }}>
+                <ParentTools onUseRoutine={(draft) => {
+                  const routine = draftToRoutine(draft, crypto.randomUUID());
+                  onRoutinesChanged(saveRoutine(routine));
+                  useGuidedRoutine(routine);
+                  setShowStudio(false);
+                }} />
                 <div className="record-toggle-row">
                   <button
                     type="button"
@@ -651,10 +693,14 @@ export function LobbyOverlay({
       </div>
 
       <p className="subtitle">Clear some room. BodyBeat uses your camera to track your movements on this device.</p>
+      {settings.activeRoutine?.guidedMoves && <p className="subtitle">{settings.activeRoutine.name} · {settings.duration}s</p>}
       <div className="podium-actions">
+        <button type="button" className="secondary-btn" disabled={!aiReady} onClick={onStartPractice}>
+          Practice · 20 seconds
+        </button>
         <button className="primary-btn" disabled={!aiReady} onClick={onStart}>
           {!aiReady
-            ? "Loading Vision AI..."
+            ? "Getting the camera ready…"
             : settings.isRecording
               ? "⏺ START RECORDING"
               : hasReturningPlaylist && isPlaylist
