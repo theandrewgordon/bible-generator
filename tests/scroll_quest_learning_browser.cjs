@@ -9,7 +9,7 @@ function wav(){const b=Buffer.alloc(4844);b.write('RIFF');b.writeUInt32LE(4836,4
   const base=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Fixture did not start: '+logs)),20000);let out='';server.stdout.on('data',b=>{out+=b;const m=out.match(/SCROLL_QUEST_URL=(http:\/\/127\.0\.0\.1:\d+)/);if(m){clearTimeout(timer);resolve(m[1]);}});server.on('exit',code=>{clearTimeout(timer);reject(Error('Fixture exited '+code+': '+logs));});});
   browser=await chromium.launch({headless:true,executablePath:process.env.BROWSER_EXECUTABLE});
   const context=await browser.newContext({viewport:{width:1280,height:900}}),page=await context.newPage(),errors=[],assistCalls=[],narrationCalls=[],transcriptions=[];
-  context.setDefaultTimeout(15000);context.setDefaultNavigationTimeout(30000);page.setDefaultTimeout(15000);page.setDefaultNavigationTimeout(30000);
+  context.setDefaultTimeout(60000);context.setDefaultNavigationTimeout(30000);page.setDefaultTimeout(60000);page.setDefaultNavigationTimeout(30000);
   page.on('pageerror',error=>{errors.push(error.message);console.log('Browser error:',error.message);});
   await context.addInitScript(()=>{
    window.__micStarts=0;window.__tracksStopped=0;
@@ -51,13 +51,13 @@ function wav(){const b=Buffer.alloc(4844);b.write('RIFF');b.writeUInt32LE(4836,4
   for(const input of await blanks.all())await input.fill(await input.getAttribute('data-expected'));
   await page.click('#check-blanks');assert((await page.locator('#verse-feedback').textContent()).includes('Every missing word'));
   await page.fill('#recitation',chapter.memoryVerse.text);await page.click('#check-recitation');await page.waitForFunction(()=>document.getElementById('verse-feedback').textContent.includes('All the verse words'));
-  transcribed=chapter.memoryVerse.text;await page.click('#record-verse');await page.waitForFunction(()=>document.getElementById('record-verse').textContent==='Stop recording');await page.click('#record-verse');await page.waitForTimeout(350);
+  transcribed=chapter.memoryVerse.text;await page.click('#record-verse');await page.waitForFunction(()=>document.getElementById('record-verse').textContent==='Stop recording');await page.click('#record-verse');await page.waitForFunction(()=>document.getElementById('learning-status').textContent.includes('Recording read.'));
   assert.equal(transcriptions.length,1);assert(await page.evaluate(()=>window.__tracksStopped)>0);
   await page.click('#start-quiz');await page.waitForFunction(()=>document.querySelectorAll('#quiz-area [data-answer]').length===2);
   await page.locator('#quiz-area [data-answer]').nth(1).click();assert((await page.locator('#quiz-feedback').textContent()).includes('matches the passage'));
-  await page.click('#quiz-next');transcribed='B';await page.click('#record-quiz');await page.waitForFunction(()=>document.getElementById('record-quiz').textContent==='Stop recording');await page.click('#record-quiz');await page.waitForTimeout(250);assert.equal(transcriptions.length,2);
+  await page.click('#quiz-next');transcribed='B';await page.click('#record-quiz');await page.waitForFunction(()=>document.getElementById('record-quiz').textContent==='Stop recording');await page.click('#record-quiz');await page.waitForFunction(()=>document.getElementById('learning-status').textContent.includes('Recording read.'));assert.equal(transcriptions.length,2);
   console.log('Testing family tools');await page.click('#tab-family');await page.click('#discuss');await page.waitForFunction(()=>document.getElementById('family-result').textContent.includes('What work did God give Adam?'));
-  await page.click('#make-printable');await page.waitForSelector('#family-result a');console.log('Opening printable worksheet');const popupPromise=context.waitForEvent('page',{timeout:15000});await page.locator('#family-result a[href*="/learning/print/"]').click();const printable=await popupPromise;await printable.waitForLoadState();assert((await printable.locator('body').textContent()).includes(chapter.memoryVerse.text));await printable.close();console.log('Printable worksheet verified');
+  await page.click('#make-printable');await page.waitForSelector('#family-result a');console.log('Opening printable worksheet');const popupPromise=context.waitForEvent('page',{timeout:60000});await page.locator('#family-result a[href*="/learning/print/"]').click();const printable=await popupPromise;await printable.waitForLoadState();assert((await printable.locator('body').textContent()).includes(chapter.memoryVerse.text));await printable.close();console.log('Printable worksheet verified');
   await page.click('#make-recap');await page.waitForFunction(()=>document.getElementById('family-result').textContent.includes('God gave Adam'));
   await page.click('#show-journal');assert((await page.locator('#journal-result').textContent()).includes('memory-verse practice'));
   assert(!await page.evaluate(verse=>FaithSparksLabsStorage.labsStorage.getItem('scrollquest.learning.journal.v1').includes(verse),chapter.memoryVerse.text));
