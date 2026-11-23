@@ -29,6 +29,10 @@ jobs:
         run: npm run test:browser --prefix frontend
       - name: Check Scroll Quest membership, gameplay, and account saves
         run: node tests/scroll_quest_browser.cjs
+      - name: Check Scroll Quest learning tools
+        run: |
+          node scripts/scroll_quest_catalog.cjs --check
+          node tests/scroll_quest_learning_browser.cjs
       - name: Upload browser failure details
         if: failure()
         uses: actions/upload-artifact@v4

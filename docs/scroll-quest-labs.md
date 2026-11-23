@@ -10,6 +10,7 @@ To replace the game with a reviewed full browser release:
 
 ```
 python3 scripts/import_scroll_quest.py /path/to/scroll-quest-browser-VERSION.zip
+node scripts/scroll_quest_catalog.cjs
 python3 -m pytest -q tests/test_scroll_quest.py tests/test_product_system.py tests/test_product_journeys.py
 node tests/scroll_quest_browser.cjs
 ```
@@ -29,3 +30,7 @@ Saves remain local to the browser and Faith Sparks account. There is no cloud pr
 Python tests cover the release manifest, all 54 chapter responses, bootstrap ordering, protected nested assets, signed-out and nonmember requests, path rejection, and audio range handling. The browser check uses the actual Flask Labs gate on a loopback-only test server. It renders representative chapters, checks soft-shadow textures, switches account cookies with an old game still open, verifies save isolation/restoration and membership revocation, and checks the narrow-screen shell. The fixture server is never enabled by the production app.
 
 The upstream 0.2.1 game passed 8,280 automated checks before this integration. Website-specific checks are separate from that game suite. Test the deployed page under a real member account after rollout; a Git push alone does not prove the live hosting service has deployed the new commit.
+
+## Optional learning tools
+
+See [scroll-quest-learning.md](scroll-quest-learning.md) for narration, hints, study help, practice, printables, language support and maintainer drafts. They are website additions alongside the unchanged vendor release.
