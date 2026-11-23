@@ -1,0 +1,1 @@
+window.SQ_BUILD = {"builtAt":"2026-11-23T00:09:59.349Z","sourceSha256":"8b070984b9439c4edddaabc56060da4f66e434966b8505fe7ef48f8920176050","engineSha256":"114592f50aaee8dcf0f4aec7da9338bd1b4ec9e0286c0629651fd575994d4ec7","edition":"full","version":"0.2.1","demoIds":[],"phoneControllers":false};

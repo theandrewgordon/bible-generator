@@ -4,11 +4,11 @@ const template=fs.readFileSync('templates/labs_reading_quest.html','utf8');
 const tasks=JSON.parse(fs.readFileSync('faithsparks/content/reading_quest.json','utf8'));
 const cues={'Welcome to Reading Quest. Press play!':'welcome','Great work! You earned a star!':'success'};
 tasks.forEach((t,i)=>{cues[t.say]=`${i}-say`;cues[t.help]=`${i}-help`;if(t.intro)cues[t.intro]=`${i}-intro`});
-const source=template.match(/<script>([\s\S]*?)<\/script>/)[1].replace('{{ reading_tasks|tojson }}',JSON.stringify(tasks)).replace('{{ reading_audio_cues|tojson }}',JSON.stringify(cues)).replace('{{ reading_csrf|tojson }}','"token"').replace("{{ url_for('public.reading_quest_tts')|tojson }}",'"/labs/reading-quest/tts"');
+const source=template.match(/<script type="module">([\s\S]*?)<\/script>/)[1].replace(/^import .* from .*;$/gm,'').replace('{{ reading_tasks|tojson }}',JSON.stringify(tasks)).replace('{{ reading_audio_cues|tojson }}',JSON.stringify(cues)).replace('{{ reading_csrf|tojson }}','"token"').replace("{{ url_for('public.reading_quest_tts')|tojson }}",'"/labs/reading-quest/tts"');
 const tick=()=>new Promise(r=>setImmediate(r));
 function setup(fetch){const nodes={},played=[],spoken=[],revoked=[],events={};
  function element(){return {children:[],style:{},setAttribute(n,v){this[n]=v},addEventListener(n,f){this[n]=f},replaceChildren(){this.children=[]},appendChild(b){this.children.push(b)}}}
- const context={document:{getElementById(id){return nodes[id]??=element()},createElement:element},window:{addEventListener(n,f){events[n]=f},speechSynthesis:true},speechSynthesis:{cancel(){},speak(u){spoken.push(u.text)}},SpeechSynthesisUtterance:function(t){this.text=t},Audio:function(url){this.pause=()=>{};this.play=async()=>{played.push(url)}},URL:{createObjectURL(){return 'blob:'+Math.random()},revokeObjectURL(u){revoked.push(u)}},AbortController,setTimeout,clearTimeout,fetch};
+ const context={selectedPlayers:()=>[{id:"test-reader",name:"Reader"}],mountPlayers(node,options){options.onChange([{id:"test-reader",name:"Reader"}]);},document:{getElementById(id){return nodes[id]??=element()},createElement:element},window:{addEventListener(n,f){events[n]=f},speechSynthesis:true},speechSynthesis:{cancel(){},speak(u){spoken.push(u.text)}},SpeechSynthesisUtterance:function(t){this.text=t},Audio:function(url){this.pause=()=>{};this.play=async()=>{played.push(url)}},URL:{createObjectURL(){return 'blob:'+Math.random()},revokeObjectURL(u){revoked.push(u)}},AbortController,setTimeout,clearTimeout,fetch};
  vm.runInNewContext(source,context);return {nodes,played,spoken,revoked,events};}
 const ok=()=>({ok:true,headers:{get:()=> 'audio/mpeg'},blob:async()=>({size:10})});
 (async()=>{

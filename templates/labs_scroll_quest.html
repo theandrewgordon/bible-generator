@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Scroll Quest | Faith Sparks Labs{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex,nofollow">{% endblock %}
+{% block content %}
+<section class="journey-panel journey-narrow">
+  <p class="product-kicker">Faith Sparks Labs · Beta</p>
+  <h1>Scroll Quest</h1>
+  <p>A 3D Bible adventure through eight worlds and 54 chapters, from Eden to the Tree of Life. Explore, solve puzzles, and discover Scripture along the way.</p>
+  <div class="journey-actions"><a class="button primary" href="{{ url_for('scroll_quest.play') }}">Play Scroll Quest</a><a class="button ghost" href="/labs">Back to Labs</a></div>
+  <h2>Before you play</h2>
+  <p>A computer with a keyboard or gamepad is the best starting point. Local family play supports up to four players with compatible controls. Touch controls are available to try on tablets; phone controllers are not enabled in this release.</p>
+  <p>The first visit downloads the game’s 3D assets. Give it a moment to load, especially on a slower connection.</p>
+  <h2>Your progress</h2>
+  <p>Progress stays in this browser, separately for each Faith Sparks account. Use Backups in the game’s Family settings to move progress to another device or import a compatible Scroll Quest save. It does not sync automatically between devices.</p>
+  <p class="small muted">Version {{ version }} · Beta: controls and presentation are still being refined. Some routes and puzzles are imagined for the game; Scripture references distinguish the Bible accounts.</p>
+</section>
+{% endblock %}

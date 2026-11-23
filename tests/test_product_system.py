@@ -16,7 +16,7 @@ def test_product_registry_has_task_first_navigation_and_formal_labs():
     assert {product["id"] for product in labs} == {
         "weekflow", "coloring-studio", "games-lab", "same-brain", "reading-quest",
         "latin-quest", "math-fact-rally", "geo-detectives", "grammar-grove",
-        "learning-adventure", "bodybeat",
+        "learning-adventure", "bodybeat", "scroll-quest",
     }
     assert next(product for product in PRODUCTS if product["id"] == "same-brain")["path"] == "/same-brain"
     assert all(product["path"] != "/speeddie" for product in PRODUCTS)

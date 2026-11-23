@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Play Scroll Quest | Faith Sparks Labs</title>
+  <style>
+    html,body{height:100%;margin:0;background:#20190f;color:#fff1ce;font-family:system-ui,sans-serif}
+    body{display:flex;flex-direction:column;height:100dvh}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 14px;flex:none;flex-wrap:wrap}
+    header a{color:#fff1ce;text-underline-offset:3px}header small{color:#e2cea8}
+    iframe{display:block;border:0;flex:1;width:100%;min-height:0;background:#20190f}
+    @media(max-width:600px){header small{display:none}}
+  </style>
+</head>
+<body>
+  <header><a href="{{ url_for('scroll_quest.index') }}">← Scroll Quest</a><small>Beta · Progress saves in this browser</small><a href="/labs">Back to Labs</a></header>
+  <iframe title="Scroll Quest Bible adventure" src="{{ url_for('scroll_quest.bundle_file', filename='index.html') }}" allow="fullscreen; gamepad" allowfullscreen></iframe>
+</body>
+</html>
