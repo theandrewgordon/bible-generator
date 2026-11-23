@@ -1,0 +1,3 @@
+Scroll Quest full preview 0.2.1
+
+Open index.html in a current desktop browser, or serve this folder to test on a tablet. All game assets are bundled. Touch: tap RUN to toggle running; drag LOOK to turn the camera; CENTER recenters. Backups are in Family settings (demo: Backups & app controls). The demo is a separate sampler and never overwrites full-campaign progress. Native apps and browser origins keep separate saves: export/import a backup to transfer progress. No Steam integration or native tablet/TV release is claimed.

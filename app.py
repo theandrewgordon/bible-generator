@@ -4208,6 +4208,10 @@ try:
 except Exception:
     app.logger.exception("Latin Quest Labs routes could not be registered")
 
+# Scroll Quest keeps its standalone release bundle behind the shared Labs gate.
+from faithsparks.views.scroll_quest import bp as scroll_quest_bp
+app.register_blueprint(scroll_quest_bp)
+
 # Interactive browser-game prototypes live under the Labs namespace.
 try:
     from faithsparks.views.lab_games import bp as lab_games_bp

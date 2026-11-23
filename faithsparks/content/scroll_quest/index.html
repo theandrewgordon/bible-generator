@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Scroll Quest</title>
+  <style>
+    body { margin: 0; min-height: 100vh; background: linear-gradient(180deg, #3d2208, #1e1408); font-family: Georgia, serif; color: #f6e7c1; text-align: center; padding: 40px 16px; box-sizing: border-box; }
+    h1 { font-size: 44px; margin: 10px 0 4px; color: #f3d266; }
+    p.sub { margin: 0 0 30px; font-style: italic; color: #e8d4a8; }
+    .world { max-width: 460px; margin: 0 auto 18px; text-align: left; }
+    .world h2 { font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: #d4af37; margin: 0 0 8px; }
+    a.level { display: block; margin: 10px 0; padding: 16px 20px; background: #6e3f14; color: #fff6e5; border: 2px solid #d4af37; border-radius: 14px; text-decoration: none; font-size: 20px; }
+    a.level[hidden] { display: none; }
+    a.level:hover, a.level.focus { background: #874e19; }
+    a.level.focus { outline: 4px solid #fde68a; outline-offset: 2px; }
+    a.level small { display: block; font: 13px sans-serif; color: #f1dcb4; margin-top: 4px; }
+    .soon { opacity: .45; pointer-events: none; }
+    .tip { font: 13px sans-serif; color: #c9b48a; margin-top: 30px; }
+    .prog { display: block; font: bold 13px sans-serif; color: #bbf7d0; margin-top: 6px; }
+    a.level.done { border-color: #86efac; }
+    a.level.locked { opacity: .55; border-style: dashed; filter: grayscale(.5); cursor: not-allowed; }
+    .tile.locked { filter: grayscale(.65) brightness(.8); }
+    #home, #worldview { max-width: 620px; margin: 0 auto; padding: 0 12px; }
+    a.big { display: block; margin: 10px auto; padding: 18px 20px; background: #b45309; color: #fff; border: 3px solid #fde68a; border-radius: 16px; font: bold 22px Georgia, serif; text-decoration: none; cursor: pointer; }
+    a.big.small { font-size: 17px; padding: 12px 18px; background: #6e3f14; border-color: #d4af37; }
+    a.big small { display: block; font: 14px sans-serif; color: #fde68a; margin-top: 4px; font-weight: normal; }
+    a.big:hover, a.big.focus, .tile:hover, .tile.focus { filter: brightness(1.15); }
+    a.big.focus, .tile.focus, a.level.focus { outline: 4px solid #fde68a; outline-offset: 3px; }
+    #tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 18px; }
+    .tile { display: block; padding: 16px 12px; border-radius: 18px; border: 3px solid rgba(255,255,255,.35); color: #fff; text-decoration: none; cursor: pointer; text-align: center; box-shadow: 0 6px 14px rgba(0,0,0,.35); }
+    .tile .ic { font-size: 42px; line-height: 1.1; }
+    .tile .nm { font: bold 17px Georgia, serif; margin-top: 4px; }
+    .tile .num { font: 12px sans-serif; opacity: .85; letter-spacing: 1px; text-transform: uppercase; }
+    .tile .pr { font: bold 13px sans-serif; margin-top: 6px; color: #fef3c7; }
+    #worldtitle { font: bold 26px Georgia, serif; color: #f3d266; margin: 6px 0 4px; }
+    .world { display: none; }
+    #worldview .world { display: block; max-width: none; }
+    #worldview .world h2 { display: none; }
+    @media (max-width: 480px) { #tiles { grid-template-columns: 1fr; } }
+    body { animation: menu-in .5s ease both; transition: opacity .3s ease; }
+    body.leaving { opacity: 0; }
+    @keyframes menu-in { from { opacity: 0; } to { opacity: 1; } }
+    .tile { transition: transform .15s ease; } .tile.focus, .tile:hover { transform: translateY(-3px) scale(1.03); }
+    .tile .ic { display: inline-block; } .tile.focus .ic { animation: bob 1s ease-in-out infinite; }
+    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    #worldview .world a.level { animation: slide-in .3s ease both; }
+    #worldview .world a.level:nth-child(3) { animation-delay: .05s; } #worldview .world a.level:nth-child(4) { animation-delay: .1s; }
+    #worldview .world a.level:nth-child(5) { animation-delay: .15s; } #worldview .world a.level:nth-child(6) { animation-delay: .2s; } #worldview .world a.level:nth-child(7) { animation-delay: .25s; }
+    @keyframes slide-in { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+    .panel { max-width: 620px; margin: 0 auto; padding: 0 12px; text-align: left; }
+    .credit { margin: 12px 0; line-height: 1.5; } .credit b { display: block; color: #fde68a; }
+    .ptitle { font: bold 28px Georgia, serif; color: #f3d266; text-align: center; margin: 8px 0 2px; }
+    .psub { text-align: center; font: italic 15px Georgia, serif; color: #e8d4a8; margin: 0 0 14px; }
+    .verse { background: #f6e7c1; color: #2f1d0b; border-radius: 14px; padding: 14px 16px; margin: 12px 0; border: 3px solid #d4af37; }
+    .verse.locked { background: #4a2c10; color: #c9b48a; border-style: dashed; border-color: #8b6a3a; }
+    .verse .vt { font: italic 19px/1.45 Georgia, serif; }
+    .verse .vr { font: bold 14px sans-serif; color: #7c4a1e; margin-top: 6px; }
+    .verse .vl { font: bold 12px sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #9a6b2f; margin-bottom: 4px; }
+    .verse.locked .vl, .verse.locked .vr { color: #a8916a; }
+    .verse button, #setlist button { font: bold 15px sans-serif; background: #6e3f14; color: #fff6e5; border: 2px solid #d4af37; border-radius: 12px; padding: 8px 14px; margin: 8px 6px 0 0; cursor: pointer; }
+    .verse button.focus, #setlist button.focus, .verse button:hover, #setlist button:hover { outline: 4px solid #fde68a; outline-offset: 2px; background: #874e19; }
+    .verse .blank { display: inline-block; min-width: 70px; border-bottom: 3px solid #b45309; }
+    .verse .fb { font: bold 15px sans-serif; margin-top: 6px; }
+    #setlist button { display: block; width: 100%; text-align: left; padding: 14px 16px; font-size: 17px; margin: 10px 0; }
+    #setlist button b { float: right; color: #fde68a; }
+    .tile.extra { background: #5b3a1a !important; }
+    #bigverse { position: fixed; inset: 0; background: rgba(20,12,4,.96); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 30px; }
+    #bigverse[hidden] { display: none; }
+    #bigverse .bv { max-width: 1000px; text-align: center; animation: menu-in .4s ease both; }
+    #bigverse .bvt { font: italic 46px/1.35 Georgia, serif; color: #fff6df; }
+    #bigverse .bvr { font: bold 28px sans-serif; color: #f3d266; margin-top: 22px; }
+    #bigverse .bvh { font: 14px sans-serif; color: #a8916a; margin-top: 30px; }
+    body.big { font-size: 118%; } body.big .verse .vt { font-size: 23px; } body.big a.level small { font-size: 15px; }
+    #reset { font: 12px sans-serif; color: #a8916a; background: none; border: none; text-decoration: underline; cursor: pointer; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>📜 Scroll Quest</h1>
+  <p class="sub">“Thy word is a lamp unto my feet, and a light unto my path.” — Psalm 119:105</p>
+
+  <div id="home">
+    <a id="continue" class="big" hidden>▶ Continue</a>
+    <a id="again" class="big small" hidden>🔁 Play again</a>
+    <div id="tiles"></div>
+  </div>
+  <div id="shelf" class="panel" hidden>
+    <a class="big small nav back" href="#">◀ Back</a>
+    <div class="ptitle">📖 Scroll Shelf</div>
+    <p class="psub">Every level you finish puts its memory verse here. Read it, hear it, practise it.</p>
+    <div id="verses"></div>
+  </div>
+  <div id="settings" class="panel" hidden>
+    <a class="big small nav back" href="#">◀ Back</a>
+    <div class="ptitle">⚙️ Family settings</div>
+    <p class="psub">Set these once; every level uses them. (Most are in the pause menu too.)</p>
+    <div id="setlist"></div>
+  </div>
+  <div id="credits" class="panel" hidden>
+    <a class="big small nav back" href="#">◀ Back</a>
+    <div class="ptitle">🙏 Thank you</div>
+    <p class="psub">Scroll Quest was made by our family, for our family, with help from many generous people.</p>
+    <div class="credit"><b>Scripture</b>The Holy Bible, King James Version (public domain). Every quote is checked word for word.</div>
+    <div class="credit"><b>Music</b>Homeward Light: an original adaptive score with individual level arrangements, plus the win tune.</div>
+    <div class="credit"><b>Sounds</b>Kenney (kenney.nl): RPG Audio, Interface Sounds, Music Jingles and Impact Sounds. Creative Commons Zero.</div>
+    <div class="credit"><b>Trees, rocks and plants</b>Quaternius (quaternius.com): Stylized Nature MegaKit and Ultimate Nature Pack. Creative Commons Zero.</div>
+    <div class="credit"><b>3D engine</b>three.js (threejs.org), MIT licence, by the three.js authors.</div>
+    <div class="credit"><b>Help building it</b>Claude (Anthropic) and Gemini (Google).</div>
+    <p class="psub" style="margin-top:18px">“Whether therefore ye eat, or drink, or whatsoever ye do, do all to the glory of God.” 1 Corinthians 10:31</p>
+  </div>
+  <div id="bigverse" hidden><div class="bv"><div class="bvt"></div><div class="bvr"></div><div class="bvh">Press B / Esc to close</div></div></div>
+  <div id="worldview" hidden>
+    <a id="back" class="big small" href="#">◀ All worlds</a>
+    <div id="worldtitle"></div>
+  </div>
+
+  <div class="world" data-world="1" data-icon="🌳" data-color="#2f7d32">
+    <h2>World 1 · Beginnings</h2>
+    <a class="level" data-id="1-1" href="world-1-1-eden.html">1-1 · In the Beginning <small>Tend the garden and name the animals (Genesis 1–2)</small></a>
+    <a class="level" data-id="1-2" href="world-1-2-orchard.html">1-2 · The First Choice <small>Gather good fruit and follow the true path (Genesis 2–3)</small></a>
+    <a class="level" data-id="1-3" href="world-1-3-ark.html">1-3 · Two by Two <small>Lead the animal parade to the ark (Genesis 6–7)</small></a>
+    <a class="level" data-id="1-4" href="world-1-4-rainbow.html">1-4 · The Rainbow Promise <small>Brave the wind, light the rainbow, build an altar (Genesis 8–9)</small></a>
+    <a class="level" data-id="1-5" href="world-1-5-babel.html">1-5 · The Tower of Babel <small>Climb the imagined scaffold route; hear why God scattered the people (Genesis 11)</small></a>
+  </div>
+
+  <div class="world" data-world="2" data-icon="⭐" data-color="#b7791f">
+    <h2>World 2 · The Promise Road</h2>
+    <a class="level" data-id="2-1" href="world-2-1-stars.html">2-1 · Beneath a Thousand Stars <small>Move camp by night; count the stars (Genesis 12, 15)</small></a>
+    <!-- World 2 in Bible order: Moriah (Genesis 22), the well (24), Bethel (28). Ids and files keep their old numbers so saved progress is kept -->
+    <a class="level" data-id="2-4" href="world-2-4-moriah.html">2-2 · The LORD Will Provide <small>Climb Mount Moriah; God provides a ram (Genesis 22)</small></a>
+    <a class="level" data-id="2-2" href="world-2-2-well.html">2-3 · Water at the Well <small>Help Rebekah water ten thirsty camels (Genesis 24)</small></a>
+    <a class="level" data-id="2-3" href="world-2-3-bethel.html">2-4 · The Dream at Bethel <small>Gather Jacob's things; the ladder dream (Genesis 28)</small></a>
+    <a class="level" data-id="2-5" href="world-2-5-storehouses.html">2-5 · Joseph's Storehouses <small>Store grain, then feed the hungry (Genesis 41)</small></a>
+    <a class="level" data-id="2-6" href="world-2-6-forgiveness.html">2-6 · The Road to Forgiveness <small>Through the sandstorm to Joseph, who forgives (Genesis 42–45)</small></a>
+  </div>
+
+  <div class="world" data-world="3" data-icon="🌊" data-color="#1d6fa5">
+    <h2>World 3 · Let My People Go</h2>
+    <a class="level" data-id="3-1" href="world-3-1-reeds.html">3-1 · Among the Reeds <small>Explore the bank beside Miriam; Moses is spared (Exodus 2)</small></a>
+    <a class="level" data-id="3-2" href="world-3-2-bush.html">3-2 · The Burning Bush <small>Climb the ridge; God calls Moses on holy ground (Exodus 3–4)</small></a>
+    <!-- World 3 in Bible order: the plagues (Exodus 7–10, id 3-9) come before the Passover; later labels move up one, ids stay -->
+    <a class="level" data-id="3-9" href="world-3-9-plagues.html">3-3 · Let My People Go <small>Frogs, hail and darkness: bring the cattle in; follow the light to Goshen (Exodus 7–10)</small></a>
+    <a class="level" data-id="3-3" href="world-3-3-passover.html">3-4 · The Passover <small>Get ready in haste; God passes over where He sees the blood (Exodus 12)</small></a>
+    <a class="level" data-id="3-4" href="world-3-4-sea.html">3-5 · Through the Sea <small>God parts the sea; help everyone across (Exodus 14–15)</small></a>
+    <a class="level" data-id="3-5" href="world-3-5-manna.html">3-6 · Bread in the Wilderness <small>One dune-to-camp loop; God gives daily bread and water (Exodus 16–17)</small></a>
+    <a class="level" data-id="3-6" href="world-3-6-sinai.html">3-7 · At Mount Sinai <small>Explore below the boundary; hear God’s commandments (Exodus 19–20)</small></a>
+    <a class="level" data-id="3-7" href="world-3-7-tabernacle.html">3-8 · A Place to Meet God <small>Bring gifts; raise the gold boards; God's glory fills the tent (Exodus 25–40)</small></a>
+    <a class="level" data-id="3-8" href="world-3-8-jericho.html">3-9 · The Walls Fall Down <small>Bring Rahab's family home; march together; God brings the walls down (Joshua 6)</small></a>
+  </div>
+
+  <div class="world" data-world="4" data-icon="🐑" data-color="#6b7d2a">
+    <h2>World 4 · Courage and Kindness</h2>
+    <a class="level" data-id="4-1" href="world-4-1-ruth.html">4-1 · Ruth&#39;s Harvest <small>Glean behind the reapers; Boaz is kind; carry the barley home (Ruth 2)</small></a>
+    <a class="level" data-id="4-2" href="world-4-2-samuel.html">4-2 · Speak, LORD <small>The evening round; walk with Samuel to Eli; God calls (1 Samuel 3)</small></a>
+    <a class="level" data-id="4-3" href="world-4-3-hills.html">4-3 · The Shepherd's Hills <small>Sheep, food for the brothers, five smooth stones (1 Samuel 16–17)</small></a>
+    <a class="level" data-id="4-4" href="world-4-4-cave.html">4-4 · Mercy in the Cave <small>Hide from Saul's soldiers; David chooses mercy (1 Samuel 24)</small></a>
+    <a class="level" data-id="4-5" href="world-4-5-abigail.html">4-5 · Abigail&#39;s Peace Mission <small>Load the donkeys; clear the way down the hill; peace with David (1 Samuel 25)</small></a>
+    <a class="level" data-id="4-6" href="world-4-6-temple.html">4-6 · A House for Worship <small>Climb the building works; seven years later God's glory fills the house (1 Kings 5–8)</small></a>
+  </div>
+
+  <div class="world" data-world="5" data-icon="🦁" data-color="#7c3aed">
+    <h2>World 5 · Faith Far from Home</h2>
+    <a class="level" data-id="5-1" href="world-5-1-last-meal.html">5-1 · The Last Little Meal <small>A dry-ravine journey; the LORD provides flour and oil and restores the widow’s son (1 Kings 17)</small></a>
+    <a class="level" data-id="5-2" href="world-5-2-still-voice.html">5-2 · The Still Small Voice <small>Care for tired Elijah; wind, earthquake, fire, then a gentle voice (1 Kings 19)</small></a>
+    <a class="level" data-id="5-3" href="world-5-3-jonah.html">5-3 · Jonah's Second Chance <small>Storm at sea, ride the great fish, Nineveh turns to God (Jonah 1–3)</small></a>
+    <a class="level" data-id="5-4" href="world-5-4-isaiah.html">5-4 · Wounded for Us <small>Isaiah's vision; carry God's message over the rooftops (Isaiah 6, 53)</small></a>
+    <a class="level" data-id="5-5" href="world-5-5-furnace.html">5-5 · The Fiery Furnace <small>Stand with the three who would not bow; four in the fire (Daniel 3)</small></a>
+    <a class="level" data-id="5-6" href="world-5-6-lions.html">5-6 · The Lions' Den <small>Lanterns through the night; God shut the lions' mouths (Daniel 6)</small></a>
+    <a class="level" data-id="5-7" href="world-5-7-esther.html">5-7 · For Such a Time <small>Pray with Mordecai, walk with Esther to the king, run the letters (Esther 4–8)</small></a>
+    <a class="level" data-id="5-8" href="world-5-8-walls.html">5-8 · Rebuild the Walls <small>Build, keep watch when the trumpet sounds; God gives success (Nehemiah 4–6)</small></a>
+  </div>
+
+  <div class="world" data-world="6" data-icon="🐟" data-color="#0f766e">
+    <h2>World 6 · Good News in Galilee</h2>
+    <a class="level" data-id="6-1" href="world-6-1-shepherds.html">6-1 · Shepherds in the Night <small>Sheep into the fold; the angels' news; hurry to Bethlehem (Luke 2)</small></a>
+    <a class="level" data-id="6-2" href="world-6-2-egypt.html">6-2 · The Night Road to Egypt <small>Pack quietly; lead the donkey past Herod's lanterns (Matthew 2)</small></a>
+    <!-- Luke 5 before Mark 2: display order changes; saved ids stay stable. -->
+    <a class="level" data-id="6-4" href="world-6-4-nets.html">6-3 · Leave Your Nets <small>Cross the harbor after Jesus’ miraculous catch; follow Him (Luke 5)</small></a>
+    <a class="level" data-id="6-3" href="world-6-3-roof.html">6-4 · Through the Roof <small>Prepare the way up, then open the roof (Mark 2)</small></a>
+    <a class="level" data-id="6-5" href="world-6-5-loaves.html">6-5 · Enough for Everyone <small>Serve the crowd when Jesus feeds five thousand (John 6)</small></a>
+    <a class="level" data-id="6-6" href="world-6-6-sea-walk.html">6-6 · Be Not Afraid <small>Storm at night: tie down the boat; Jesus comes on the water (Matthew 14)</small></a>  </div>
+
+  <div class="world" data-world="7" data-icon="✝️" data-color="#b91c1c">
+    <h2>World 7 · The Way to Jerusalem</h2>
+    <a class="level" data-id="7-1" href="world-7-1-neighbour.html">7-1 · A Neighbour on the Road <small>Help the hurt traveller to the inn (Luke 10, a parable)</small></a>
+    <a class="level" data-id="7-2" href="world-7-2-zacchaeus.html">7-2 · Zacchaeus <small>Climb the sycamore; Jesus comes to his house (Luke 19)</small></a>
+    <a class="level" data-id="7-3" href="world-7-3-upper-room.html">7-3 · The Upper Room <small>Prepare the Passover; Jesus washes their feet (Luke 22; John 13)</small></a>
+    <a class="level" data-id="7-4" href="world-7-4-cross.html">7-4 · The Cross <small>A quiet walk to Gethsemane, and the cross (Matthew 26–27; John 19)</small></a>
+    <a class="level" data-id="7-5" href="world-7-5-risen.html">7-5 · He Is Risen! <small>The empty tomb: run and tell the good news (Luke 24)</small></a>
+  </div>
+
+  <div class="world" data-world="8" data-icon="🌍" data-color="#3730a3">
+    <h2>World 8 · To the Ends of the Earth</h2>
+    <a class="level" data-id="8-1" href="world-8-1-pentecost.html">8-1 · Good News for Many Nations <small>The Spirit comes; help visitors from every nation to hear (Acts 2)</small></a>
+    <a class="level" data-id="8-2" href="world-8-2-no-one-forgotten.html">8-2 · No One Forgotten <small>Serve every household; seven trustworthy men oversee the daily need (Acts 6:1–7)</small></a>
+    <a class="level" data-id="8-3" href="world-8-3-desert-road.html">8-3 · The Desert Road <small>Run to the chariot; Isaiah 53 explained; "See, here is water" (Acts 8)</small></a>
+    <a class="level" data-id="8-4" href="world-8-4-basket.html">8-4 · Over the Wall <small>A light on the road; Saul is changed; down the wall in a basket (Acts 9)</small></a>
+    <a class="level" data-id="8-5" href="world-8-5-gate.html">8-5 · Knocking at the Gate <small>The church prays; follow the light out of prison; Rhoda forgets the gate (Acts 12)</small></a>
+    <a class="level" data-id="8-6" href="world-8-6-midnight.html">8-6 · Songs at Midnight <small>Armor on! The earthquake, the open doors, the jailer believes (Acts 16)</small></a>
+    <a class="level" data-id="8-7" href="world-8-7-ephesus.html">8-7 · The Uproar in Ephesus <small>Books to the fire; shouting crowds; keep Paul and his friends safe (Acts 19)</small></a>
+    <a class="level" data-id="8-8" href="world-8-8-storm.html">8-8 · Through the Storm <small>Stand firm in the gusts; not one is lost (Acts 27–28)</small></a>
+    <a class="level" data-id="8-9" href="world-8-9-tree-of-life.html">8-9 · The Tree of Life <small>All things made new; the gate stands open (Revelation 21–22)</small></a>
+  </div>
+
+  <p class="tip">Up to 4 players. Pick a world, then a level, with the D-pad (or arrow keys) and A (or Enter). B / Esc goes back; LB / RB change world. In the lobby: press A on a controller (the first one is Player 1), E for the WASD keys, or Enter for the arrow keys.</p>
+  <button id="reset" hidden>Start over (clear saved progress)</button>
+  <script src="build-info.js"></script>
+  <script src="save-store.js"></script>
+  <script src="save-ui.js"></script>
+  <script src="verses.js"></script>
+  <script>
+    // "Continue" from a level's results: index.html?next=<id> goes straight to the level after it.
+    (function () {
+      var m = location.search.match(/[?&]next=([\w-]+)/);
+      if (!m) return;
+      var links = Array.prototype.slice.call(document.querySelectorAll('a.level[data-id]'));
+      var i = links.findIndex(function (a) { return a.getAttribute('data-id') === m[1]; });
+      if (i >= 0 && links[i + 1]) location.replace(links[i + 1].getAttribute('href'));
+    })();
+  </script>
+  <script>
+    // The menu: world tiles first, then the levels of one world. Saved progress shows on both.
+    (function () {
+      var all = { levels: {} };
+      try { all = window.SQSave ? SQSave.read() : JSON.parse(localStorage.getItem('scrollquest.progress.v1')) || all; } catch (e) {}
+      if (!all.levels) all.levels = {};
+      // World 8 was renumbered (Songs at Midnight 8-4 -> 8-6, Through the Storm 8-5 -> 8-8): move old saves once
+      if (!all.w8) {
+        if (all.levels['8-5']) { all.levels['8-8'] = all.levels['8-5']; delete all.levels['8-5']; }
+        if (all.levels['8-4']) { all.levels['8-6'] = all.levels['8-4']; delete all.levels['8-4']; }
+        all.w8 = 1;
+        try { if(window.SQSave)SQSave.write(all);else localStorage.setItem('scrollquest.progress.v1', JSON.stringify(all)); } catch (e) {}
+      }
+      var levels = Array.prototype.slice.call(document.querySelectorAll('a.level[data-id]'));
+      var title = function (a) { return a.firstChild.textContent.trim(); };
+      var recordDisplay=false;try{recordDisplay=localStorage.getItem('scrollquest.records')==='1';}catch(e){}
+      var any = false;
+      levels.forEach(function (a) {
+        var r = all.levels[a.getAttribute('data-id')];
+        if (!r || !r.done) return;
+        any = true;
+        a.classList.add('done');
+        var s = document.createElement('span');
+        s.className = 'prog';
+        if (r.solemn) { s.textContent = '✓ Remembered'; a.appendChild(s); return; }
+        var st = r.stars || 1;
+        s.textContent = '⭐'.repeat(st) + '☆'.repeat(3 - st) + '  ·  📜 ' + r.frags + '/' + r.fragTotal + (r.gold ? '  ·  🌟 Golden Scroll' : '') + (r.servant ? '  ·  🧺 ' + r.servant : '');
+        if(r.discovered&&r.discovered.length)s.textContent+='  ·  🔎 '+r.discovered.length+'/'+(r.discoveryTotal||r.discovered.length)+' discoveries';
+        if(recordDisplay&&r.teamRecords&&r.teamRecords[r.lastTeamKey]){var key=r.lastTeamKey.split(':'),sec=r.teamRecords[r.lastTeamKey].seconds;s.textContent+='  ·  Team best '+key[1]+'p '+key[0]+' '+Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');}
+        a.appendChild(s);
+      });
+      // Play the story in chronological order. A level opens when the one before it is finished (Family settings can open them all).
+      var inOrder = true; try { inOrder = localStorage.getItem('scrollquest.order') !== 'all'; } catch (e) {}
+      levels.forEach(function (a, k) {
+        if (!inOrder || k === 0 || a.classList.contains('done') || levels[k - 1].classList.contains('done')) return;
+        a.classList.add('locked'); a.setAttribute('aria-disabled', 'true'); a.setAttribute('data-href', a.getAttribute('href')); a.removeAttribute('href');
+        var s = document.createElement('span'); s.className = 'prog'; s.textContent = '🔒 Finish ' + title(levels[k - 1]).replace(/^[\d-]+ · /, '') + ' first'; a.appendChild(s);
+        a.addEventListener('click', function (e) { e.preventDefault(); });
+      });
+      window.SQMenuLocked = levels.filter(function (a) { return a.classList.contains('locked'); }).map(function (a) { return a.getAttribute('data-id'); });
+      // Continue: the first unfinished level after the last one played (or the first unfinished one)
+      var lastI = levels.findIndex(function (a) { return a.getAttribute('data-id') === all.last; });
+      var next = levels.slice(lastI + 1).concat(levels.slice(0, lastI + 1)).find(function (a) { return !a.classList.contains('done') && !a.classList.contains('locked'); });
+      var cont = document.getElementById('continue'), again = document.getElementById('again');
+      if (!any) { cont.hidden = false; cont.href = levels[0].getAttribute('href'); cont.innerHTML = '▶ Start the adventure<small>' + title(levels[0]) + '</small>'; }
+      else if (next) { cont.hidden = false; cont.href = next.getAttribute('href'); cont.innerHTML = '▶ Continue<small>' + title(next) + '</small>'; }
+      var last = levels[lastI];
+      if (last) { again.hidden = false; again.href = last.getAttribute('href'); again.textContent = '🔁 Play again: ' + title(last); }
+
+      // world tiles
+      var worlds = Array.prototype.slice.call(document.querySelectorAll('.world[data-world]'));
+      var tiles = document.getElementById('tiles');
+      worlds.forEach(function (w) {
+        var ls = w.querySelectorAll('a.level[data-id]'), done = w.querySelectorAll('a.level.done').length;
+        var stars = 0; Array.prototype.forEach.call(ls, function (a) { var r = all.levels[a.getAttribute('data-id')]; if (r && r.done) stars += r.solemn ? 3 : (r.stars || 1); });
+        var name = w.querySelector('h2').textContent.split('·');
+        var t = document.createElement('a');
+        t.className = 'tile'; t.href = '#w' + w.getAttribute('data-world'); t.style.background = w.getAttribute('data-color');
+        t.innerHTML = '<div class="ic">' + w.getAttribute('data-icon') + '</div><div class="num">' + name[0].trim() + '</div><div class="nm">' + (name[1] || '').trim() + '</div>' +
+          '<div class="pr">' + (ls[0] && ls[0].classList.contains('locked') ? '🔒 ' : '') + done + ' / ' + ls.length + ' done' + (stars ? '  ·  ⭐ ' + stars : '') + '</div>' +
+          (w.getAttribute('data-world') === '6' ? '<div class="pr">✨ New friend: the Apostle</div>' : '');
+        if (ls[0] && ls[0].classList.contains('locked')) t.classList.add('locked');
+        t.onclick = function (e) { e.preventDefault(); openWorld(w.getAttribute('data-world')); };
+        tiles.appendChild(t);
+      });
+
+      var home = document.getElementById('home'), view = document.getElementById('worldview'), wt = document.getElementById('worldtitle');
+      var current = null, panel = null;
+
+      // ---------- settings (same keys the game reads) ----------
+      var DEF = { order: 'order', reader: 'p1', speak: '0', bigtext: '0', sound: 'loud', timer: '0', gentle: '0', outfit: 'plain', tilt: '1', challenge: 'adventure', records: '0', musicVolume:'100',effectsVolume:'100',voiceVolume:'100' };
+      function get(k) { try { var v = localStorage.getItem('scrollquest.' + k); return v === null ? DEF[k] : v; } catch (e) { return DEF[k]; } }
+      function put(k, v) { try { localStorage.setItem('scrollquest.' + k, v); } catch (e) {} }
+      if (get('bigtext') === '1') document.body.classList.add('big');
+      var SETS = [
+        { k: 'reader', label: '📖 Story pages', vals: ['p1', 'all', 'any'], names: { p1: 'Player 1 turns them', all: 'everyone says ready', any: 'anyone' } },
+        { k: 'speak', label: '🔊 Read story cards aloud', vals: ['0', '1'], names: { 0: 'off', 1: 'on' } },
+        { k: 'bigtext', label: '🔠 Bigger text', vals: ['0', '1'], names: { 0: 'off', 1: 'on' } },
+        { k: 'sound', label: '🎵 Sound', vals: ['loud', 'quiet', 'off'], names: { loud: 'normal', quiet: 'quiet', off: 'off' } },
+        {k:'musicVolume',label:'🎵 Music volume',vals:['0','25','60','100'],names:{0:'off',25:'25%',60:'60%',100:'100%'}},
+        {k:'effectsVolume',label:'🔔 Sound effects volume',vals:['0','25','60','100'],names:{0:'off',25:'25%',60:'60%',100:'100%'}},
+        {k:'voiceVolume',label:'🗣️ Narration volume',vals:['0','25','60','100'],names:{0:'off',25:'25%',60:'60%',100:'100%'}},
+        { k: 'timer', label: '⏱️ Timer', vals: ['0', '1'], names: { 0: 'hidden (no rush)', 1: 'shown' } },
+        { k:'records',label:'⏱️ Team records',vals:['0','1'],names:{0:'off (no rush)',1:'on: separate records by team size and challenge'} },
+        { k: 'gentle', label: '🌱 Gentler sneaking levels', vals: ['0', '1'], names: { 0: 'off', 1: 'on: more time to hide' } },
+        { k: 'order', label: '🔒 Levels', vals: ['order', 'all'], names: { order: 'in Bible order (finish one to open the next)', all: 'all open' } },
+        { k: 'challenge', label: '♥ Challenge (next level)', vals: ['adventure', 'practice'], names: { adventure: 'Adventure: hearts and shared lives', practice: 'Practice: unlimited retries' } },
+        { k: 'tilt', label: '🔍 Miniature look (soft blur far away)', vals: ['1', '0'], names: { 1: 'on', 0: 'off' } }
+      ];
+      function say(t) { try { if (window.speechSynthesis && window.SpeechSynthesisUtterance) { speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(t); u.rate = 0.9;var volume=Number(get('voiceVolume'));u.volume=Number.isFinite(volume)?Math.max(0,Math.min(1,volume/100)):1;if(u.volume>0)speechSynthesis.speak(u); } } catch (e) {} window.SQMenuLastSaid = t; }
+      function spokenRef(r) { return r.replace(/(\d+):(\d+)[–-](\d+)/, '$1, verses $2 to $3').replace(/(\d+):(\d+)/, '$1, verse $2'); }
+      function renderSettings() {
+        var box = document.getElementById('setlist'); box.innerHTML = '';
+        SETS.forEach(function (st) {
+          var b = document.createElement('button'); b.className = 'nav';
+          b.innerHTML = st.label + ' <b>' + st.names[get(st.k)] + '</b>';
+          b.onclick = function () {
+            var v = st.vals[(st.vals.indexOf(get(st.k)) + 1) % st.vals.length]; put(st.k, v);
+            if (st.k === 'bigtext') document.body.classList.toggle('big', v === '1');
+            if (st.k === 'speak' && v === '1') say('Read aloud is on.');
+            if (st.k === 'order') { location.reload(); return; }
+            var keep = i; renderSettings(); focus(keep);
+          };
+          box.appendChild(b);
+        });
+        if(window.SQSaveUI)SQSaveUI.attach(box);
+        // outfits earned with stars (the game draws them; plain clothes of the time)
+        var OUT = [['plain', '👕 Plain robe', 0], ['garland', '🌸 Flower garland', 3], ['tassels', '🧵 Blue tassels', 8], ['sash', '✨ Golden sash', 15], ['cloak', '🧥 Travel cloak', 25]];
+        var stars = levels.reduce(function (t, a) { var l = (all.levels || {})[a.getAttribute('data-id')]; return t + ((l && l.stars) || 0); }, 0);
+        var open = OUT.filter(function (o) { return stars >= o[2]; }), cur = get('outfit') || 'plain';
+        if (!open.some(function (o) { return o[0] === cur; })) cur = 'plain';
+        var nextO = OUT.find(function (o) { return stars < o[2]; });
+        var ob = document.createElement('button'); ob.className = 'nav';
+        ob.innerHTML = '👘 Outfit' + (nextO ? ' <small style="font-weight:normal;opacity:.75">(next: ' + nextO[1].split(' ')[0] + ' at ' + nextO[2] + ' ⭐, you have ' + stars + ')</small>' : '') + ' <b>' + OUT.find(function (o) { return o[0] === cur; })[1] + '</b>';
+        ob.onclick = function () { var k = open.findIndex(function (o) { return o[0] === cur; }); put('outfit', open[(k + 1) % open.length][0]); var keep = i; renderSettings(); focus(keep); };
+        box.appendChild(ob);
+        var r = document.createElement('button'); r.className = 'nav'; r.innerHTML = '🧹 Start over <b>clear saved progress</b>';
+        r.onclick = function () { if (!confirm('Clear all saved progress?')) return; try { if(window.SQSave)SQSave.clear();else localStorage.removeItem('scrollquest.progress.v1'); } catch (e) {} location.reload(); };
+        box.appendChild(r);
+      }
+
+      // ---------- the Scroll Shelf ----------
+      var V = window.SQ_VERSES || {};
+      function renderShelf() {
+        var box = document.getElementById('verses'); box.innerHTML = '';
+        levels.forEach(function (a) {
+          var id = a.getAttribute('data-id'), v = V[id]; if (!v) return;
+          var got = a.classList.contains('done');
+          var d = document.createElement('div'); d.className = 'verse' + (got ? '' : ' locked');
+          if (!got) { d.innerHTML = '<div class="vl">' + title(a).split(' · ')[0] + ' · ' + v.title + '</div><div class="vr">🔒 Finish this level to add its verse</div>'; box.appendChild(d); return; }
+          d.innerHTML = '<div class="vl">' + title(a).split(' · ')[0] + ' · ' + v.title + '</div><div class="vt"></div><div class="vr"></div><div class="row"></div>';
+          d.querySelector('.vt').textContent = '“' + v.text + '”'; d.querySelector('.vr').textContent = '— ' + v.ref + ' (KJV)';
+          var row = d.querySelector('.row');
+          var mk = function (label, fn) { var b = document.createElement('button'); b.className = 'nav'; b.textContent = label; b.onclick = fn; row.appendChild(b); return b; };
+          mk('🔊 Read it', function () { say(v.text + '. ' + spokenRef(v.ref) + '.'); });
+          mk('🧩 Practise', function () { practise(d, v); });
+          mk('🖥️ Show big', function () { showBig(v); });
+          box.appendChild(d);
+        });
+      }
+      function practise(d, v) {                   // hide one longer word; pick it from three
+        var words = v.text.split(/\s+/), cand = [];
+        words.forEach(function (w, k) { var c = w.replace(/[^A-Za-z’']/g, ''); if (c.length >= 4) cand.push(k); });
+        if (!cand.length) return;
+        var k = cand[Math.floor(Math.random() * cand.length)], right = words[k].replace(/[^A-Za-z’']/g, '');
+        var mine = words.map(function (x) { return x.replace(/[^A-Za-z’']/g, '').toLowerCase(); });   // never offer another word from this verse
+        var cap = function (x) { return x[0] !== x[0].toLowerCase(); };   // same capital-or-not, so the answer isn't given away
+        var pool = []; Object.keys(V).forEach(function (id) { V[id].text.split(/\s+/).forEach(function (w) { w = w.replace(/[^A-Za-z’']/g, ''); if (w.length >= 4 && cap(w) === cap(right) && mine.indexOf(w.toLowerCase()) < 0 && pool.indexOf(w) < 0) pool.push(w); }); });
+        var opts = [right]; while (opts.length < 3 && pool.length) { var w = pool.splice(Math.floor(Math.random() * pool.length), 1)[0]; opts.push(w); }
+        opts.sort(function () { return Math.random() - 0.5; });
+        var vt = d.querySelector('.vt'); vt.innerHTML = '';
+        vt.appendChild(document.createTextNode('“' + words.slice(0, k).join(' ') + ' '));
+        var bl = document.createElement('span'); bl.className = 'blank'; bl.innerHTML = '&nbsp;'; vt.appendChild(bl);
+        vt.appendChild(document.createTextNode(words[k].replace(right, '') + ' ' + words.slice(k + 1).join(' ') + '”'));
+        var row = d.querySelector('.row'); row.innerHTML = '';
+        var fb = document.createElement('div'); fb.className = 'fb';
+        opts.forEach(function (o) {
+          var b = document.createElement('button'); b.className = 'nav'; b.textContent = o;
+          b.onclick = function () {
+            if (o === right) { bl.textContent = right; fb.textContent = '✅ Yes! Say the whole verse together.'; setTimeout(function () { renderShelf(); focusFirstIn(d.querySelector('.vl').textContent); }, 1800); }
+            else fb.textContent = 'Not quite: try again!';
+          };
+          row.appendChild(b);
+        });
+        row.appendChild(fb); var keep = i; focus(keep);
+      }
+      function focusFirstIn(label) { var list = items(); var k = list.findIndex(function (b) { var v = b.closest && b.closest('.verse'); return v && v.querySelector('.vl').textContent === label; }); focus(k < 0 ? 0 : k); }
+      var big = document.getElementById('bigverse');
+      function showBig(v) { big.querySelector('.bvt').textContent = '“' + v.text + '”'; big.querySelector('.bvr').textContent = v.ref; big.hidden = false; }
+      big.onclick = function () { big.hidden = true; };
+
+      function openPanel(name) {
+        showHome(true);
+        panel = name; home.hidden = true;
+        document.getElementById(name).hidden = false;
+        if (name === 'shelf') renderShelf(); else if (name === 'settings') renderSettings();
+        focus(1); window.scrollTo(0, 0);
+      }
+      document.querySelectorAll('.panel .back').forEach(function (b) { b.onclick = function (e) { e.preventDefault(); showHome(); }; });
+      // Family tools and the verse shelf
+      var gotVerses = levels.filter(function (a) { return a.classList.contains('done') && V[a.getAttribute('data-id')]; }).length;
+      [['📖', 'Scroll Shelf', gotVerses + ' / ' + Object.keys(V).length + ' verses', 'shelf'], ['⚙️', 'Family settings', 'reading, sound, text size', 'settings'], ['🙏', 'Thank you', 'who helped make it', 'credits']].forEach(function (x) {
+        var t = document.createElement('a'); t.className = 'tile extra'; t.href = '#' + x[3];
+        t.innerHTML = '<div class="ic">' + x[0] + '</div><div class="nm">' + x[1] + '</div><div class="pr">' + x[2] + '</div>';
+        t.onclick = function (e) { e.preventDefault(); openPanel(x[3]); };
+        tiles.appendChild(t);
+      });
+      var practice=document.createElement('a');practice.className='tile extra';practice.href='practice.html';practice.innerHTML='<div class="ic">🌱</div><div class="nm">Practice yard</div><div class="pr">Jumps, teamwork and ropes · unlimited retries</div>';tiles.appendChild(practice);
+      function openWorld(n) {
+        if (panel) { document.getElementById(panel).hidden = true; panel = null; }
+        if (current) document.body.insertBefore(current, document.querySelector('.tip'));
+        current = worlds.find(function (w) { return w.getAttribute('data-world') === String(n); });
+        if (!current) return showHome();
+        view.appendChild(current);
+        wt.textContent = current.getAttribute('data-icon') + '  ' + current.querySelector('h2').textContent;
+        home.hidden = true; view.hidden = false;
+        try { sessionStorage.setItem('scrollquest.world', n); } catch (e) {}
+        if (location.hash !== '#w' + n) history.replaceState(null, '', '#w' + n);
+        focus(1); window.scrollTo(0, 0);
+      }
+      function showHome(quiet) {
+        if (current) { document.body.insertBefore(current, document.querySelector('.tip')); current = null; }
+        view.hidden = true; home.hidden = false; big.hidden = true;
+        if (panel) { document.getElementById(panel).hidden = true; panel = null; }
+        if (quiet) return;
+        if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+        focus(0); window.scrollTo(0, 0);
+      }
+      function nextWorld(d) { if (!current) return; var k = worlds.indexOf(current); openWorld(worlds[(k + d + worlds.length) % worlds.length].getAttribute('data-world')); }
+      document.getElementById('back').onclick = function (e) { e.preventDefault(); showHome(); };
+      window.SQMenu = { openWorld: openWorld, showHome: showHome, nextWorld: nextWorld, openPanel: openPanel };   // (for tests)
+
+      // choosing with a controller (D-pad / stick, A, B, LB / RB) or the keyboard (arrows, Enter, Esc)
+      var i = -1, prev = {}, held = 0;
+      function items() { return Array.prototype.slice.call(document.querySelectorAll(panel ? '#' + panel + ' .nav' : current ? '#back, #worldview a.level' : '#continue, #again, .tile')).filter(function (a) { return !a.hidden; }); }
+      function focus(k) {
+        var list = items(); if (!list.length) return;
+        i = (k + list.length) % list.length;
+        list.forEach(function (a, n) { a.classList.toggle('focus', n === i); });
+        if (list[i].scrollIntoView) list[i].scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+      function move(dir) {                       // the tile grid is 2 wide; lists are 1 wide
+        var list = items(); if (i < 0) return focus(0);
+        var cur = list[i], isTile = cur.classList.contains('tile');
+        var cols = isTile && getComputedStyle(tiles).gridTemplateColumns.split(' ').length > 1 ? 2 : 1;
+        if (dir === 'left' || dir === 'right') { if (cols === 2) focus(i + (dir === 'right' ? 1 : -1)); return; }
+        var step = isTile ? cols : 1;
+        if (dir === 'down') { if (!isTile || i + step < list.length) focus(i + step); }
+        else if (isTile) { var firstTile = list.findIndex(function (a) { return a.classList.contains('tile'); }); focus(i - step >= firstTile ? i - step : firstTile - 1); }
+        else focus(i - 1);
+      }
+      function choose() { var a = items()[i]; if (a) a.click(); }
+      function back() { if (!big.hidden) { big.hidden = true; return; } if (current || panel) showHome(); }
+      document.addEventListener('keydown', function (e) {
+        var k = e.key;
+        if (k === 'ArrowDown') { e.preventDefault(); move('down'); }
+        else if (k === 'ArrowUp') { e.preventDefault(); move('up'); }
+        else if (k === 'ArrowLeft') { e.preventDefault(); move('left'); }
+        else if (k === 'ArrowRight') { e.preventDefault(); move('right'); }
+        else if ((k === 'Enter' || k === ' ') && i >= 0) { e.preventDefault(); choose(); }
+        else if (k === 'Escape' || k === 'Backspace') { e.preventDefault(); back(); }
+        else if (k === '[' || k === 'PageUp') nextWorld(-1);
+        else if (k === ']' || k === 'PageDown') nextWorld(1);
+      });
+      function poll() {
+        var pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (var n = 0; n < pads.length; n++) {
+          var p = pads[n]; if (!p || !p.connected) continue;
+          var b = function (k) { return !!(p.buttons[k] && p.buttons[k].pressed); };
+          var st = { down: b(13) || p.axes[1] > 0.6, up: b(12) || p.axes[1] < -0.6, left: b(14) || p.axes[0] < -0.6, right: b(15) || p.axes[0] > 0.6,
+            a: b(0) || b(9), back: b(1), lb: b(4), rb: b(5) };
+          var was = prev[n] || {};
+          var dirs = ['down', 'up', 'left', 'right'], movedNow = false;
+          dirs.forEach(function (d) { if (st[d] && (!was[d] || held > 18)) { move(d); movedNow = true; } });
+          if (movedNow && held > 18) held = 12;
+          if (st.down || st.up || st.left || st.right) held++; else held = 0;
+          if (st.a && !was.a) { if (i < 0) focus(0); else choose(); }
+          if (st.back && !was.back) back();
+          if (st.lb && !was.lb) nextWorld(-1);
+          if (st.rb && !was.rb) nextWorld(1);
+          prev[n] = st;
+        }
+        requestAnimationFrame(poll);
+      }
+      requestAnimationFrame(poll);
+
+      // a soft fade out when leaving for a level (and back in if the browser's Back button returns here)
+      window.addEventListener('pageshow', function () { document.body.classList.remove('leaving'); });
+      document.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('a[href]');
+        if (!a || e.defaultPrevented) return;
+        var h = a.getAttribute('href');
+        if (!h || h.charAt(0) === '#') return;
+        e.preventDefault(); document.body.classList.add('leaving');
+        setTimeout(function () { location.href = h; }, 280);
+      });
+
+      var start = (location.hash.match(/^#w(\d)/) || [])[1];
+      if (start) openWorld(start); else if (location.hash === '#shelf' || location.hash === '#settings' || location.hash === '#credits') openPanel(location.hash.slice(1)); else showHome();
+
+      var btn = document.getElementById('reset');
+      if (any) btn.hidden = false;
+      btn.onclick = function () {
+        if (!confirm('Clear all saved progress?')) return;
+        try { if(window.SQSave)SQSave.clear();else localStorage.removeItem('scrollquest.progress.v1'); } catch (e) {}
+        location.reload();
+      };
+    })();
+  </script>
+</body>
+</html>

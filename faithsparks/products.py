@@ -108,6 +108,11 @@ PRODUCTS = (
         "description": "Reach for targets, dodge obstacles, and freeze to the beat in a camera-controlled rhythm game for one or two players.",
     },
     {
+        "id": "scroll-quest", "name": "Scroll Quest", "area": "labs",
+        "maturity": "beta", "path": "/labs/scroll-quest", "accent": "gold",
+        "description": "Explore 54 Bible-story chapters across eight worlds in a 3D adventure for solo or local family play.",
+    },
+    {
         "id": "games-lab", "name": "Games Lab", "area": "labs",
         "maturity": "sandbox", "path": "/labs/games", "accent": "gold",
         "description": "Try small interactive game prototypes for families while we refine the controls, levels, and play flow.",
