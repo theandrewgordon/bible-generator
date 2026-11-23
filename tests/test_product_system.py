@@ -13,10 +13,31 @@ def test_product_registry_has_task_first_navigation_and_formal_labs():
     ]
     labs = [product for product in PRODUCTS if product["area"] == "labs"]
     assert {product["maturity"] for product in labs} <= {"beta", "experiment", "sandbox"}
-    assert {product["id"] for product in labs} == {"weekflow", "coloring-studio", "games-lab", "same-brain", "reading-quest", "latin-quest", "math-fact-rally", "geo-detectives", "grammar-grove", "learning-adventure"}
+    assert {product["id"] for product in labs} == {
+        "weekflow", "coloring-studio", "games-lab", "same-brain", "reading-quest",
+        "latin-quest", "math-fact-rally", "geo-detectives", "grammar-grove",
+        "learning-adventure", "bodybeat",
+    }
     assert next(product for product in PRODUCTS if product["id"] == "same-brain")["path"] == "/same-brain"
     assert all(product["path"] != "/speeddie" for product in PRODUCTS)
 
+
+
+def test_bodybeat_is_listed_and_serves_the_scoped_bundle(plus_visitor, monkeypatch, tmp_path):
+    monkeypatch.setattr(app, "static_folder", str(tmp_path))
+    with app.test_client() as client:
+        assert b'href="/labs/bodybeat"' in client.get("/labs").data
+        assert client.get("/labs/bodybeat").status_code == 503
+
+        bundle = tmp_path / "labs" / "bodybeat"
+        bundle.mkdir(parents=True)
+        (bundle / "index.html").write_text("<title>BodyBeat</title>", encoding="utf-8")
+        response = client.get("/labs/bodybeat")
+    assert response.status_code == 200
+    assert b"<title>BodyBeat</title>" in response.data
+    assert response.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["Cache-Control"] == "private, no-store"
+    assert "noindex" in response.headers["X-Robots-Tag"]
 
 
 def test_geo_detectives_is_an_illustrated_guess_first_root_lab(plus_visitor):

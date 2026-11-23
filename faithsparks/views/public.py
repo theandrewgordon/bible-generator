@@ -287,6 +287,21 @@ def geo_detectives():
     return response
 
 
+@bp.get('/labs/bodybeat')
+def bodybeat_lab():
+    """Serve the production bundle for the camera-controlled rhythm game."""
+    game_file = Path(current_app.static_folder) / 'labs' / 'bodybeat' / 'index.html'
+    if not game_file.is_file():
+        abort(503)
+    response = send_file(game_file, mimetype='text/html')
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    # Do not copy other Labs routes' no-referrer header: YouTube embeds need referrer identity.
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
 @bp.get('/labs')
 def labs():
     return render_template(

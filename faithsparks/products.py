@@ -103,6 +103,11 @@ PRODUCTS = (
         "description": "The Field Atlas: solve 125 landscape mysteries and explore 55 comparisons, with automatic two-team scoring and watercolor scenes.",
     },
     {
+        "id": "bodybeat", "name": "BodyBeat", "area": "labs",
+        "maturity": "sandbox", "path": "/labs/bodybeat", "accent": "gold",
+        "description": "Reach for targets, dodge obstacles, and freeze to the beat in a camera-controlled rhythm game for one or two players.",
+    },
+    {
         "id": "games-lab", "name": "Games Lab", "area": "labs",
         "maturity": "sandbox", "path": "/labs/games", "accent": "gold",
         "description": "Try small interactive game prototypes for families while we refine the controls, levels, and play flow.",
